@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 // Removed unused Card and CardContent imports
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { 
+import {
   Folder,
   FolderPlus,
   File,
@@ -47,7 +47,8 @@ const fileOrganizationSchema = z.object({
   folder: z.string().optional(),
 });
 
-type FileOrganizationFormData = z.infer<typeof fileOrganizationSchema>;
+type FileOrganizationFormSchema = z.input<typeof fileOrganizationSchema>;
+type FileOrganizationFormData = z.output<typeof fileOrganizationSchema>;
 
 interface FileFolder {
   id: string;
@@ -83,8 +84,8 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
 
-  const form = useForm<FileOrganizationFormData>({
-    resolver: zodResolver(fileOrganizationSchema),
+  const form = useForm<FileOrganizationFormSchema, any, FileOrganizationFormData>({
+    resolver: zodResolver<FileOrganizationFormSchema, any, FileOrganizationFormData>(fileOrganizationSchema),
     defaultValues: {
       name: file.name,
       description: file.description || '',
@@ -137,7 +138,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
         projectId: file.projectId,
         createdBy: file.uploaderId,
       });
-      
+
       form.setValue('folder', newFolder.id);
       setNewFolderName('');
       setShowCreateFolder(false);
@@ -159,7 +160,6 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
         folder: data.folder || undefined,
         lastModified: Timestamp.now(),
       };
-      };
 
       await onSave(file.id, updates);
       handleClose();
@@ -172,7 +172,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
 
   const renderFolderTree = (parentId?: string, level = 0) => {
     const childFolders = folders.filter(f => f.parentId === parentId);
-    
+
     return childFolders.map(folder => (
       <React.Fragment key={folder.id}>
         <SelectItem value={folder.id}>
@@ -202,7 +202,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* File Name */}
-            <FormField
+            <FormField<FileOrganizationFormSchema, 'name'>
               control={form.control}
               name="name"
               render={({ field }) => (
@@ -217,7 +217,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
             />
 
             {/* Description */}
-            <FormField
+            <FormField<FileOrganizationFormSchema, 'description'>
               control={form.control}
               name="description"
               render={({ field }) => (
@@ -237,13 +237,16 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Category */}
-              <FormField
+              <FormField<FileOrganizationFormSchema, 'category'>
                 control={form.control}
                 name="category"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={(value) => field.onChange(value)}
+                      value={field.value ?? ''}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
@@ -263,14 +266,17 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
               />
 
               {/* Folder */}
-              <FormField
+              <FormField<FileOrganizationFormSchema, 'folder'>
                 control={form.control}
                 name="folder"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Folder</FormLabel>
                     <div className="space-y-2">
-                      <Select onValueChange={field.onChange} value={field.value}>
+                      <Select
+                        onValueChange={(value) => field.onChange(value)}
+                        value={field.value ?? ''}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select folder (optional)" />
@@ -286,7 +292,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
                           {renderFolderTree()}
                         </SelectContent>
                       </Select>
-                      
+
                       {onCreateFolder && (
                         <div className="flex gap-2">
                           {!showCreateFolder ? (
@@ -351,7 +357,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
                 <Tag className="h-4 w-4" />
                 Tags
               </FormLabel>
-              
+
               {/* Add new tag */}
               <div className="flex gap-2">
                 <Input

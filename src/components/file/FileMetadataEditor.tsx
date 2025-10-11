@@ -21,10 +21,10 @@ import {
   Textarea,
   Badge
 } from '@/lib/shadcn';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   Separator,
   Select,
@@ -32,13 +32,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Tabs, 
-  TabsContent, 
-  TabsList, 
+  Tabs,
+  TabsContent,
+  TabsList,
   TabsTrigger,
   Switch
 } from '@/lib/shadcn';
-import { 
+import {
   Save,
   X,
   Loader2,
@@ -79,7 +79,10 @@ const fileMetadataSchema = z.object({
   customMetadata: z.record(z.string(), z.string()).optional(),
 });
 
-type FileMetadataFormData = z.infer<typeof fileMetadataSchema>;
+type FileMetadataFormSchema = z.input<typeof fileMetadataSchema>;
+type FileMetadataFormData = z.output<typeof fileMetadataSchema>;
+type PermissionToggleField = Exclude<keyof FileMetadataFormData['permissions'], 'level'>;
+type PermissionFieldName = `permissions.${PermissionToggleField}`;
 
 interface FileVersion {
   id: string;
@@ -142,8 +145,8 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
   const [customMetadataKey, setCustomMetadataKey] = useState('');
   const [customMetadataValue, setCustomMetadataValue] = useState('');
 
-  const form = useForm<FileMetadataFormData>({
-    resolver: zodResolver(fileMetadataSchema),
+  const form = useForm<FileMetadataFormSchema, any, FileMetadataFormData>({
+    resolver: zodResolver<FileMetadataFormSchema, any, FileMetadataFormData>(fileMetadataSchema),
     defaultValues: {
       name: file.name,
       description: file.description || '',
@@ -234,7 +237,6 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
         customMetadata: data.customMetadata,
         lastModified: Timestamp.now(),
       };
-      };
 
       await onSave(file.id, updates);
       handleClose();
@@ -282,7 +284,7 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <TabsContent value="basic" className="space-y-4">
                 {/* File Name */}
-                <FormField
+                <FormField<FileMetadataFormSchema, 'name'>
                   control={form.control}
                   name="name"
                   render={({ field }) => (
@@ -297,7 +299,7 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                 />
 
                 {/* Description */}
-                <FormField
+                <FormField<FileMetadataFormSchema, 'description'>
                   control={form.control}
                   name="description"
                   render={({ field }) => (
@@ -320,7 +322,7 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                 />
 
                 {/* Category */}
-                <FormField
+                <FormField<FileMetadataFormSchema, 'category'>
                   control={form.control}
                   name="category"
                   render={({ field }) => (
@@ -351,7 +353,7 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                     <Tag className="h-4 w-4" />
                     Tags
                   </FormLabel>
-                  
+
                   {canEdit && (
                     <div className="flex gap-2">
                       <Input
@@ -428,15 +430,15 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                 )}
 
                 {/* Access Level */}
-                <FormField
+                <FormField<FileMetadataFormSchema, 'permissions.level'>
                   control={form.control}
                   name="permissions.level"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Access Level</FormLabel>
-                      <Select 
-                        onValueChange={field.onChange} 
-                        value={field.value} 
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value}
                         disabled={!canManagePermissions}
                       >
                         <FormControl>
@@ -470,37 +472,40 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                 <div className="space-y-4">
                   <h4 className="font-medium">Individual Permissions</h4>
                   <div className="grid grid-cols-1 gap-4">
-                    {(['allowDownload', 'allowShare', 'allowDelete', 'allowVersioning', 'allowComments'] as const).map((permission) => (
-                      <FormField
-                        key={permission}
-                        control={form.control}
-                        name={`permissions.${permission}`}
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                            <div className="space-y-0.5">
-                              <FormLabel className="flex items-center gap-2 text-base">
-                                {getPermissionIcon(permission)}
-                                {getPermissionLabel(permission)}
-                              </FormLabel>
-                              <FormDescription>
-                                {permission === 'allowDownload' && 'Allow users to download this file'}
-                                {permission === 'allowShare' && 'Allow users to share this file with others'}
-                                {permission === 'allowDelete' && 'Allow users to delete this file'}
-                                {permission === 'allowVersioning' && 'Allow users to upload new versions'}
-                                {permission === 'allowComments' && 'Allow users to add comments'}
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                                disabled={!canManagePermissions}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    ))}
+                    {(['allowDownload', 'allowShare', 'allowDelete', 'allowVersioning', 'allowComments'] as const).map((permission) => {
+                      const fieldName = `permissions.${permission}` as PermissionFieldName;
+                      return (
+                        <FormField<FileMetadataFormSchema, PermissionFieldName>
+                          key={permission}
+                          control={form.control}
+                          name={fieldName}
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                              <div className="space-y-0.5">
+                                <FormLabel className="flex items-center gap-2 text-base">
+                                  {getPermissionIcon(permission)}
+                                  {getPermissionLabel(permission)}
+                                </FormLabel>
+                                <FormDescription>
+                                  {permission === 'allowDownload' && 'Allow users to download this file'}
+                                  {permission === 'allowShare' && 'Allow users to share this file with others'}
+                                  {permission === 'allowDelete' && 'Allow users to delete this file'}
+                                  {permission === 'allowVersioning' && 'Allow users to upload new versions'}
+                                  {permission === 'allowComments' && 'Allow users to add comments'}
+                                </FormDescription>
+                              </div>
+                              <FormControl>
+                                <Switch
+                                  checked={Boolean(field.value)}
+                                  onCheckedChange={field.onChange}
+                                  disabled={!canManagePermissions}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      );
+                    })}
                   </div>
                 </div>
               </TabsContent>
