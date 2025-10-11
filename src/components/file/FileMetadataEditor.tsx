@@ -58,6 +58,7 @@ import {
   MessageSquare,
   RefreshCw,
 } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 import { ProjectFile, FileCategory, FilePermissionLevel, FilePermissions } from '@/types';
 import { formatFileSize, formatDateTime } from '@/utils/formatters';
 
@@ -75,7 +76,7 @@ const fileMetadataSchema = z.object({
     allowVersioning: z.boolean(),
     allowComments: z.boolean(),
   }),
-  customMetadata: z.record(z.string()).optional(),
+  customMetadata: z.record(z.string(), z.string()).optional(),
 });
 
 type FileMetadataFormData = z.infer<typeof fileMetadataSchema>;
@@ -224,7 +225,6 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
 
     try {
       setIsLoading(true);
-      
       const updates: Partial<ProjectFile> = {
         name: data.name,
         description: data.description,
@@ -232,7 +232,8 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
         tags: data.tags,
         permissions: data.permissions,
         customMetadata: data.customMetadata,
-        lastModified: new Date(),
+        lastModified: Timestamp.now(),
+      };
       };
 
       await onSave(file.id, updates);
@@ -525,7 +526,7 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Uploaded:</span>
-                        <span>{formatDateTime(file.uploadedAt.toDate())}</span>
+                        <span>{formatDateTime(file.uploadedAt instanceof Timestamp ? file.uploadedAt.toDate() : file.uploadedAt)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Uploader:</span>
@@ -564,7 +565,7 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                         <div key={key} className="flex items-center justify-between p-2 border rounded">
                           <div>
                             <span className="font-medium">{key}:</span>
-                            <span className="ml-2 text-muted-foreground">{value}</span>
+                            <span className="ml-2 text-muted-foreground">{String(value)}</span>
                           </div>
                           {canEdit && (
                             <Button

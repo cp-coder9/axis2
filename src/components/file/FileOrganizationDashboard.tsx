@@ -18,9 +18,8 @@ import {
   Users,
   Shield
 } from 'lucide-react';
-import { UserRole, ProjectFile } from '@/types';
+import { UserRole, ProjectFile, FileCategory } from '@/types';
 import { cloudinaryManagementService } from '@/services/cloudinaryManagementService';
-import { FileCategory } from '@/services/cloudinaryFolderService';
 import { formatFileSize } from '@/utils/formatters';
 import FolderAccessControl from './FolderAccessControl';
 

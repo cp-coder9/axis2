@@ -86,6 +86,7 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
           size: 2048576,
           type: 'application/pdf',
           uploaderId: 'user-1',
+          uploaderName: 'System User',
           uploadedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0, toDate: () => new Date(), toMillis: () => Date.now(), isEqual: () => false } as any,
           projectId: projectId || 'project-1',
           permissions: {
@@ -105,6 +106,7 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
           size: 15728640,
           type: 'application/zip',
           uploaderId: 'user-2',
+          uploaderName: 'System User',
           uploadedAt: { seconds: Math.floor((Date.now() - 86400000) / 1000), nanoseconds: 0, toDate: () => new Date(Date.now() - 86400000), toMillis: () => Date.now() - 86400000, isEqual: () => false } as any,
           projectId: projectId || 'project-1',
           permissions: {
@@ -214,6 +216,7 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
           size: file.size,
           type: file.type,
           uploaderId: user.id,
+          uploaderName: user.name,
           uploadedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0, toDate: () => new Date(), toMillis: () => Date.now(), isEqual: () => false } as any,
           projectId: projectId || 'default',
           permissions: defaultPermissions,

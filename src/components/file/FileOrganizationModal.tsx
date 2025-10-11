@@ -9,7 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/lib/shadcn/dialog';
+} from '@/components/ui/dialog';
 import {
   Form,
   FormControl,
@@ -17,14 +17,14 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/lib/shadcn/form';
-import { Button } from '@/lib/shadcn/button';
-import { Input } from '@/lib/shadcn/input';
-import { Textarea } from '@/lib/shadcn/textarea';
-import { Badge } from '@/lib/shadcn/badge';
+} from '@/components/ui/form';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 // Removed unused Card and CardContent imports
-import { Separator } from '@/lib/shadcn/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/lib/shadcn/select';
+import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   Folder,
   FolderPlus,
@@ -35,6 +35,7 @@ import {
   Tag,
   Edit3
 } from 'lucide-react';
+import { Timestamp } from 'firebase/firestore';
 import { ProjectFile, FileCategory } from '@/types';
 
 // File organization schema
@@ -89,7 +90,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
       description: file.description || '',
       category: file.category || FileCategory.OTHER,
       tags: file.tags || [],
-      folder: file.folderId || '',
+      folder: file.folder || '',
     },
   });
 
@@ -100,7 +101,7 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
         description: file.description || '',
         category: file.category || FileCategory.OTHER,
         tags: file.tags || [],
-        folder: file.folderId || '',
+        folder: file.folder || '',
       });
     }
   }, [isOpen, file, form]);
@@ -150,14 +151,14 @@ export const FileOrganizationModal: React.FC<FileOrganizationModalProps> = ({
   const onSubmit = async (data: FileOrganizationFormData) => {
     try {
       setIsLoading(true);
-      
       const updates: Partial<ProjectFile> = {
         name: data.name,
         description: data.description,
         category: data.category,
         tags: data.tags,
-        folderId: data.folder || undefined,
-        lastModified: new Date(),
+        folder: data.folder || undefined,
+        lastModified: Timestamp.now(),
+      };
       };
 
       await onSave(file.id, updates);

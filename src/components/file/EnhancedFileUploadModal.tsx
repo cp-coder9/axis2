@@ -33,7 +33,7 @@ import {
   Loader2,
   Cloud
 } from 'lucide-react';
-import { ProjectFile, FilePermissionLevel } from '@/types';
+import { ProjectFile, FilePermissionLevel, FileCategory } from '@/types';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 import { formatFileSize } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
@@ -184,15 +184,21 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
     setUploadError(null);
 
     try {
-      const uploadResult = await uploadFile(selectedFile, {
-        folder: projectId ? `projects/${projectId}` : 'general',
-        resourceType: selectedFile.type.startsWith('image/') ? 'image' : 'raw',
-      });
+      const uploadResult = await uploadFile(
+        selectedFile,
+        {
+          folder: projectId ? `projects/${projectId}` : 'general',
+          resourceType: selectedFile.type.startsWith('image/') ? 'image' : 'raw',
+        },
+        projectId || 'default'
+      );
 
       const fileData: ProjectFile = {
-        id: uploadResult.public_id,
+        id: uploadResult.public_id || `file-${Date.now()}`,
         name: selectedFile.name,
-        url: uploadResult.secure_url,
+        url: uploadResult.secure_url || uploadResult.url,
+        public_id: uploadResult.public_id,
+        secure_url: uploadResult.secure_url,
         type: selectedFile.type,
         size: selectedFile.size,
         uploadedBy: userId,
@@ -335,7 +341,7 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
           </div>
 
           {/* Upload Progress */}
-          {isUploading && (
+          {isUploading && uploadProgress !== undefined && (
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-2">

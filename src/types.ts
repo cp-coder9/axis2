@@ -177,6 +177,10 @@ export interface ProjectFile {
   shareLinks?: FileShareLink[]; // File sharing capabilities
   versions?: FileVersion[]; // File version control
   metadata?: FileMetadata; // Extended file information
+  public_id?: string; // Cloudinary public ID
+  secure_url?: string; // Cloudinary secure URL
+  isLatestVersion?: boolean; // Version control flag
+  customMetadata?: Record<string, string>; // Custom metadata fields
 }
 
 export interface FilePermissions {
