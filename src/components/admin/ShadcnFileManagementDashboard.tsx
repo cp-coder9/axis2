@@ -1,6 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../contexts/AppContext';
 import { ProjectFile, FileCategory } from '../../types';
+
+interface FileFolder {
+  id: string;
+  name: string;
+  parentId?: string;
+  projectId: string;
+  createdAt: Date;
+  createdBy: string;
+}
 import AdvancedFileManager from '../../../utils/advancedFileManager';
 import { formatFileSize, formatTimestamp } from '../../utils/formatters';
 import { canDeleteFile, canShareFile } from '../../../utils/filePermissions';
@@ -91,7 +100,7 @@ export const ShadcnFileManagementDashboard: React.FC<ShadcnFileManagementDashboa
   const [showMetadataEditor, setShowMetadataEditor] = useState(false);
   const [fileToOrganize, setFileToOrganize] = useState<ProjectFile | null>(null);
   const [fileToEdit, setFileToEdit] = useState<ProjectFile | null>(null);
-  const [folders, setFolders] = useState<Array<{ id: string; name: string; parentId?: string }>>([]);
+  const [folders, setFolders] = useState<FileFolder[]>([]);
 
   const [analytics, setAnalytics] = useState<{
     totalFiles: number;
@@ -363,7 +372,7 @@ export const ShadcnFileManagementDashboard: React.FC<ShadcnFileManagementDashboa
                   <Button
                     onClick={async () => {
                       const filesToDownload = filteredFiles.filter(f => selectedFiles.includes(f.id));
-                      await createZipFromFiles(filesToDownload, `${project?.title || 'files'}-files.zip`);
+                      await createZipFromFiles(filesToDownload);
                     }}
                     variant="outline"
                     size="sm"

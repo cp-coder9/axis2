@@ -539,7 +539,7 @@ export interface AppContextType {
   addJobCardToProject: (projectId: string, jobCardData: any) => Promise<void>;
 
   // Users
-  deleteUser: (userId: string) => Promise<void>; // Task 1.5: Added deleteUser method
+  deleteUser?: (userId: string) => Promise<void>; // Task 1.5: Added deleteUser method (optional)
   updateUser: () => Promise<void>;
   updateUserProfile: () => Promise<void>;
 

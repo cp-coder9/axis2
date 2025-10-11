@@ -126,7 +126,9 @@ export const ShadcnUserManagementPage: React.FC<ShadcnUserManagementPageProps> =
 
   const handleDeleteUser = (userId: string, userName: string) => {
     // This will be handled by AlertDialog
-    deleteUser(userId);
+    if (deleteUser) {
+      deleteUser(userId);
+    }
   };
 
   const getRoleBadgeVariant = (role: UserRole) => {
@@ -154,11 +156,13 @@ export const ShadcnUserManagementPage: React.FC<ShadcnUserManagementPageProps> =
     return user.phone || 'Not provided';
   };
 
-  const getUserRateDisplay = (user: User) => {
+  const getUserRateDisplay = (user: User): string => {
     if (user.role === UserRole.FREELANCER) {
-      return formatRate(user.hourlyRate);
+      const rateObj = formatRate(user.hourlyRate);
+      return typeof rateObj === 'string' ? rateObj : (rateObj as any).formatted || 'N/A';
     }
-    return getRate(user.role);
+    const rateObj = getRate(user.role as any);
+    return typeof rateObj === 'string' ? rateObj : (rateObj as any).formatted || 'N/A';
   };
 
   const handleActivateAccount = async (userToActivate: User) => {
@@ -283,8 +287,8 @@ export const ShadcnUserManagementPage: React.FC<ShadcnUserManagementPageProps> =
           {usersList.map((u) => {
             const skills = getSkillTags(u);
             const displayInfo = {
-              companyName: u.onboarding?.companyInfo?.companyName || u.company || 'Not specified',
-              industry: u.onboarding?.companyInfo?.industry || 'Not specified'
+              companyName: u.company || 'Not specified',
+              industry: 'Not specified'
             };
             
             return (
