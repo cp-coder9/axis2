@@ -1,0 +1,7 @@
+export { ClientSidebar } from './ClientSidebar'
+export { ClientSearchForm } from './ClientSearchForm'
+export { ClientDashboardLayout } from './ClientDashboardLayout'
+export { ClientDashboardWidgets } from './ClientDashboardWidgets'
+export { ClientProjectOverview } from './ClientProjectOverview'
+export { ClientMessagingInterface } from './ClientMessagingInterface'
+export { ClientFileAccessSystem } from './ClientFileAccessSystem'

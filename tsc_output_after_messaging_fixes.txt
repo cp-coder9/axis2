@@ -1,0 +1,1 @@
+src/types.ts(305,1): error TS1131: Property or signature expected.

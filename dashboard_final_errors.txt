@@ -1,0 +1,15 @@
+src/components/dashboard/DashboardLayoutManager.tsx(345,25): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/dashboard/ResizableWidgetContainer.tsx(163,13): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/dashboard/ResizableWidgetContainer.tsx(203,21): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/dashboards/admin/app-sidebar.tsx(20,8): error TS2307: Cannot find module '@tabler/icons-react' or its corresponding type declarations.
+src/components/dashboards/admin/app-sidebar.tsx(23,25): error TS2307: Cannot find module '@/components/dashboards/admin/nav-main' or its corresponding type declarations.
+src/components/dashboards/admin/app-sidebar.tsx(24,30): error TS2307: Cannot find module '@/components/dashboards/admin/nav-secondary' or its corresponding type declarations.
+src/components/dashboards/admin/app-sidebar.tsx(25,25): error TS2307: Cannot find module '@/components/dashboards/admin/nav-user' or its corresponding type declarations.
+src/components/dashboards/admin/nav-documents.tsx(9,8): error TS2307: Cannot find module '@tabler/icons-react' or its corresponding type declarations.
+src/components/dashboards/admin/nav-documents.tsx(75,35): error TS2322: Type '{ children: Element[]; variant: string; }' is not assignable to type 'IntrinsicAttributes & Omit<DropdownMenuItemProps & RefAttributes<HTMLDivElement>, "ref"> & { ...; } & RefAttributes<...>'.
+src/components/dashboards/app-sidebar.tsx(20,8): error TS2307: Cannot find module '@tabler/icons-react' or its corresponding type declarations.
+src/components/dashboards/app-sidebar.tsx(22,30): error TS2307: Cannot find module '@/components/dashboards/nav-documents' or its corresponding type declarations.
+src/components/dashboards/app-sidebar.tsx(23,25): error TS2307: Cannot find module '@/components/dashboards/nav-main' or its corresponding type declarations.
+src/components/dashboards/app-sidebar.tsx(24,30): error TS2307: Cannot find module '@/components/dashboards/nav-secondary' or its corresponding type declarations.
+src/components/dashboards/app-sidebar.tsx(25,25): error TS2307: Cannot find module '@/components/dashboards/nav-user' or its corresponding type declarations.
+src/types/dashboard.ts(1,31): error TS2307: Cannot find module './types' or its corresponding type declarations.

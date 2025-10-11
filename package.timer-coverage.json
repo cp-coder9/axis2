@@ -1,0 +1,17 @@
+{
+  "scripts": {
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest run --coverage",
+    "test:timer": "vitest run src/tests/timer --coverage",
+    "test:timer-watch": "vitest src/tests/timer --watch",
+    "test:timer-coverage": "vitest run src/tests/timer --coverage --reporter=verbose",
+    "test:timer-html": "vitest run src/tests/timer --coverage --reporter=html",
+    "coverage:timer": "vitest run --coverage --reporter=html --coverage.include='src/components/timer/**' --coverage.include='src/contexts/modules/{timer,auth,projects}.ts' --coverage.include='src/utils/{offlineSync,auditLogger,firebaseHelpers,firebaseErrorHandler}.ts'",
+    "coverage:timer-threshold": "vitest run --coverage --coverage.thresholds.autoUpdate=false",
+    "coverage:validate": "node scripts/validate-timer-coverage.js",
+    "coverage:report": "vitest run --coverage && open coverage/index.html"
+  }
+}

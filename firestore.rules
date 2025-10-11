@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Users collection - users can read/write their own data, admins can read all
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+    
+    // Projects collection - role-based access
+    match /projects/{projectId} {
+      allow read: if request.auth != null && (
+        // Admin can read all projects
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Client can read their own projects
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+         resource.data.clientId == request.auth.uid) ||
+        // Freelancer can read assigned projects
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+         request.auth.uid in resource.data.assignedTeamIds)
+      );
+      
+      allow write: if request.auth != null && (
+        // Admin can write all projects
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Client can write their own projects
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+         resource.data.clientId == request.auth.uid)
+      );
+    }
+    
+    // Time logs collection - users can read/write their own logs, admins can read all
+    match /timeLogs/{logId} {
+      allow read: if request.auth != null && (
+        // Admin can read all logs
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // User can read their own logs
+        resource.data.loggedById == request.auth.uid ||
+        // Client can read logs for their projects
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+         exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid)
+      );
+      
+      allow write: if request.auth != null && (
+        // Admin can write all logs
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // User can write their own logs
+        request.resource.data.loggedById == request.auth.uid
+      );
+    }
+    
+    // Messages collection - project-based access
+    match /messages/{messageId} {
+      allow read, write: if request.auth != null && (
+        // Admin can access all messages
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can access messages for projects they're involved in
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds))
+      );
+    }
+    
+    // Files collection - project-based access with permission levels
+    match /files/{fileId} {
+      allow read: if request.auth != null && (
+        // Admin can read all files
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Check file permissions based on user role and project access
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (
+           // Client can read CLIENT_VISIBLE files in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid &&
+            resource.data.permissions.level in ['CLIENT_VISIBLE', 'PROJECT_TEAM']) ||
+           // Freelancer can read PROJECT_TEAM files in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds &&
+            resource.data.permissions.level == 'PROJECT_TEAM')
+         ))
+      );
+      
+      allow write: if request.auth != null && (
+        // Admin can write all files
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can upload files to projects they're involved in
+        (exists(/databases/$(database)/documents/projects/$(request.resource.data.projectId)) &&
+         (get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.clientId == request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/projects/$(request.resource.data.projectId)).data.assignedTeamIds))
+      );
+    }
+    
+    // Notifications collection - users can read/write their own notifications
+    match /notifications/{notificationId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    
+    // Audit logs - admin only
+    match /auditLogs/{logId} {
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN';
+    }
+  }
+}
