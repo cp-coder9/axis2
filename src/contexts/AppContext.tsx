@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData } from '../types';
+import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus } from '../types';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { PresenceStatus, TypingIndicator } from '../types/messaging';
@@ -17,8 +17,59 @@ import {
   getAllProjects,
   getProjectsByUser,
   subscribeToProjects,
+} from '../services/projectService';
+import {
+  addActionItem,
+  updateActionItem,
+  deleteActionItem,
+  subscribeToActionItems
+} from '../services/actionItemService';
+import {
+    createClient,
+    subscribeToClients
+} from '../services/clientService';
+import {
+    createProjectRequest as createProjectRequestService,
+    updateProjectRequest,
+    subscribeToProjectRequests
+} from '../services/projectRequestService';
+import {
+    subscribeToNotifications,
+    markNotificationAsRead as markNotificationAsReadService,
+    markAllNotificationsAsRead as markAllNotificationsAsReadService,
+} from '../services/notificationService';
+import {
+    addFileToProject as addFileToProjectService,
+    updateFilePermissions as updateFilePermissionsService,
+    deleteFileFromProject as deleteFileFromProjectService,
+} from '../services/fileService';
+import {
+    addManualTimeLog as addManualTimeLogService,
+    addAdminCommentToTimeLog as addAdminCommentToTimeLogService,
+    generateTimeTrackingReport as generateTimeTrackingReportService,
+} from '../services/timeTrackingService';
+import {
+    applyToProject as applyToProjectService,
+    getProjectApplications as getProjectApplicationsService,
+    acceptApplication as acceptApplicationService,
+    rejectApplication as rejectApplicationService,
+} from '../services/applicationService';
+import {
+    updateProjectTeam as updateProjectTeamService
+} from '../services/teamService';
+import {
+    loadAuditModule as loadAuditModuleService
+} from '../services/auditService';
+import {
   getProjectStatistics
 } from '../services/projectService';
+import {
+    generateProjectCostReport as generateProjectCostReportService,
+    generateFreelancerPerformanceReport as generateFreelancerPerformanceReportService,
+    exportToCSV as exportToCSVService,
+    exportToPDF as exportToPDFService,
+} from '../services/reportService';
+import { MessagingService } from '../services/messaging/MessagingService';
 
 // Role-based permissions interface
 export interface RolePermissions {
@@ -61,6 +112,7 @@ export interface AppContextType {
   
   // Project state
   projects: Project[];
+  actionItems: ActionItem[];
   
   // Authentication methods
   login: (email: string, password: string, role: UserRole) => Promise<void>;
@@ -204,7 +256,15 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [actionItems, setActionItems] = useState<ActionItem[]>([]);
+  const [clients, setClients] = useState<User[]>([]);
+  const [projectRequests, setProjectRequests] = useState<ProjectRequest[]>([]);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Initialize messaging service
+  const [messagingService] = useState(() => new MessagingService());
 
   // Get timer sync functions and state
   const {
@@ -381,6 +441,27 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       unsubscribeProjects();
     };
   }, [authState.user?.id, authState.user?.role, authState.isAuthenticated]);
+
+  useEffect(() => {
+    if (authState.user?.role === UserRole.ADMIN) {
+      const unsubscribeClients = subscribeToClients(setClients);
+      return () => unsubscribeClients();
+    }
+  }, [authState.user?.role]);
+
+  useEffect(() => {
+    if (authState.user?.role === UserRole.ADMIN) {
+        const unsubscribeProjectRequests = subscribeToProjectRequests(setProjectRequests);
+        return () => unsubscribeProjectRequests();
+    }
+  }, [authState.user?.role]);
+
+  useEffect(() => {
+    if (authState.user) {
+        const unsubscribeNotifications = subscribeToNotifications(authState.user.id, setNotifications);
+        return () => unsubscribeNotifications();
+    }
+  }, [authState.user]);
 
   // Authentication methods
   const login = async (email: string, password: string, role?: UserRole) => {
@@ -714,27 +795,60 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   // Placeholder implementations for methods that need more complex logic
   const addActionItemToProject = async (projectId: string, actionItemData: ActionItemCreationData): Promise<void> => {
-    // TODO: Implement action items service
-    console.log('Action item functionality not yet implemented');
+    try {
+      if (!authState.user) {
+        throw new Error('User not authenticated');
+      }
+      await addActionItem(projectId, {
+        ...actionItemData,
+        createdBy: authState.user.id,
+        status: 'pending',
+      });
+    } catch (error) {
+      console.error('Error adding action item:', error);
+      throw error;
+    }
   };
 
-  const updateActionItem = async (projectId: string, actionItemId: string, updates: Partial<ActionItem>): Promise<void> => {
-    // TODO: Implement action items service
-    console.log('Action item functionality not yet implemented');
+  const updateActionItemStatus = async (projectId: string, actionItemId: string, updates: Partial<ActionItem>): Promise<void> => {
+    try {
+      await updateActionItem(projectId, actionItemId, updates);
+    } catch (error) {
+      console.error('Error updating action item:', error);
+      throw error;
+    }
   };
 
-  const deleteActionItem = async (projectId: string, actionItemId: string): Promise<void> => {
-    // TODO: Implement action items service
-    console.log('Action item functionality not yet implemented');
+  const deleteActionItemFromProject = async (projectId: string, actionItemId: string): Promise<void> => {
+    try {
+      await deleteActionItem(projectId, actionItemId);
+    } catch (error) {
+      console.error('Error deleting action item:', error);
+      throw error;
+    }
   };
 
-  // Stub implementations for methods that need to be implemented later
-  const updateUser = async (): Promise<void> => {
-    console.log('Update user functionality not yet implemented');
+  const updateUser = async (userId: string, updates: Partial<User>): Promise<void> => {
+    try {
+        if (!authState.user || (authState.user.id !== userId && authState.user.role !== UserRole.ADMIN)) {
+            throw new Error('Insufficient permissions to update user');
+        }
+        const { updateUser: updateUserService } = await import('../services/userService');
+        await updateUserService(userId, updates);
+        await refreshUserData();
+    } catch (error) {
+        console.error('Error updating user:', error);
+        throw error;
+    }
   };
 
-  const updateUserProfile = async (): Promise<void> => {
-    console.log('Update user profile functionality not yet implemented');
+  const updateUserProfile = async (userId: string, updates: Partial<User>): Promise<void> => {
+    try {
+        await updateUser(userId, updates);
+    } catch (error) {
+        console.error('Error updating user profile:', error);
+        throw error;
+    }
   };
 
   const contextValue: AppContextType = {
@@ -750,6 +864,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     
     // Project state
     projects,
+    actionItems,
     
     // Authentication methods
     login,
@@ -769,8 +884,8 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     updateJobCardStatus,
     updateJobCard,
     addActionItemToProject,
-    updateActionItem,
-    deleteActionItem,
+    updateActionItem: updateActionItemStatus,
+    deleteActionItem: deleteActionItemFromProject,
     addProject,
     addJobCardToProject,
     
@@ -807,42 +922,202 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     getTypingUsers,
     
     // Stub implementations for missing methods
-    clients: [], // TODO: Implement clients management
-    projectRequests: [], // TODO: Implement project requests
-    isSidebarCollapsed: false, // TODO: Implement sidebar state
-    toggleSidebar: () => {}, // TODO: Implement sidebar toggle
-    notifications: [], // TODO: Implement notifications
+    clients,
+    projectRequests,
+    isSidebarCollapsed,
+    toggleSidebar: () => setIsSidebarCollapsed(!isSidebarCollapsed),
+    notifications,
     isLoading: authState.loading || loading,
-    markNotificationAsRead: async () => {}, // TODO: Implement notifications
-    markAllNotificationsAsRead: async () => {}, // TODO: Implement notifications
-    addMessageToProject: async () => {}, // TODO: Implement messaging
-    markMessageAsRead: async () => {}, // TODO: Implement messaging
-    deleteMessage: async () => {}, // TODO: Implement messaging
-    hideMessageFromUser: async () => {}, // TODO: Implement messaging
-    addFileToProject: async () => ({} as ProjectFile), // TODO: Implement file management
-    updateFilePermissions: async () => {}, // TODO: Implement file management
-    deleteFileFromProject: async () => {}, // TODO: Implement file management
-    addManualTimeLog: async () => {}, // TODO: Implement time logging
-    addAdminCommentToTimeLog: async () => {}, // TODO: Implement time logging
-    applyToProject: async () => {}, // TODO: Implement project applications
-    getProjectApplications: () => [], // TODO: Implement project applications
-    acceptApplication: async () => {}, // TODO: Implement project applications
-    rejectApplication: async () => {}, // TODO: Implement project applications
-    generateTimeTrackingReport: () => ({} as TimeTrackingReport), // TODO: Implement reports
-    generateProjectCostReport: () => null, // TODO: Implement reports
-    generateFreelancerPerformanceReport: () => null, // TODO: Implement reports
-    exportReportToPDF: async () => {}, // TODO: Implement reports
-    exportReportToCSV: async () => {}, // TODO: Implement reports
-    createProjectRequest: async () => '', // TODO: Implement project requests
-    updateProjectRequestStatus: async () => {}, // TODO: Implement project requests
-    convertProjectRequestToProject: async () => '', // TODO: Implement project requests
-    isClientOnboardingCompleted: async () => false, // TODO: Implement onboarding
-    fixUserRole: async () => {}, // TODO: Implement user management
-    fixClientRelationships: async () => {}, // TODO: Implement client management
-    checkAndUpdateProjectStatus: async () => {}, // TODO: Implement project status automation
-    createClient: async () => '', // TODO: Implement client management
-    updateProjectTeam: async () => {}, // TODO: Implement team management
-    loadAuditModule: async () => ({}), // TODO: Implement audit module
+    markNotificationAsRead: async (notificationId) => {
+        await markNotificationAsReadService(notificationId);
+    },
+    markAllNotificationsAsRead: async () => {
+        if (authState.user) {
+            await markAllNotificationsAsReadService(authState.user.id);
+        }
+    },
+    addMessageToProject: async (projectId, content) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        try {
+            await messagingService.sendMessage(
+                projectId,
+                content,
+                authState.user.id,
+                authState.user.name,
+                authState.user.role,
+                'project' as any
+            );
+        } catch (error) {
+            console.error('Error adding message to project:', error);
+            throw error;
+        }
+    },
+    markMessageAsRead: async (projectId, messageId) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        try {
+            await messagingService.markMessageAsRead(projectId, messageId, authState.user.id);
+        } catch (error) {
+            console.error('Error marking message as read:', error);
+            throw error;
+        }
+    },
+    deleteMessage: async () => {
+        // Placeholder implementation - would require message deletion logic in MessagingService
+        console.log('Delete message functionality - to be implemented in MessagingService');
+    },
+    hideMessageFromUser: async () => {
+        // Placeholder implementation - would require message hiding logic in MessagingService
+        console.log('Hide message functionality - to be implemented in MessagingService');
+    },
+    addFileToProject: async (projectId, fileData) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        return await addFileToProjectService(projectId, { ...fileData, uploadedBy: authState.user.id });
+    },
+    updateFilePermissions: async (projectId, fileId, permissions) => {
+        await updateFilePermissionsService(projectId, fileId, permissions);
+    },
+    deleteFileFromProject: async (projectId, fileId) => {
+        await deleteFileFromProjectService(projectId, fileId);
+    },
+    addManualTimeLog: async (timeLogData) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        return await addManualTimeLogService({ ...timeLogData, userId: authState.user.id });
+    },
+    addAdminCommentToTimeLog: async (timeLogId, adminComment) => {
+        await addAdminCommentToTimeLogService(timeLogId, adminComment);
+    },
+    applyToProject: async (applicationData) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        return await applyToProjectService({ ...applicationData, userId: authState.user.id });
+    },
+    getProjectApplications: (projectId) => {
+        // This is a placeholder. In a real app, you would fetch this from state
+        // which is updated by a subscription.
+        return [];
+    },
+    acceptApplication: async (applicationId) => {
+        await acceptApplicationService(applicationId);
+    },
+    rejectApplication: async (applicationId) => {
+        await rejectApplicationService(applicationId);
+    },
+    generateTimeTrackingReport: (projectId, startDate, endDate) => {
+        return generateTimeTrackingReportService(projectId, startDate, endDate);
+    },
+    generateProjectCostReport: async (projectId) => {
+        try {
+            return await generateProjectCostReportService(projectId, projects);
+        } catch (error) {
+            console.error('Error generating project cost report:', error);
+            return null;
+        }
+    },
+    generateFreelancerPerformanceReport: async (freelancerId) => {
+        try {
+            return await generateFreelancerPerformanceReportService(freelancerId, projects);
+        } catch (error) {
+            console.error('Error generating freelancer performance report:', error);
+            return null;
+        }
+    },
+    exportReportToPDF: async (title = 'Report', data = {}) => {
+        try {
+            await exportToPDFService(title, data);
+        } catch (error) {
+            console.error('Error exporting report to PDF:', error);
+            throw error;
+        }
+    },
+    exportReportToCSV: async (data = [], filename = 'report.csv') => {
+        try {
+            await exportToCSVService(data, filename);
+        } catch (error) {
+            console.error('Error exporting report to CSV:', error);
+            throw error;
+        }
+    },
+    createProjectRequest: async (projectRequestData) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        return await createProjectRequestService({ ...projectRequestData, clientId: authState.user.id });
+    },
+    updateProjectRequestStatus: async (projectRequestId, status) => {
+        await updateProjectRequest(projectRequestId, { status });
+    },
+    convertProjectRequestToProject: async (projectRequestId) => {
+        const request = projectRequests.find(pr => pr.id === projectRequestId);
+        if (!request) throw new Error("Project request not found");
+        const projectId = await addProject({
+            name: request.name,
+            description: request.description,
+            budget: request.budget,
+            clientId: request.clientId,
+            status: ProjectStatus.DRAFT,
+        });
+        await updateProjectRequest(projectRequestId, { status: ProjectRequestStatus.APPROVED });
+        return projectId;
+    },
+    isClientOnboardingCompleted: async (clientId) => {
+        const client = await getUserById(clientId);
+        return client?.onboardingCompleted || false;
+    },
+    fixUserRole: async () => {
+        // Placeholder implementation for fixing user roles
+        // This would typically be used by admins to correct role assignments
+        if (!authState.user || authState.user.role !== UserRole.ADMIN) {
+            throw new Error('Only administrators can fix user roles');
+        }
+        console.log('fixUserRole: Role management functionality - would verify and correct user role assignments');
+    },
+    fixClientRelationships: async () => { console.log('fixClientRelationships not implemented'); },
+    checkAndUpdateProjectStatus: async () => {
+        // Automatically update project statuses based on criteria like deadlines, completion, etc.
+        try {
+            const now = new Date();
+            
+            // This is a basic implementation that could be expanded
+            // For each project, check if status should be updated
+            for (const project of projects) {
+                // Example: Auto-complete projects that have all job cards completed
+                if (project.status === ProjectStatus.ACTIVE && project.jobCards) {
+                    const allCompleted = project.jobCards.every(jc => jc.status === JobCardStatus.COMPLETED);
+                    if (allCompleted && project.jobCards.length > 0) {
+                        console.log(`Project ${project.id} could be marked as completed - all job cards done`);
+                        // In a real implementation, you would call updateProjectStatus here
+                    }
+                }
+                
+                // Example: Mark overdue projects as on-hold
+                if (project.deadline && project.status === ProjectStatus.ACTIVE) {
+                    const deadline = project.deadline instanceof Date ? project.deadline : project.deadline.toDate();
+                    if (deadline < now) {
+                        console.log(`Project ${project.id} is past deadline - consider marking as overdue`);
+                        // In a real implementation, you would call updateProjectStatus here
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error checking and updating project statuses:', error);
+        }
+    },
+    createClient: async (clientData: Omit<User, 'id' | 'role' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+        try {
+            if (!authState.user || authState.user.role !== UserRole.ADMIN) {
+                throw new Error('Only administrators can create clients');
+            }
+            const newClientId = await createClient(clientData);
+            await refreshUserData();
+            return newClientId;
+        } catch (error) {
+            console.error('Error creating client:', error);
+            throw error;
+        }
+    },
+    updateProjectTeam: async (projectId, teamMemberIds, action) => {
+        await updateProjectTeamService(projectId, teamMemberIds, action);
+    },
+    loadAuditModule: async () => {
+        return await loadAuditModuleService();
+    },
     
     // Loading states
     loading: authState.loading || loading
