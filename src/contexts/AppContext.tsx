@@ -63,6 +63,13 @@ import {
 import {
   getProjectStatistics
 } from '../services/projectService';
+import {
+    generateProjectCostReport as generateProjectCostReportService,
+    generateFreelancerPerformanceReport as generateFreelancerPerformanceReportService,
+    exportToCSV as exportToCSVService,
+    exportToPDF as exportToPDFService,
+} from '../services/reportService';
+import { MessagingService } from '../services/messaging/MessagingService';
 
 // Role-based permissions interface
 export interface RolePermissions {
@@ -255,6 +262,9 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Initialize messaging service
+  const [messagingService] = useState(() => new MessagingService());
 
   // Get timer sync functions and state
   const {
@@ -926,10 +936,39 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
             await markAllNotificationsAsReadService(authState.user.id);
         }
     },
-    addMessageToProject: async () => {}, // TODO: Implement messaging
-    markMessageAsRead: async () => {}, // TODO: Implement messaging
-    deleteMessage: async () => {}, // TODO: Implement messaging
-    hideMessageFromUser: async () => {}, // TODO: Implement messaging
+    addMessageToProject: async (projectId, content) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        try {
+            await messagingService.sendMessage(
+                projectId,
+                content,
+                authState.user.id,
+                authState.user.name,
+                authState.user.role,
+                'project' as any
+            );
+        } catch (error) {
+            console.error('Error adding message to project:', error);
+            throw error;
+        }
+    },
+    markMessageAsRead: async (projectId, messageId) => {
+        if (!authState.user) throw new Error("User not authenticated");
+        try {
+            await messagingService.markMessageAsRead(projectId, messageId, authState.user.id);
+        } catch (error) {
+            console.error('Error marking message as read:', error);
+            throw error;
+        }
+    },
+    deleteMessage: async () => {
+        // Placeholder implementation - would require message deletion logic in MessagingService
+        console.log('Delete message functionality - to be implemented in MessagingService');
+    },
+    hideMessageFromUser: async () => {
+        // Placeholder implementation - would require message hiding logic in MessagingService
+        console.log('Hide message functionality - to be implemented in MessagingService');
+    },
     addFileToProject: async (projectId, fileData) => {
         if (!authState.user) throw new Error("User not authenticated");
         return await addFileToProjectService(projectId, { ...fileData, uploadedBy: authState.user.id });
@@ -965,10 +1004,38 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     generateTimeTrackingReport: (projectId, startDate, endDate) => {
         return generateTimeTrackingReportService(projectId, startDate, endDate);
     },
-    generateProjectCostReport: () => null, // TODO: Implement reports
-    generateFreelancerPerformanceReport: () => null, // TODO: Implement reports
-    exportReportToPDF: async () => {}, // TODO: Implement reports
-    exportReportToCSV: async () => {}, // TODO: Implement reports
+    generateProjectCostReport: async (projectId) => {
+        try {
+            return await generateProjectCostReportService(projectId, projects);
+        } catch (error) {
+            console.error('Error generating project cost report:', error);
+            return null;
+        }
+    },
+    generateFreelancerPerformanceReport: async (freelancerId) => {
+        try {
+            return await generateFreelancerPerformanceReportService(freelancerId, projects);
+        } catch (error) {
+            console.error('Error generating freelancer performance report:', error);
+            return null;
+        }
+    },
+    exportReportToPDF: async (title = 'Report', data = {}) => {
+        try {
+            await exportToPDFService(title, data);
+        } catch (error) {
+            console.error('Error exporting report to PDF:', error);
+            throw error;
+        }
+    },
+    exportReportToCSV: async (data = [], filename = 'report.csv') => {
+        try {
+            await exportToCSVService(data, filename);
+        } catch (error) {
+            console.error('Error exporting report to CSV:', error);
+            throw error;
+        }
+    },
     createProjectRequest: async (projectRequestData) => {
         if (!authState.user) throw new Error("User not authenticated");
         return await createProjectRequestService({ ...projectRequestData, clientId: authState.user.id });
@@ -993,9 +1060,45 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         const client = await getUserById(clientId);
         return client?.onboardingCompleted || false;
     },
-    fixUserRole: async () => {}, // TODO: Implement user management
+    fixUserRole: async () => {
+        // Placeholder implementation for fixing user roles
+        // This would typically be used by admins to correct role assignments
+        if (!authState.user || authState.user.role !== UserRole.ADMIN) {
+            throw new Error('Only administrators can fix user roles');
+        }
+        console.log('fixUserRole: Role management functionality - would verify and correct user role assignments');
+    },
     fixClientRelationships: async () => { console.log('fixClientRelationships not implemented'); },
-    checkAndUpdateProjectStatus: async () => {}, // TODO: Implement project status automation
+    checkAndUpdateProjectStatus: async () => {
+        // Automatically update project statuses based on criteria like deadlines, completion, etc.
+        try {
+            const now = new Date();
+            
+            // This is a basic implementation that could be expanded
+            // For each project, check if status should be updated
+            for (const project of projects) {
+                // Example: Auto-complete projects that have all job cards completed
+                if (project.status === ProjectStatus.ACTIVE && project.jobCards) {
+                    const allCompleted = project.jobCards.every(jc => jc.status === JobCardStatus.COMPLETED);
+                    if (allCompleted && project.jobCards.length > 0) {
+                        console.log(`Project ${project.id} could be marked as completed - all job cards done`);
+                        // In a real implementation, you would call updateProjectStatus here
+                    }
+                }
+                
+                // Example: Mark overdue projects as on-hold
+                if (project.deadline && project.status === ProjectStatus.ACTIVE) {
+                    const deadline = project.deadline instanceof Date ? project.deadline : project.deadline.toDate();
+                    if (deadline < now) {
+                        console.log(`Project ${project.id} is past deadline - consider marking as overdue`);
+                        // In a real implementation, you would call updateProjectStatus here
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error checking and updating project statuses:', error);
+        }
+    },
     createClient: async (clientData: Omit<User, 'id' | 'role' | 'createdAt' | 'updatedAt'>): Promise<string> => {
         try {
             if (!authState.user || authState.user.role !== UserRole.ADMIN) {
