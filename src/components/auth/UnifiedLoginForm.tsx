@@ -228,10 +228,21 @@ export function UnifiedLoginForm({
                   <button
                     type="button"
                     className="ml-auto inline-block text-sm underline-offset-4 hover:underline text-muted-foreground bg-transparent border-none cursor-pointer"
-                    onClick={(e) => {
+                    onClick={async (e) => {
                       e.preventDefault()
-                      // TODO: Implement forgot password functionality
-                      setError('Forgot password functionality coming soon')
+                      try {
+                        if (!email) {
+                          setError('Please enter your email address to reset password')
+                          return
+                        }
+                        // Import Firebase password reset
+                        const { sendPasswordResetEmail } = await import('firebase/auth')
+                        const { auth } = await import('@/firebase')
+                        await sendPasswordResetEmail(auth, email)
+                        setError('Password reset email sent! Check your inbox.')
+                      } catch (err: any) {
+                        setError(err.message || 'Failed to send password reset email')
+                      }
                     }}
                   >
                     Forgot your password?
@@ -288,8 +299,9 @@ export function UnifiedLoginForm({
                 className="underline underline-offset-4 hover:text-primary bg-transparent border-none cursor-pointer"
                 onClick={(e) => {
                   e.preventDefault()
-                  // TODO: Navigate to sign up page
-                  setError('Sign up functionality coming soon')
+                  // Navigate to sign up page when route is added
+                  // For now, show informational message
+                  setError('Sign up is available through admin user creation. Contact your administrator.')
                 }}
               >
                 Sign up
