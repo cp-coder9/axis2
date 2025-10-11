@@ -68,6 +68,11 @@ export interface AppContextType {
   refreshUserData: () => Promise<void>;
   createUser: (userData: UserCreationData) => Promise<void>;
   
+  // User management methods
+  deleteUser?: (userId: string) => Promise<void>;
+  updateUser?: () => Promise<void>;
+  updateUserProfile?: () => Promise<void>;
+  
   // Role and permission methods
   hasPermission: (permission: keyof RolePermissions) => boolean;
   canAccessRoute: (route: string) => boolean;
