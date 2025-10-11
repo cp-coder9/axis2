@@ -1128,8 +1128,12 @@ export const ProjectDetailsView: React.FC<ProjectDetailsViewProps> = ({
               Cancel
             </Button>
             <Button onClick={() => {
-              // TODO: Implement task creation logic
-              console.log('Creating task...')
+              // Task creation logic would require:
+              // 1. Add state for task form fields (title, description, assignee, estimatedHours)
+              // 2. Add onCreateTask prop to component interface
+              // 3. Call onCreateTask with form data
+              // 4. Parent component would use AppContext.addActionItemToProject
+              console.log('Creating task - requires form state and callback prop')
               setShowTaskForm(false)
             }}>
               Add Task

@@ -73,9 +73,19 @@ export function RoleRouter({ children }: RoleRouterProps) {
             setUserRole(UserRole.FREELANCER) // Default fallback
           }
         } else {
-          // TODO: Fetch user role from Firestore based on firebaseUser.uid
-          // For now, default to FREELANCER
-          setUserRole(UserRole.FREELANCER)
+          // Fetch user role from Firestore based on firebaseUser.uid
+          try {
+            const { getUserById } = await import('../../services/userService');
+            const userData = await getUserById(firebaseUser.uid);
+            if (userData?.role) {
+              setUserRole(userData.role);
+            } else {
+              setUserRole(UserRole.FREELANCER); // Default fallback
+            }
+          } catch (error) {
+            console.error('Error fetching user role:', error);
+            setUserRole(UserRole.FREELANCER); // Default fallback on error
+          }
         }
       } else {
         setUserRole(null)
