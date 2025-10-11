@@ -72,15 +72,18 @@ This document summarizes the implementation of missing components across all adm
 ### 4. Router Updates (`src/Router.tsx`)
 
 #### Changes:
-- Imported all new page components
-- Replaced placeholder pages with actual implementations for:
-  - `/freelancer/projects`
-  - `/freelancer/timer`
-  - `/freelancer/earnings`
-  - `/freelancer/applications`
-  - `/client/projects` (already existed)
-  - `/client/files` (already existed)
-  - `/client/messages` (already existed)
+- Imported all new page components (4 new freelancer pages)
+- Replaced placeholder pages with actual implementations for freelancer routes:
+  - `/freelancer/projects` - FreelancerProjectsPage (NEW)
+  - `/freelancer/timer` - FreelancerTimerPage (NEW)
+  - `/freelancer/earnings` - FreelancerEarningsPage (NEW)
+  - `/freelancer/applications` - FreelancerApplicationsPage (NEW)
+- Updated client routes to use existing pages (were using PlaceholderPage before):
+  - `/client/projects` - ClientProjectsPage (existed, now properly routed)
+  - `/client/files` - ClientFilesPage (existed, now properly routed)
+  - `/client/messages` - ClientMessagesPage (existed, now properly routed)
+
+**Total PlaceholderPage instances removed:** 7 (4 freelancer + 3 client)
 
 ### 5. Admin Dashboard
 
@@ -114,8 +117,11 @@ No changes were needed for the Admin Dashboard.
 
 ### Data Integration:
 - All components use `useAppContext()` to access application state
-- Projects are filtered based on user role and assignments
-- Mock data is provided for demonstration where real API would be used
+- Projects are filtered based on user role and assignments from context
+- Recent time logs in FreelancerDashboard and FreelancerTimerPage use mock/hardcoded data for demonstration
+- Weekly stats (hours, earnings) use mock data pending backend time tracking API
+- Client projects, messages, and files use data from their respective existing components
+- Real data integration points: project assignments, user info, role data from AppContext
 
 ### User Experience:
 - Consistent design across all dashboards
@@ -145,10 +151,12 @@ No changes were needed for the Admin Dashboard.
 - [ ] Verify project table filtering works correctly
 
 ### Known Limitations:
-- Mock data is used for demonstration purposes
-- Real API integration needed for production
-- Timer persistence needs backend support
-- File upload/download needs actual storage integration
+- **Recent time logs**: Hardcoded mock data in FreelancerDashboard and FreelancerTimerPage (lines showing "Office Redesign Project" etc.)
+- **Weekly stats**: Mock data for hours/earnings calculations - needs backend time tracking API
+- **Timer state**: Timer persistence requires backend integration for cross-device sync
+- **File operations**: ClientFileAccessSystem download/preview handlers need actual Cloudinary/storage backend
+- **Messaging**: ClientMessagingInterface uses component's internal mock data, needs real-time backend
+- **Real data already working**: Project assignments, user roles, project table data from AppContext
 
 ## Files Modified
 
@@ -160,19 +168,25 @@ No changes were needed for the Admin Dashboard.
 6. `src/pages/FreelancerEarningsPage.tsx` - NEW
 7. `src/pages/FreelancerApplicationsPage.tsx` - NEW
 
-## Total Lines of Code Added
+## Total Lines of Code Added/Modified
 
-- FreelancerDashboard: 368 lines
-- ClientDashboard: 337 lines
-- FreelancerProjectsPage: 55 lines
-- FreelancerTimerPage: 104 lines
-- FreelancerEarningsPage: 18 lines
-- FreelancerApplicationsPage: 22 lines
-- ClientProjectsPage: 44 lines (existed)
-- ClientFilesPage: 76 lines (existed)
-- ClientMessagesPage: 51 lines (existed)
+**Dashboard Enhancements (Modified):**
+- FreelancerDashboard.tsx: 368 lines (added tabs implementation to existing file)
+- ClientDashboard.tsx: 337 lines (added tabs implementation to existing file)
 
-**Total: ~1,075 lines of functional dashboard code**
+**New Standalone Pages Created:**
+- FreelancerProjectsPage.tsx: 55 lines
+- FreelancerTimerPage.tsx: 104 lines
+- FreelancerEarningsPage.tsx: 18 lines
+- FreelancerApplicationsPage.tsx: 22 lines
+
+**Pre-existing Client Pages (NOT modified in this PR):**
+- ClientProjectsPage.tsx: 44 lines (already existed, now used in router)
+- ClientFilesPage.tsx: 76 lines (already existed, now used in router)
+- ClientMessagesPage.tsx: 51 lines (already existed, now used in router)
+
+**Total NEW code in this PR: ~704 lines** (excluding pre-existing client pages)
+**Total functionality enabled: ~1,075 lines** (including integration of existing pages)
 
 ## Conclusion
 
