@@ -11,6 +11,9 @@ import LoginPage from './pages/LoginPage'
 import AdminDashboard from './pages/AdminDashboardPage'
 import FreelancerDashboard from './pages/FreelancerDashboard'
 import ClientDashboard from './pages/ClientDashboard'
+import ClientProjectsPage from './pages/ClientProjectsPage'
+import ClientFilesPage from './pages/ClientFilesPage'
+import ClientMessagesPage from './pages/ClientMessagesPage'
 import UnauthorizedPage from './pages/UnauthorizedPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import TimerDemo from './demos/TimerDemo'
@@ -275,15 +278,15 @@ const router = createBrowserRouter([
       },
       {
         path: 'projects',
-        element: <PlaceholderPage title="My Projects" />,
+        element: <ClientProjectsPage />,
       },
       {
         path: 'files',
-        element: <PlaceholderPage title="Project Files" />,
+        element: <ClientFilesPage />,
       },
       {
         path: 'messages',
-        element: <PlaceholderPage title="Messages" />,
+        element: <ClientMessagesPage />,
       },
     ],
   },
