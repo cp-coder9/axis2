@@ -21,11 +21,22 @@ import {
 } from 'lucide-react';
 import { AdminDashboardSkeleton } from '@/components/loading/DashboardSkeleton';
 import { ModernDashboardCard, AnimatedStatCard } from '@/components/dashboard/ModernDashboardCard';
+import { ProjectTable } from '@/components/project/ProjectTable';
+import { FreelancerTimerWidget } from '@/components/freelancer/FreelancerTimerWidget';
+import { FreelancerEarningsDashboard } from '@/components/freelancer/FreelancerEarningsDashboard';
+import { useAppContext } from '@/contexts/AppContext';
+import { UserRole } from '@/types';
 
 export default function FreelancerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [timerRunning, setTimerRunning] = useState(false);
+  const { projects, user } = useAppContext();
+
+  // Filter projects for freelancer (projects they're assigned to)
+  const freelancerProjects = projects.filter(project => 
+    project.team?.some(member => member.userId === user?.id)
+  );
 
   useEffect(() => {
     const loadFreelancerData = async () => {
@@ -249,12 +260,23 @@ export default function FreelancerDashboard() {
               <CardDescription>All projects you're currently working on</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-64 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Project list will be displayed here</p>
+              {freelancerProjects.length > 0 ? (
+                <ProjectTable 
+                  projects={freelancerProjects}
+                  userRole={UserRole.FREELANCER}
+                  showTimerControls={true}
+                  showPagination={true}
+                  pageSize={10}
+                />
+              ) : (
+                <div className="h-64 flex items-center justify-center text-muted-foreground">
+                  <div className="text-center">
+                    <Briefcase className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No projects assigned yet</p>
+                    <p className="text-sm mt-2">Check back later for new project assignments</p>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -266,10 +288,72 @@ export default function FreelancerDashboard() {
               <CardDescription>Track your time across projects</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-64 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Time tracking interface will be displayed here</p>
+              <div className="space-y-6">
+                {/* Timer Widget */}
+                <FreelancerTimerWidget />
+
+                {/* Recent Time Logs */}
+                <div className="border-t pt-6">
+                  <h3 className="text-lg font-semibold mb-4">Recent Time Logs</h3>
+                  <div className="space-y-3">
+                    {/* Mock recent time logs - in real app would fetch from context/API */}
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Office Redesign Project</p>
+                        <p className="text-xs text-muted-foreground">Today, 9:00 AM - 12:30 PM</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="secondary">3.5 hrs</Badge>
+                        <p className="text-xs text-muted-foreground mt-1">R 262.50</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Residential Renovation</p>
+                        <p className="text-xs text-muted-foreground">Yesterday, 2:00 PM - 6:00 PM</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="secondary">4.0 hrs</Badge>
+                        <p className="text-xs text-muted-foreground mt-1">R 300.00</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Commercial Space Design</p>
+                        <p className="text-xs text-muted-foreground">Dec 15, 10:00 AM - 1:00 PM</p>
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="secondary">3.0 hrs</Badge>
+                        <p className="text-xs text-muted-foreground mt-1">R 225.00</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="border-t pt-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="text-center p-4 border rounded-lg">
+                      <Clock className="h-6 w-6 mx-auto mb-2 text-blue-500" />
+                      <p className="text-2xl font-bold">32.5</p>
+                      <p className="text-xs text-muted-foreground">Hours This Week</p>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <Target className="h-6 w-6 mx-auto mb-2 text-green-500" />
+                      <p className="text-2xl font-bold">5</p>
+                      <p className="text-xs text-muted-foreground">Active Projects</p>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <DollarSign className="h-6 w-6 mx-auto mb-2 text-purple-500" />
+                      <p className="text-2xl font-bold">R 2,438</p>
+                      <p className="text-xs text-muted-foreground">Earned This Week</p>
+                    </div>
+                    <div className="text-center p-4 border rounded-lg">
+                      <TrendingUp className="h-6 w-6 mx-auto mb-2 text-orange-500" />
+                      <p className="text-2xl font-bold">R 75</p>
+                      <p className="text-xs text-muted-foreground">Avg Hourly Rate</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -277,20 +361,7 @@ export default function FreelancerDashboard() {
         </TabsContent>
 
         <TabsContent value="earnings" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Earnings Overview</CardTitle>
-              <CardDescription>Your earnings and payment history</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-64 flex items-center justify-center text-muted-foreground">
-                <div className="text-center">
-                  <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Earnings details will be displayed here</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <FreelancerEarningsDashboard />
         </TabsContent>
       </Tabs>
     </div>
