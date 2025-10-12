@@ -121,7 +121,7 @@ export const ProjectDetailsView: React.FC<ProjectDetailsViewProps> = ({
         budget: updates.budget,
         dueDate: updates.deadline,
         // Convert status back to workflow format
-        status: updates.status ? statusMap[updates.status] : undefined,
+        status: updates.status ? statusMap[updates.status as ProjectStatus] : undefined,
         // Convert priority back to lowercase
         priority: updates.priority?.toLowerCase() as 'low' | 'medium' | 'high' | 'urgent'
       }

@@ -1,15 +1,24 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ProjectTable } from '@/components/project/ProjectTable';
+import { ProjectTable, Project as TableProject } from '@/components/project/ProjectTable';
 import { useAppContext } from '@/contexts/AppContext';
-import { UserRole } from '@/types';
+import { UserRole, Project } from '@/types';
 import { Briefcase } from 'lucide-react';
+
+// Convert Project from types.ts to ProjectTable's Project type
+const convertToTableProject = (project: Project): TableProject => ({
+  ...project,
+  createdAt: project.createdAt instanceof Date ? project.createdAt : new Date(project.createdAt.toMillis()),
+  updatedAt: project.updatedAt ? (project.updatedAt instanceof Date ? project.updatedAt : new Date(project.updatedAt.toMillis())) : undefined,
+  deadline: project.deadline ? (project.deadline instanceof Date ? project.deadline : new Date(project.deadline.toMillis())) : undefined,
+});
 
 export default function FreelancerProjectsPage() {
   const { projects, user } = useAppContext();
 
   // Filter projects for freelancer (projects they're assigned to)
   const freelancerProjects = projects.filter(project => 
-    project.team?.some(member => member.userId === user?.id)
+    project.assignedTeam?.some(member => member.id === user?.id) || 
+    project.assignedTeamIds?.includes(user?.id || '')
   );
 
   return (
@@ -33,7 +42,7 @@ export default function FreelancerProjectsPage() {
         <CardContent>
           {freelancerProjects.length > 0 ? (
             <ProjectTable 
-              projects={freelancerProjects}
+              projects={freelancerProjects.map(convertToTableProject)}
               userRole={UserRole.FREELANCER}
               showTimerControls={true}
               showPagination={true}

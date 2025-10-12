@@ -16,14 +16,14 @@ import {
   Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ProjectStatus as ProjectStatusEnum } from '@/types'
+import { ProjectStatus } from '@/types'
 
 // Import our enhanced components
 import { ProjectCreationDialog } from './ProjectCreationDialog'
 import { ProjectDetailsView } from './ProjectDetailsView'
 import { TaskManagementBoard } from './TaskManagementBoard'
 import { TimerIntegrationPanel } from './TimerIntegrationPanel'
-import { ProjectCard, ProjectStatus } from './ProjectCard'
+import { ProjectCard } from './ProjectCard'
 
 // Types for the workflow
 export interface WorkflowProject {

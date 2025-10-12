@@ -38,21 +38,9 @@ import {
   Target,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ProjectStatus, UserRole } from '@/types'
 
-// Enums and types (would typically come from a shared types file)
-export enum ProjectStatus {
-  PENDING_APPROVAL = 'PENDING_APPROVAL',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  ON_HOLD = 'ON_HOLD',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  FREELANCER = 'FREELANCER',
-  CLIENT = 'CLIENT',
-}
+// Enums are imported from shared types file
 
 export interface User {
   id: string
@@ -118,11 +106,23 @@ export interface ProjectCardProps {
  */
 const getStatusConfig = (status: ProjectStatus) => {
   const configs = {
-    [ProjectStatus.PENDING_APPROVAL]: {
+    [ProjectStatus.DRAFT]: {
+      variant: 'secondary' as const,
+      className: 'bg-gray-100 text-gray-600 hover:bg-gray-200',
+      icon: Clock,
+      label: 'Draft',
+    },
+    [ProjectStatus.PLANNING]: {
       variant: 'secondary' as const,
       className: 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200',
       icon: Clock,
-      label: 'Pending Approval',
+      label: 'Planning',
+    },
+    [ProjectStatus.ACTIVE]: {
+      variant: 'default' as const,
+      className: 'bg-blue-100 text-blue-700 hover:bg-blue-200',
+      icon: Play,
+      label: 'Active',
     },
     [ProjectStatus.IN_PROGRESS]: {
       variant: 'default' as const,
