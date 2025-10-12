@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { useProgressiveImage, useLazyImage, CLOUDINARY_CONFIG } from '@/utils/performance';
+import { useProgressiveImage, useLazyImage, CLOUDINARY_CONFIG } from '@/utils/performance/cloudinaryOptimizer';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AlertCircle } from 'lucide-react';
 

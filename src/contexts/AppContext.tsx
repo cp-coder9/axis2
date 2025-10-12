@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
-import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus } from '../types';
+import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, Notification } from '../types';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { PresenceStatus, TypingIndicator } from '../types/messaging';
@@ -123,8 +123,15 @@ export interface AppContextType {
   
   // User management methods
   deleteUser?: (userId: string) => Promise<void>;
-  updateUser?: () => Promise<void>;
-  updateUserProfile?: () => Promise<void>;
+  updateUser?: (userId: string, updates: Partial<User>) => Promise<void>;
+  updateUserProfile?: (userId: string, updates: Partial<User>) => Promise<void>;
+  
+  // Project management methods
+  deleteProject?: (projectId: string) => Promise<void>;
+  updateProject?: (projectId: string, updateData: Partial<Project>) => Promise<void>;
+  updateProjectStatus?: (projectId: string, status: ProjectStatus) => Promise<void>;
+  updateJobCard?: (projectId: string, jobCardId: string, jobCardData: Partial<JobCard>) => Promise<void>;
+  updateJobCardStatus?: (projectId: string, jobCardId: string, status: JobCardStatus) => Promise<void>;
   
   // Role and permission methods
   hasPermission: (permission: keyof RolePermissions) => boolean;
@@ -459,7 +466,10 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     if (authState.user) {
-        const unsubscribeNotifications = subscribeToNotifications(authState.user.id, setNotifications);
+        const unsubscribeNotifications = subscribeToNotifications(
+          authState.user.id, 
+          (notifications: Notification[]) => setNotifications(notifications)
+        );
         return () => unsubscribeNotifications();
     }
   }, [authState.user]);

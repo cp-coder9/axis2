@@ -73,11 +73,11 @@ export const EnhancedModalWrapper = React.forwardRef<
       ref={ref}
       open={isOpen}
       onOpenChange={handleOpenChange}
-      dialogVariant={variant}
+      dialogVariant={variant === 'solid' ? 'default' : variant}
       dialogSize={size}
       overlayVariant={overlayVariant}
-      bottomSheetVariant={variant}
-      bottomSheetHeight={bottomSheetHeight}
+      bottomSheetVariant={variant === 'solid' ? 'default' : variant}
+      bottomSheetHeight={bottomSheetHeight === 'medium' || bottomSheetHeight === 'peek' ? 'auto' : bottomSheetHeight}
       showHandle={showHandle}
       showCloseButton={showCloseButton}
       className={className}
