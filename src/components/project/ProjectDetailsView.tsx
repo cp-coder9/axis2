@@ -103,25 +103,14 @@ export const ProjectDetailsView: React.FC<ProjectDetailsViewProps> = ({
   // Handle project updates
   const handleProjectUpdate = async (projectId: string, updates: Partial<Project>) => {
     if (onUpdateProject) {
-      // Convert ProjectStatus enum back to workflow string format
-      const statusMap: Record<ProjectStatus, string> = {
-        [ProjectStatus.DRAFT]: 'pending',
-        [ProjectStatus.PLANNING]: 'planning',
-        [ProjectStatus.ACTIVE]: 'active',
-        [ProjectStatus.IN_PROGRESS]: 'active',
-        [ProjectStatus.ON_HOLD]: 'on-hold',
-        [ProjectStatus.COMPLETED]: 'completed',
-        [ProjectStatus.CANCELLED]: 'cancelled',
-      };
-
       // Convert updates back to WorkflowProject format if needed
       const workflowUpdates: Partial<WorkflowProject> = {
         title: updates.title,
         description: updates.description,
         budget: updates.budget,
         dueDate: updates.deadline,
-        // Convert status back to workflow format
-        status: updates.status ? statusMap[updates.status as ProjectStatus] : undefined,
+        // Status is already ProjectStatus enum
+        status: updates.status,
         // Convert priority back to lowercase
         priority: updates.priority?.toLowerCase() as 'low' | 'medium' | 'high' | 'urgent'
       }

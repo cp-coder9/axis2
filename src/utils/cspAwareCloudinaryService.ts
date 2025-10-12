@@ -12,7 +12,7 @@ interface CSPAwareUploadOptions {
   tags?: string[];
   transformation?: string;
   progressCallback?: (progress: number) => void;
-  category?: string;
+  category?: FileCategory;
   projectId?: string;
   description?: string;
   retryAttempts?: number;
