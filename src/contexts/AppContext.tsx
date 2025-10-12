@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
+import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
 import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus } from '../types';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
@@ -744,11 +745,11 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       const { createProject } = await import('../services/projectService');
       
       // Transform ProjectCreationData to match Project interface
-      const projectDataForService: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'jobCards' | 'projectNumber'> = {
+      const projectDataForService: any = {
         ...projectData,
         status: ProjectStatus.DRAFT, // Default status for new projects
         deadline: projectData.deadline ? Timestamp.fromDate(projectData.deadline) : undefined,
-        jobCards: [] // Will be excluded by createProject but needed for type
+        jobCards: []
       };
       
       const projectId = await createProject(projectDataForService, authState.user);

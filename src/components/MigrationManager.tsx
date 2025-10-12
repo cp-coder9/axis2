@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ProjectMigrationService, MigrationResult, MigrationProgress, MigrationOptions } from '../../utils/projectMigrationService';
+import { ProjectMigrationService, MigrationResult, MigrationProgress, MigrationOptions } from '../utils/projectMigrationService';
 
 interface MigrationManagerProps {
     userId: string;
