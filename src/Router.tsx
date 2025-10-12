@@ -15,9 +15,22 @@ import FreelancerTimerPage from './pages/FreelancerTimerPage'
 import FreelancerEarningsPage from './pages/FreelancerEarningsPage'
 import FreelancerApplicationsPage from './pages/FreelancerApplicationsPage'
 import ClientDashboard from './pages/ClientDashboard'
+import ClientActivityPage from './pages/ClientActivityPage'
 import ClientProjectsPage from './pages/ClientProjectsPage'
+import ClientActiveProjectsPage from './pages/ClientActiveProjectsPage'
+import ClientCompletedProjectsPage from './pages/ClientCompletedProjectsPage'
+import ClientProjectTimelinePage from './pages/ClientProjectTimelinePage'
 import ClientFilesPage from './pages/ClientFilesPage'
+import ClientDownloadsPage from './pages/ClientDownloadsPage'
+import ClientSharedDocumentsPage from './pages/ClientSharedDocumentsPage'
 import ClientMessagesPage from './pages/ClientMessagesPage'
+import ClientTeamContactsPage from './pages/ClientTeamContactsPage'
+import ClientCalendarPage from './pages/ClientCalendarPage'
+import ClientProjectMilestonesPage from './pages/ClientProjectMilestonesPage'
+import ClientMeetingsPage from './pages/ClientMeetingsPage'
+import ClientNotificationsPage from './pages/ClientNotificationsPage'
+import ClientSettingsPage from './pages/ClientSettingsPage'
+import ClientSupportPage from './pages/ClientSupportPage'
 import UnauthorizedPage from './pages/UnauthorizedPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import TimerDemo from './demos/TimerDemo'
@@ -281,16 +294,68 @@ const router = createBrowserRouter([
         element: <ClientDashboard />,
       },
       {
+        path: 'dashboard/activity',
+        element: <ClientActivityPage />,
+      },
+      {
         path: 'projects',
         element: <ClientProjectsPage />,
+      },
+      {
+        path: 'projects/active',
+        element: <ClientActiveProjectsPage />,
+      },
+      {
+        path: 'projects/completed',
+        element: <ClientCompletedProjectsPage />,
+      },
+      {
+        path: 'projects/timeline',
+        element: <ClientProjectTimelinePage />,
       },
       {
         path: 'files',
         element: <ClientFilesPage />,
       },
       {
+        path: 'files/downloads',
+        element: <ClientDownloadsPage />,
+      },
+      {
+        path: 'files/shared',
+        element: <ClientSharedDocumentsPage />,
+      },
+      {
         path: 'messages',
         element: <ClientMessagesPage />,
+      },
+      {
+        path: 'messages/contacts',
+        element: <ClientTeamContactsPage />,
+      },
+      {
+        path: 'calendar',
+        element: <ClientCalendarPage />,
+      },
+      {
+        path: 'calendar/milestones',
+        element: <ClientProjectMilestonesPage />,
+      },
+      {
+        path: 'calendar/meetings',
+        element: <ClientMeetingsPage />,
+      },
+      {
+        path: 'notifications',
+        element: <ClientNotificationsPage />,
+      },
+      {
+        path: 'settings',
+        element: <ClientSettingsPage />,
+      },
+      {
+        path: 'support',
+        element: <ClientSupportPage />,
       },
     ],
   },
