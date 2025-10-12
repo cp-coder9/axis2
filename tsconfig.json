@@ -45,7 +45,9 @@
     "src/**/*.test.tsx",
     "**/__tests__/**/*",
     "src/demo/**/*",
-    "docs/demo/**/*"
+    "docs/demo/**/*",
+    "src/examples/**/*",
+    "**/*Demo.tsx"
   ],
   "references": [
     {
