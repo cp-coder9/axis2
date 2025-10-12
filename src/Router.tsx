@@ -59,6 +59,17 @@ import { MobileOptimizationsDemo } from '@/pages/MobileOptimizationsDemo'
 import CSPTestPage from '@/pages/CSPTestPage'
 import { Toaster } from 'sonner'
 
+// Admin pages
+import LifecyclePage from './pages/admin/LifecyclePage'
+import TeamPage from './pages/admin/TeamPage'
+import DataLibraryPage from './pages/admin/DataLibraryPage'
+import ReportsPage from './pages/admin/ReportsPage'
+import WordAssistantPage from './pages/admin/WordAssistantPage'
+import SettingsPage from './pages/admin/SettingsPage'
+import HelpPage from './pages/admin/HelpPage'
+import SearchPage from './pages/admin/SearchPage'
+import { AdminAppLayout } from '@/components/dashboards/admin/AdminAppLayout'
+
 // Placeholder component for pages under development
 function PlaceholderPage({ title }: { title: string }) {
   return (
@@ -103,9 +114,9 @@ function AdminLayout() {
         <ChartThemeProvider>
           <Toaster position="top-right" richColors />
           <AuthGuard requiredRole={UserRole.ADMIN}>
-            <DashboardLayout userRole="Admin">
+            <AdminAppLayout>
               <Outlet />
-            </DashboardLayout>
+            </AdminAppLayout>
           </AuthGuard>
         </ChartThemeProvider>
       </ThemeProvider>
@@ -221,6 +232,38 @@ const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: <AdminDashboard />,
+      },
+      {
+        path: 'lifecycle',
+        element: <LifecyclePage />,
+      },
+      {
+        path: 'team',
+        element: <TeamPage />,
+      },
+      {
+        path: 'data-library',
+        element: <DataLibraryPage />,
+      },
+      {
+        path: 'reports',
+        element: <ReportsPage />,
+      },
+      {
+        path: 'word-assistant',
+        element: <WordAssistantPage />,
+      },
+      {
+        path: 'settings',
+        element: <SettingsPage />,
+      },
+      {
+        path: 'help',
+        element: <HelpPage />,
+      },
+      {
+        path: 'search',
+        element: <SearchPage />,
       },
       {
         path: 'projects',
