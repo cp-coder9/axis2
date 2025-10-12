@@ -602,7 +602,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => appendDeliverable('' as any)}
+                      onClick={() => appendDeliverable('')}
                       className="w-full"
                     >
                       <Plus className="w-4 h-4 mr-2" />
