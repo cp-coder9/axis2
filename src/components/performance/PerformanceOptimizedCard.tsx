@@ -10,12 +10,13 @@
 import React, { ReactNode } from 'react';
 import { useCSSContainment, useIntersectionObserver } from '../../hooks/useCSSOptimization';
 import { cn } from '../../lib/utils';
+import { ContainmentType } from '../../utils/performance/cssOptimization';
 
 export interface PerformanceOptimizedCardProps {
   children: ReactNode;
   className?: string;
   lazyLoad?: boolean;
-  containment?: 'layout' | 'paint' | 'layout paint' | 'strict' | 'content';
+  containment?: ContainmentType;
   onVisible?: () => void;
 }
 
@@ -27,7 +28,7 @@ export function PerformanceOptimizedCard({
   children,
   className,
   lazyLoad = false,
-  containment = 'layout paint',
+  containment = 'layout',
   onVisible,
 }: PerformanceOptimizedCardProps) {
   const containmentRef = useCSSContainment(containment);

@@ -132,7 +132,7 @@ export interface AppContextType {
   updateProjectStatus?: (projectId: string, status: ProjectStatus) => Promise<void>;
   updateJobCard?: (projectId: string, jobCardId: string, jobCardData: Partial<JobCard>) => Promise<void>;
   updateJobCardStatus?: (projectId: string, jobCardId: string, status: JobCardStatus) => Promise<void>;
-  addProject?: (projectData: any) => Promise<void>;
+  addProject?: (projectData: any) => Promise<string>;
   addJobCardToProject?: (projectId: string, jobCardData: any) => Promise<void>;
   
   // Action item management methods
@@ -176,6 +176,14 @@ export interface AppContextType {
   
   // Loading states
   loading: boolean;
+  
+  // Additional state properties
+  clients?: any[];
+  projectRequests?: any[];
+  notifications?: any[];
+  isSidebarCollapsed?: boolean;
+  toggleSidebar?: () => void;
+  markNotificationAsRead?: (notificationId: string) => Promise<void>;
 }
 
 // Create context

@@ -67,7 +67,7 @@ interface SnapPoint {
 }
 
 interface BottomSheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
+  extends Omit<React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>, 'onDragEnd'>,
     VariantProps<typeof bottomSheetContentVariants> {
   showHandle?: boolean
   showCloseButton?: boolean
