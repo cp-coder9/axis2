@@ -165,12 +165,16 @@ export class CloudinaryManagementService {
         uploadedAt: Timestamp.now(),
         uploadedBy: metadata.userId,
         uploadedByName: '', // This should be filled by the calling component
+        uploaderId: metadata.userId,
+        uploaderName: '', // This should be filled by the calling component
         projectId: metadata.projectId,
         permissions: {
           level: metadata.permissions,
           allowDownload: true,
           allowShare: metadata.userRole === UserRole.ADMIN,
-          allowVersioning: metadata.userRole !== UserRole.CLIENT
+          allowDelete: metadata.userRole === UserRole.ADMIN,
+          allowVersioning: metadata.userRole !== UserRole.CLIENT,
+          allowComments: true
         },
         tags: allTags,
         category: metadata.category,
@@ -359,7 +363,15 @@ export class CloudinaryManagementService {
     categoryBreakdown: Record<FileCategory, number>;
   }> {
     // In a real implementation, this would query Cloudinary API
-    return cloudinaryFolderService.getFolderStatistics();
+    const stats = await cloudinaryFolderService.getFolderStatistics();
+    
+    // Convert the return type to match expected format
+    return {
+      totalFiles: stats.totalFiles,
+      totalSize: 0, // Calculate from folderSizes if needed
+      folderBreakdown: {}, // Transform folderSizes to required format
+      categoryBreakdown: stats.filesByCategory
+    };
   }
 
   /**

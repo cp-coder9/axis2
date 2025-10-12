@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -31,6 +31,12 @@ interface FileOrganizationDashboardProps {
   onOrganizeFiles?: (results: any) => void;
 }
 
+const createEmptyCategoryBreakdown = (): Record<FileCategory, number> =>
+  Object.values(FileCategory).reduce((acc, category) => {
+    acc[category as FileCategory] = 0;
+    return acc;
+  }, {} as Record<FileCategory, number>);
+
 interface OrganizationStats {
   totalFiles: number;
   organizedFiles: number;
@@ -53,34 +59,26 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
     unorganizedFiles: 0,
     totalSize: 0,
     folderBreakdown: {},
-    categoryBreakdown: {
-      [FileCategory.DOCUMENTS]: 0,
-      [FileCategory.IMAGES]: 0,
-      [FileCategory.ARCHIVES]: 0,
-      [FileCategory.SUBSTANTIATION]: 0,
-      [FileCategory.DELIVERABLES]: 0,
-      [FileCategory.PROFILE]: 0,
-      [FileCategory.SYSTEM]: 0
-    }
+    categoryBreakdown: createEmptyCategoryBreakdown()
   });
-  
+
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [organizationResults, setOrganizationResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Load statistics
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     setIsLoading(true);
     try {
       const folderStats = await cloudinaryManagementService.getFolderStatistics(userRole);
-      
+
       // Calculate organization stats from provided files
-      const organizedFiles = files.filter(file => 
+      const organizedFiles = files.filter(file =>
         file.folder && file.category && file.tags && file.tags.length > 0
       ).length;
-      
+
       const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
-      
+
       // Group files by category
       const categoryBreakdown = files.reduce((acc, file) => {
         const category = (file.category as FileCategory) || FileCategory.DOCUMENTS;
@@ -95,8 +93,8 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
         totalSize,
         folderBreakdown: folderStats.folderBreakdown || {},
         categoryBreakdown: {
-          ...stats.categoryBreakdown,
-          ...categoryBreakdown
+          ...createEmptyCategoryBreakdown(),
+          ...categoryBreakdown,
         }
       });
     } catch (error) {
@@ -104,7 +102,7 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [files, userRole, cloudinaryManagementService, createEmptyCategoryBreakdown]);
 
   // Organize existing files
   const organizeFiles = async () => {
@@ -115,10 +113,10 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
         userId,
         userRole
       );
-      
+
       setOrganizationResults(results);
       onOrganizeFiles?.(results);
-      
+
       // Reload stats after organization
       await loadStats();
     } catch (error) {
@@ -135,7 +133,7 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
   // Cleanup orphaned files (admin only)
   const cleanupFiles = async () => {
     if (userRole !== UserRole.ADMIN) return;
-    
+
     setIsOrganizing(true);
     try {
       const results = await cloudinaryManagementService.cleanupOrphanedFiles();
@@ -150,10 +148,10 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
 
   useEffect(() => {
     loadStats();
-  }, [files, userRole, loadStats]);
+  }, [loadStats]);
 
-  const organizationProgress = stats.totalFiles > 0 
-    ? (stats.organizedFiles / stats.totalFiles) * 100 
+  const organizationProgress = stats.totalFiles > 0
+    ? (stats.organizedFiles / stats.totalFiles) * 100
     : 0;
 
   const getCategoryIcon = (category: FileCategory) => {
@@ -192,7 +190,7 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -204,7 +202,7 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -216,7 +214,7 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
@@ -254,7 +252,7 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
                 )}
                 Organize Files
               </Button>
-              
+
               <Button
                 variant="outline"
                 onClick={loadStats}

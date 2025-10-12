@@ -341,6 +341,30 @@ export enum ApplicationStatus {
   REJECTED = 'REJECTED'
 }
 
+export interface ProjectRequest {
+  id: string;
+  title: string;
+  description: string;
+  clientId: string;
+  clientName: string;
+  requestedBy: string;
+  requestedByName: string;
+  status: ProjectRequestStatus;
+  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  budget?: number;
+  deadline?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export enum ProjectRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  IN_PROGRESS = 'IN_PROGRESS',
+  COMPLETED = 'COMPLETED'
+}
+
 export interface ProjectCreationData {
   title: string;
   description: string;
@@ -487,17 +511,21 @@ export enum AuditAction {
 export interface DashboardWidget {
   id: string;
   type: string;
+  name: string;
   title: string;
   x: number;
   y: number;
   w: number;
   h: number;
   // Task 1.3: Enhanced DashboardWidget properties
+  category?: 'analytics' | 'projects' | 'time' | 'files' | 'team' | 'reports' | 'system';
   description?: string;
   minW?: number;
   maxW?: number;
   minH?: number;
   maxH?: number;
+  defaultW?: number;
+  defaultH?: number;
   config?: Record<string, any>;
   permissions?: {
     roles: UserRole[];

@@ -3,7 +3,7 @@
  * Handles file uploads with Content Security Policy awareness and fallback mechanisms
  */
 
-import { ProjectFile, UserRole, FilePermissionLevel } from '@/types';
+import { ProjectFile, UserRole, FilePermissionLevel, FileCategory } from '@/types';
 import { Timestamp } from 'firebase/firestore';
 import { NetworkHelper } from '@/network-helper';
 
@@ -228,7 +228,7 @@ class CSPAwareCloudinaryService {
         uploadedBy: userId,
         uploadedByName: userName,
         uploadedAt: Timestamp.now(),
-        category: options.category || 'DOCUMENTS',
+        category: (options.category as FileCategory) || FileCategory.DOCUMENTS,
         projectId: options.projectId || '',
         tags: options.tags || [],
         permissions: {
@@ -241,15 +241,11 @@ class CSPAwareCloudinaryService {
           allowVersioning: userRole !== UserRole.CLIENT,
           allowComments: true
         },
+        cloudinaryPublicId: data.public_id,
         metadata: {
-          cloudinaryPublicId: data.public_id,
-          cloudinaryVersion: data.version,
-          cloudinaryFormat: data.format,
-          cloudinaryResourceType: data.resource_type,
           width: data.width,
           height: data.height,
-          bytes: data.bytes,
-          etag: data.etag
+          format: data.format
         }
       };
 
@@ -326,7 +322,7 @@ class CSPAwareCloudinaryService {
                 uploadedBy: userId,
                 uploadedByName: userName,
                 uploadedAt: Timestamp.now(),
-                category: options.category || 'DOCUMENTS',
+                category: (options.category as FileCategory) || FileCategory.DOCUMENTS,
                 projectId: options.projectId || '',
                 tags: [...(options.tags || []), 'firebase-fallback'],
                 permissions: {
@@ -339,11 +335,7 @@ class CSPAwareCloudinaryService {
                   allowVersioning: userRole !== UserRole.CLIENT,
                   allowComments: true
                 },
-                metadata: {
-                  storageProvider: 'firebase',
-                  storagePath: storagePath,
-                  fallbackReason: 'csp-violation'
-                }
+                folder: storagePath
               };
 
               resolve({

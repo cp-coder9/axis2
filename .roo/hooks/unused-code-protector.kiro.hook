@@ -1,0 +1,26 @@
+{
+  "enabled": true,
+  "id": "unused-code-protector",
+  "name": "Unused Code Protector",
+  "description": "Detects unused imports, functions, components, and variables in app code and proposes concrete integrations instead of deletions.",
+  "version": "2",
+  "when": {
+    "type": "fileSaved",
+    "patterns": [
+      "components/**/*.{ts,tsx,js,jsx}",
+      "contexts/**/*.{ts,tsx,js,jsx}",
+      "pages/**/*.{ts,tsx,js,jsx}",
+      "hooks/**/*.{ts,tsx,js,jsx}",
+      "utils/**/*.{ts,tsx,js,jsx}",
+      "api/**/*.{ts,tsx,js,jsx}",
+      "types/**/*.{ts,tsx,js,jsx}",
+      "validators/**/*.{ts,tsx,js,jsx}",
+      "functions/**/*.{ts,tsx,js,jsx}"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "timeoutMs": 180000,
+    "prompt": "Task: Analyze only the files modified by this event for unused imports, functions, components, variables, and incomplete implementations. Do not remove code. Prefer integrating it into meaningful flows.\n\nScope:\n- Consider only application code in: components, pages, contexts, hooks, utils, api, types, validators, functions.\n- Ignore third-party, generated, declaration-only files, and test/mocks.\n\nImplementation rules:\n1) Imports: Convert to actual usage, or (TypeScript) mark as `import type` when used solely for types. If truly side-effectful, justify keeping with a short comment.\n2) Functions: Wire into existing flows (handlers, effects, routes) with minimal, safe integration. Provide a small example invocation and required parameters.\n3) Components: Propose an integration point (page/parent), with a props example and where to import and render.\n4) Variables: Use in logic, logging, analytics, or clarify intent with a TODO and minimal usage to avoid dead code.\n5) Incomplete code: Finish small, self-contained parts; if larger, outline a step-by-step plan and provide stubs with TODOs.\n\nEdge cases & safety:\n- Types-only usage, barrel re-exports, side-effect imports, and React hooks ordering must not be broken.\n- Avoid changes in tests, __mocks__, node_modules, dist/build.\n- Avoid breaking API contracts; prefer additive changes.\n\nOutput format:\n- Summary: list files analyzed.\n- Findings: grouped by Unused Imports / Functions / Components / Variables / Incomplete.\n- Proposals: concrete code blocks with minimal diffs and target file paths.\n- Risks: note any potential regressions and how to verify.\n- Quick checks: commands or test names to run.\n\nDeliver only the above structure."
+  }
+}

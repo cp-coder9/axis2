@@ -49,6 +49,9 @@ const mockUsers: User[] = [
 const mockMessages: Message[] = [
   {
     id: 'msg1',
+    projectId: 'demo-project',
+    userId: 'user2',
+    userName: 'Sarah Client',
     senderId: 'user2',
     senderName: 'Sarah Client',
     senderAvatarUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
@@ -59,6 +62,9 @@ const mockMessages: Message[] = [
   },
   {
     id: 'msg2',
+    projectId: 'demo-project',
+    userId: 'user1',
+    userName: 'John Architect',
     senderId: 'user1',
     senderName: 'John Architect',
     senderAvatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
@@ -69,6 +75,9 @@ const mockMessages: Message[] = [
   },
   {
     id: 'msg3',
+    projectId: 'demo-project',
+    userId: 'user3',
+    userName: 'Mike Admin',
     senderId: 'user3',
     senderName: 'Mike Admin',
     senderAvatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
@@ -79,6 +88,9 @@ const mockMessages: Message[] = [
   },
   {
     id: 'msg4',
+    projectId: 'demo-project',
+    userId: 'user1',
+    userName: 'John Architect',
     senderId: 'user1',
     senderName: 'John Architect',
     senderAvatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
@@ -89,6 +101,9 @@ const mockMessages: Message[] = [
   },
   {
     id: 'msg5',
+    projectId: 'demo-project',
+    userId: 'user2',
+    userName: 'Sarah Client',
     senderId: 'user2',
     senderName: 'Sarah Client',
     senderAvatarUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
@@ -99,6 +114,9 @@ const mockMessages: Message[] = [
   },
   {
     id: 'msg6',
+    projectId: 'demo-project',
+    userId: 'user3',
+    userName: 'Mike Admin',
     senderId: 'user3',
     senderName: 'Mike Admin',
     senderAvatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
@@ -133,6 +151,9 @@ export const ChatInterfaceDemo: React.FC = () => {
   const handleSendMessage = (content: string, recipientIds?: string[]) => {
     const newMessage: Message = {
       id: `msg_${Date.now()}`,
+      projectId: 'demo-project',
+      userId: currentUser.id,
+      userName: currentUser.name,
       senderId: currentUser.id,
       senderName: currentUser.name,
       senderAvatarUrl: currentUser.avatarUrl,

@@ -235,49 +235,52 @@ export const validateUploadPermissions = (
 
 /**
  * Get folder statistics for a user
- */
-export const getUserFolderStats = async (
-  userId: string,
-  userRole: UserRole
-): Promise<{
-  totalFiles: number;
-  totalSize: number;
-  quotaUsed: number;
-  quotaLimit: number;
-  categoryBreakdown: Record<FileCategory, number>;
-}> => {
-  try {
-    const stats = await fileMetadataService.getFileStatistics(userId);
-    
-    const quotaLimits = {
-      [UserRole.ADMIN]: 10 * 1024 * 1024 * 1024, // 10GB
-      [UserRole.FREELANCER]: 2 * 1024 * 1024 * 1024, // 2GB
-      [UserRole.CLIENT]: 500 * 1024 * 1024 // 500MB
-    };
-    
-    return {
-      ...stats,
-      quotaUsed: stats.totalSize,
-      quotaLimit: quotaLimits[userRole]
-    };
-  } catch (error) {
-    console.error('Failed to get user folder stats:', error);
-    return {
-      totalFiles: 0,
-      totalSize: 0,
-      quotaUsed: 0,
-      quotaLimit: 0,
-      categoryBreakdown: {
-        [FileCategory.DOCUMENTS]: 0,
-        [FileCategory.IMAGES]: 0,
-        [FileCategory.ARCHIVES]: 0,
-        [FileCategory.SUBSTANTIATION]: 0,
-        [FileCategory.DELIVERABLES]: 0,
-        [FileCategory.PROFILE]: 0,
-        [FileCategory.SYSTEM]: 0
-      }
-    };
-  }
+ export const getUserFolderStats = async (
+   userId: string,
+   userRole: UserRole
+ ): Promise<{
+   totalFiles: number;
+   totalSize: number;
+   quotaUsed: number;
+   quotaLimit: number;
+   categoryBreakdown: Record<FileCategory, number>;
+ }> => {
+   try {
+     const stats = await fileMetadataService.getFileStatistics(userId);
+     
+     const quotaLimits = {
+       [UserRole.ADMIN]: 10 * 1024 * 1024 * 1024, // 10GB
+       [UserRole.FREELANCER]: 2 * 1024 * 1024 * 1024, // 2GB
+       [UserRole.CLIENT]: 500 * 1024 * 1024 // 500MB
+     };
+     
+     return {
+       totalFiles: stats.totalFiles,
+       totalSize: stats.totalSize,
+       quotaUsed: stats.totalSize,
+       quotaLimit: quotaLimits[userRole],
+       filesByCategory: stats.filesByCategory,
+       recentFiles: stats.recentFiles,
+       categoryBreakdown: stats.filesByCategory
+     };
+   } catch (error) {
+     console.error('Failed to get user folder stats:', error);
+     
+     // Initialize all FileCategory enum values to 0
+     const allCategories = Object.values(FileCategory).reduce((acc, category) => {
+       acc[category] = 0;
+       return acc;
+     }, {} as Record<FileCategory, number>);
+     
+     return {
+       totalFiles: 0,
+       totalSize: 0,
+       quotaUsed: 0,
+       quotaLimit: 0,
+       categoryBreakdown: allCategories
+     };
+   }
+ };
 };
 
 /**

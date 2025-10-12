@@ -1,5 +1,8 @@
 import { UserRole, FilePermissionLevel, FileCategory } from '@/types';
 
+// Re-export FileCategory for other services that depend on it
+export { FileCategory };
+
 export interface CloudinaryFolderStructure {
   projects: {
     [projectId: string]: {

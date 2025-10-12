@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+﻿import React, { useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -6,7 +6,6 @@ import { EnhancedModalWrapper } from '@/components/ui/enhanced-modal-wrapper';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,26 +20,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
-import { 
-  Upload, 
-  File, 
-  Image, 
-  FileText, 
-  Archive, 
-  X, 
-  AlertCircle, 
-  CheckCircle2,
-  Loader2,
-  Cloud
-} from 'lucide-react';
-import { ProjectFile, FilePermissionLevel, FileCategory } from '@/types';
+import { Upload, File, Image, FileText, Archive, X, AlertCircle, Loader2, Cloud } from 'lucide-react';
+import { ProjectFile, FilePermissionLevel, UserRole } from '@/types';
 import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
 import { formatFileSize } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
 
+export enum FileCategory {
+  DOCUMENTS = 'DOCUMENTS',
+  IMAGES = 'IMAGES',
+  ARCHIVES = 'ARCHIVES',
+  OTHER = 'OTHER',
+}
+
 const fileUploadSchema = z.object({
   description: z.string().optional(),
-  category: z.enum(['DOCUMENTS', 'IMAGES', 'ARCHIVES', 'OTHER']),
+  category: z.nativeEnum(FileCategory),
   tags: z.array(z.string()).optional(),
   permissions: z.object({
     level: z.nativeEnum(FilePermissionLevel),
@@ -52,19 +47,20 @@ const fileUploadSchema = z.object({
   }),
 });
 
-type FileUploadFormData = z.infer<typeof fileUploadSchema>;
+type FileUploadFormValues = z.infer<typeof fileUploadSchema>;
 
 interface EnhancedFileUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (file: ProjectFile, metadata: any) => Promise<void>;
+  onUpload: (file: ProjectFile, metadata: FileUploadFormValues) => Promise<void>;
   projectId?: string;
   userId: string;
   userName: string;
   existingTags?: string[];
+  userRole?: UserRole;
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
 const getFileIcon = (fileType: string) => {
   if (fileType.startsWith('image/')) return <Image className="h-8 w-8 text-blue-500" />;
@@ -75,15 +71,15 @@ const getFileIcon = (fileType: string) => {
   return <File className="h-8 w-8 text-gray-500" />;
 };
 
-const getFileCategory = (fileType: string): 'DOCUMENTS' | 'IMAGES' | 'ARCHIVES' | 'OTHER' => {
-  if (fileType.startsWith('image/')) return 'IMAGES';
+const getFileCategory = (fileType: string): FileCategory => {
+  if (fileType.startsWith('image/')) return FileCategory.IMAGES;
   if (fileType === 'application/pdf' || fileType.includes('document') || fileType.includes('sheet')) {
-    return 'DOCUMENTS';
+    return FileCategory.DOCUMENTS;
   }
   if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('7z')) {
-    return 'ARCHIVES';
+    return FileCategory.ARCHIVES;
   }
-  return 'OTHER';
+  return FileCategory.OTHER;
 };
 
 export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = ({
@@ -94,20 +90,22 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
   userId,
   userName,
   existingTags = [],
+  userRole = UserRole.FREELANCER,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [newTag, setNewTag] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { uploadFile, uploadProgress, isUploading: cloudinaryUploading } = useCloudinaryUpload();
 
-  const form = useForm<FileUploadFormData>({
+  const form = useForm<FileUploadFormValues>({
     resolver: zodResolver(fileUploadSchema),
     defaultValues: {
       description: '',
-      category: 'OTHER',
+      category: FileCategory.OTHER,
       tags: [],
       permissions: {
         level: FilePermissionLevel.PROJECT_TEAM,
@@ -120,61 +118,72 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
     },
   });
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
+  const activeUpload = useMemo(() => {
+    const uploads = Object.values(uploadProgress);
+    return uploads.find((upload) => upload.status === 'uploading');
+  }, [uploadProgress]);
+
+  const uploadProgressValue = activeUpload?.progress ?? 0;
+  const isUploadingActive = Boolean(activeUpload) || cloudinaryUploading || isUploading;
+
+  const watchedTags = form.watch('tags') ?? [];
+
+  const handleDrag = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.type === 'dragenter' || event.type === 'dragover') {
       setDragActive(true);
-    } else if (e.type === "dragleave") {
+    } else if (event.type === 'dragleave') {
       setDragActive(false);
     }
-  }, []);
+  };
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
     setDragActive(false);
-    
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelect(e.dataTransfer.files[0]);
+
+    if (event.dataTransfer.files && event.dataTransfer.files[0]) {
+      handleFileSelect(event.dataTransfer.files[0]);
     }
-  }, []);
+  };
 
   const handleFileSelect = (file: File) => {
     setUploadError(null);
-    
+
     if (file.size > MAX_FILE_SIZE) {
       setUploadError(`File size exceeds ${formatFileSize(MAX_FILE_SIZE)} limit`);
       return;
     }
 
     setSelectedFile(file);
-    const category = getFileCategory(file.type);
-    form.setValue('category', category);
+    form.setValue('category', getFileCategory(file.type));
   };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      handleFileSelect(e.target.files[0]);
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      handleFileSelect(event.target.files[0]);
     }
   };
 
   const handleAddTag = () => {
     if (newTag.trim()) {
-      const currentTags = form.getValues('tags');
-      if (!currentTags.includes(newTag.trim())) {
-        form.setValue('tags', [...currentTags, newTag.trim()]);
+      const trimmed = newTag.trim();
+      const currentTags = form.getValues('tags') ?? [];
+      if (!currentTags.includes(trimmed)) {
+        form.setValue('tags', [...currentTags, trimmed]);
       }
       setNewTag('');
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    const currentTags = form.getValues('tags');
-    form.setValue('tags', currentTags.filter(tag => tag !== tagToRemove));
+    const currentTags = form.getValues('tags') ?? [];
+    form.setValue('tags', currentTags.filter((tag) => tag !== tagToRemove));
   };
 
-  const onSubmit = async (data: FileUploadFormData) => {
+  const onSubmit = async (data: FileUploadFormValues) => {
     if (!selectedFile) {
       setUploadError('Please select a file to upload');
       return;
@@ -184,28 +193,18 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
     setUploadError(null);
 
     try {
-      const uploadResult = await uploadFile(
-        selectedFile,
-        {
-          folder: projectId ? `projects/${projectId}` : 'general',
-          resourceType: selectedFile.type.startsWith('image/') ? 'image' : 'raw',
-        },
-        projectId || 'default'
-      );
+      const uploadedFile = await uploadFile(selectedFile, userId, userName, userRole, {
+        folder: projectId ? `projects/${projectId}` : 'general',
+        category: data.category,
+        projectId: projectId || '',
+        tags: data.tags,
+        description: data.description ?? undefined,
+      });
 
       const fileData: ProjectFile = {
-        id: uploadResult.public_id || `file-${Date.now()}`,
-        name: selectedFile.name,
-        url: uploadResult.secure_url || uploadResult.url,
-        public_id: uploadResult.public_id,
-        secure_url: uploadResult.secure_url,
-        type: selectedFile.type,
-        size: selectedFile.size,
-        uploadedBy: userId,
-        uploadedByName: userName,
-        uploadedAt: new Date() as any,
-        projectId: projectId || '',
-        category: data.category as FileCategory,
+        ...uploadedFile,
+        projectId: projectId || uploadedFile.projectId,
+        category: data.category,
         description: data.description,
         tags: data.tags,
         permissions: {
@@ -216,8 +215,9 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
           allowVersioning: data.permissions.allowVersioning ?? true,
           allowComments: data.permissions.allowComments ?? true,
         },
-        version: 1,
-        isLatestVersion: true,
+        metadata: {
+          ...uploadedFile.metadata,
+        },
       };
 
       await onUpload(fileData, data);
@@ -240,15 +240,15 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
 
   const footer = (
     <>
-      <Button variant="outline" onClick={handleClose} disabled={isUploading}>
+      <Button variant="outline" onClick={handleClose} disabled={isUploadingActive}>
         Cancel
       </Button>
-      <Button 
-        onClick={form.handleSubmit(onSubmit)} 
-        disabled={!selectedFile || isUploading}
+      <Button
+        onClick={form.handleSubmit(onSubmit)}
+        disabled={!selectedFile || isUploadingActive}
         className="min-w-[120px]"
       >
-        {isUploading ? (
+        {isUploadingActive ? (
           <div className="flex items-center gap-2">
             <Loader2 className="h-4 w-4 animate-spin" />
             Uploading...
@@ -274,18 +274,17 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
       overlayVariant="glass"
       bottomSheetHeight="full"
       footer={footer}
-      closeOnOverlayClick={!isUploading}
+      closeOnOverlayClick={!isUploadingActive}
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          {/* File Drop Zone */}
           <div
             className={cn(
-              "border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200",
-              dragActive 
-                ? "border-primary bg-primary/5 scale-[1.02]" 
-                : "border-muted-foreground/25 hover:border-primary/50 hover:bg-primary/5",
-              selectedFile && "border-primary bg-primary/5"
+              'border-2 border-dashed rounded-lg p-8 text-center transition-all duration-200',
+              dragActive
+                ? 'border-primary bg-primary/5 scale-[1.02]'
+                : 'border-muted-foreground/25 hover-border-primary/50 hover:bg-primary/5',
+              selectedFile && 'border-primary bg-primary/5'
             )}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
@@ -294,21 +293,12 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
           >
             {selectedFile ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-center">
-                  {getFileIcon(selectedFile.type)}
-                </div>
+                <div className="flex items-center justify-center">{getFileIcon(selectedFile.type)}</div>
                 <div>
                   <p className="font-medium text-lg">{selectedFile.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
+                  <p className="text-sm text-muted-foreground">{formatFileSize(selectedFile.size)}</p>
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectedFile(null)}
-                >
+                <Button type="button" variant="outline" size="sm" onClick={() => setSelectedFile(null)}>
                   <X className="h-4 w-4 mr-2" />
                   Remove File
                 </Button>
@@ -323,39 +313,33 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
                   </p>
                 </div>
                 <Input
+                  ref={fileInputRef}
                   type="file"
                   className="hidden"
-                  id="file-input"
                   onChange={handleFileInputChange}
                   accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,.7z"
                 />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('file-input')?.click()}
-                >
+                <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()}>
                   Choose File
                 </Button>
               </div>
             )}
           </div>
 
-          {/* Upload Progress */}
-          {isUploading && uploadProgress !== undefined && (
+          {isUploadingActive && (
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Uploading...</span>
-                    <span>{uploadProgress}%</span>
+                    <span>{Math.round(uploadProgressValue)}%</span>
                   </div>
-                  <Progress value={uploadProgress} className="h-2" />
+                  <Progress value={uploadProgressValue} className="h-2" />
                 </div>
               </CardContent>
             </Card>
           )}
 
-          {/* Error Alert */}
           {uploadError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
@@ -363,7 +347,6 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
             </Alert>
           )}
 
-          {/* File Metadata */}
           {selectedFile && !isUploading && (
             <div className="space-y-4">
               <FormField
@@ -391,77 +374,102 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
+                    <FormControl>
+                      <Select onValueChange={(value) => field.onChange(value as FileCategory)} value={field.value}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="DOCUMENTS">Documents</SelectItem>
-                        <SelectItem value="IMAGES">Images</SelectItem>
-                        <SelectItem value="ARCHIVES">Archives</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                        <SelectContent>
+                          <SelectItem value={FileCategory.DOCUMENTS}>Documents</SelectItem>
+                          <SelectItem value={FileCategory.IMAGES}>Images</SelectItem>
+                          <SelectItem value={FileCategory.ARCHIVES}>Archives</SelectItem>
+                          <SelectItem value={FileCategory.OTHER}>Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Tags */}
               <div className="space-y-2">
                 <FormLabel>Tags</FormLabel>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Add tag..."
                     value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
+                    onChange={(event) => setNewTag(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        handleAddTag();
+                      }
+                    }}
                   />
                   <Button type="button" variant="outline" onClick={handleAddTag}>
                     Add
                   </Button>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {form.watch('tags').map((tag) => (
+                  {watchedTags.map((tag) => (
                     <Badge key={tag} variant="secondary" className="gap-1">
                       {tag}
-                      <X
-                        className="h-3 w-3 cursor-pointer"
-                        onClick={() => handleRemoveTag(tag)}
-                      />
+                      <X className="h-3 w-3 cursor-pointer" onClick={() => handleRemoveTag(tag)} />
                     </Badge>
                   ))}
                 </div>
               </div>
 
-              {/* Permissions */}
+              {existingTags.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Available tags:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {existingTags
+                      .filter((tag) => !watchedTags.includes(tag))
+                      .map((tag) => (
+                        <Badge
+                          key={tag}
+                          variant="outline"
+                          className="cursor-pointer hover:bg-muted"
+                          onClick={() => {
+                            const currentTags = form.getValues('tags') ?? [];
+                            form.setValue('tags', [...currentTags, tag]);
+                          }}
+                        >
+                          {tag}
+                        </Badge>
+                      ))}
+                  </div>
+                </div>
+              )}
+
               <FormField
                 control={form.control}
                 name="permissions.level"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Access Level</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
+                    <FormControl>
+                      <Select
+                        onValueChange={(value) => field.onChange(value as FilePermissionLevel)}
+                        value={field.value}
+                      >
                         <SelectTrigger>
                           <SelectValue />
                         </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value={FilePermissionLevel.CLIENT_VISIBLE}>Public</SelectItem>
-                        <SelectItem value={FilePermissionLevel.PROJECT_TEAM}>Project Members</SelectItem>
-                        <SelectItem value={FilePermissionLevel.PROJECT_TEAM}>Team Only</SelectItem>
-                        <SelectItem value={FilePermissionLevel.ADMIN_ONLY}>Private</SelectItem>
-                      </SelectContent>
-                    </Select>
+                        <SelectContent>
+                          <SelectItem value={FilePermissionLevel.CLIENT_VISIBLE}>Client Visible</SelectItem>
+                          <SelectItem value={FilePermissionLevel.PROJECT_TEAM}>Project Team</SelectItem>
+                          <SelectItem value={FilePermissionLevel.ADMIN_ONLY}>Admin Only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
                 <FormField
                   control={form.control}
                   name="permissions.allowDownload"
@@ -469,13 +477,11 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
                     <FormItem className="flex items-center space-x-2 space-y-0">
                       <FormControl>
                         <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
+                          checked={field.value ?? false}
+                          onCheckedChange={(value) => field.onChange(value === true)}
                         />
                       </FormControl>
-                      <FormLabel className="font-normal cursor-pointer">
-                        Allow Download
-                      </FormLabel>
+                      <FormLabel className="font-normal cursor-pointer">Allow Download</FormLabel>
                     </FormItem>
                   )}
                 />
@@ -487,13 +493,59 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
                     <FormItem className="flex items-center space-x-2 space-y-0">
                       <FormControl>
                         <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
+                          checked={field.value ?? false}
+                          onCheckedChange={(value) => field.onChange(value === true)}
                         />
                       </FormControl>
-                      <FormLabel className="font-normal cursor-pointer">
-                        Allow Share
-                      </FormLabel>
+                      <FormLabel className="font-normal cursor-pointer">Allow Share</FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="permissions.allowDelete"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value ?? false}
+                          onCheckedChange={(value) => field.onChange(value === true)}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal cursor-pointer">Allow Delete</FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="permissions.allowVersioning"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value ?? false}
+                          onCheckedChange={(value) => field.onChange(value === true)}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal cursor-pointer">Allow Versioning</FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="permissions.allowComments"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value ?? false}
+                          onCheckedChange={(value) => field.onChange(value === true)}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal cursor-pointer">Allow Comments</FormLabel>
                     </FormItem>
                   )}
                 />
