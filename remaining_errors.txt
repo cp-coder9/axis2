@@ -1,0 +1,32 @@
+src/components/ChatInterfaceDemo.tsx(188,9): error TS2322: Type 'import("/home/runner/work/axis2/axis2/src/types").Message[]' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/types/messaging").Message[]'.
+src/components/dashboard/DashboardLayoutManager.tsx(345,25): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/dashboard/ResizableWidgetContainer.tsx(163,13): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/dashboard/ResizableWidgetContainer.tsx(203,21): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/demos/FormEnhancementsDemo.tsx(126,7): error TS2322: Type 'string' is not assignable to type 'boolean'.
+src/components/demos/FormEnhancementsDemo.tsx(156,7): error TS2322: Type 'string' is not assignable to type 'boolean'.
+src/components/navigation/HeaderContent.tsx(141,36): error TS2339: Property 'avatarUrl' does not exist on type 'User | User'.
+src/components/performance/PerformanceOptimizedCard.tsx(33,44): error TS2345: Argument of type '"content" | "layout" | "paint" | "strict" | "layout paint"' is not assignable to parameter of type 'ContainmentType'.
+src/components/project/ProjectCreationDialog.tsx(99,5): error TS2322: Type '"deliverables"' is not assignable to type '"teamMembers" | "initialTasks"'.
+src/components/project/ProjectCreationDialog.tsx(605,56): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ title: string; estimatedHours: number; priority: "high" | "low" | "medium" | "urgent"; assignedTo: string; description?: string; } | { name: string; role: string; email: string; } | ({ title: string; estimatedHours: number; priority: "high" | ... 2 more ... | "urgent"; assignedTo: string; description?: string; } |...'.
+src/components/project/ProjectDetailsView.tsx(124,9): error TS2322: Type 'string' is not assignable to type 'ProjectStatus'.
+src/components/project/ProjectWorkflow.tsx(184,42): error TS2367: This comparison appears to be unintentional because the types 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectCard").ProjectStatus' and 'import("/home/runner/work/axis2/axis2/src/types").ProjectStatus' have no overlap.
+src/components/project/ProjectWorkflow.tsx(185,45): error TS2367: This comparison appears to be unintentional because the types 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectCard").ProjectStatus' and 'import("/home/runner/work/axis2/axis2/src/types").ProjectStatus' have no overlap.
+src/components/ui/bottom-sheet.tsx(69,11): error TS2430: Interface 'BottomSheetContentProps' incorrectly extends interface 'Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+src/contexts/AppContext.tsx(902,5): error TS2353: Object literal may only specify known properties, and 'addActionItemToProject' does not exist in type 'AppContextType'.
+src/pages/ClientDashboard.tsx(308,61): error TS2322: Type 'void' is not assignable to type 'Promise<void>'.
+src/pages/ClientDashboard.tsx(324,45): error TS2322: Type 'void' is not assignable to type 'Promise<void>'.
+src/pages/ClientDashboard.tsx(329,50): error TS2322: Type 'void' is not assignable to type 'Promise<void>'.
+src/pages/FreelancerDashboard.tsx(38,13): error TS2339: Property 'team' does not exist on type 'Project'.
+src/pages/FreelancerDashboard.tsx(265,19): error TS2322: Type 'import("/home/runner/work/axis2/axis2/src/types").Project[]' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").Project[]'.
+src/pages/FreelancerProjectsPage.tsx(12,13): error TS2339: Property 'team' does not exist on type 'Project'.
+src/pages/FreelancerProjectsPage.tsx(36,15): error TS2322: Type 'import("/home/runner/work/axis2/axis2/src/types").Project[]' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").Project[]'.
+src/services/cloudinaryManagementService.ts(159,13): error TS2739: Type '{ id: string; name: string; url: string; size: number; type: string; uploadedAt: Timestamp; uploadedBy: string; uploadedByName: string; projectId: string; permissions: { level: FilePermissionLevel; ... 4 more ...; allowComments: true; }; ... 4 more ...; cloudinaryPublicId: string; }' is missing the following properties from type 'ProjectFile': uploaderId, uploaderName
+src/services/profileExportImportService.ts(193,11): error TS2322: Type 'any' is not assignable to type 'never'.
+src/services/profileExportImportService.ts(196,11): error TS2322: Type 'any' is not assignable to type 'never'.
+src/services/profileExportImportService.ts(394,7): error TS2322: Type 'string | number | boolean | string[] | Timestamp | { profileCompleted: boolean; skillsAdded: boolean; firstProjectAssigned: boolean; firstTimeLogged: boolean; completedAt?: Timestamp; } | { ...; }' is not assignable to type 'never'.
+src/services/timeTrackingService.ts(72,32): error TS2339: Property 'isBillable' does not exist on type 'TimeLog'.
+src/services/timeTrackingService.ts(76,13): error TS2353: Object literal may only specify known properties, and 'projectId' does not exist in type 'TimeTrackingReport'.
+src/utils/DashboardAnalytics.ts(92,55): error TS2339: Property 'i' does not exist on type 'WidgetLayout'.
+src/utils/cspAwareCloudinaryService.ts(231,39): error TS2304: Cannot find name 'FileCategory'.
+src/utils/cspAwareCloudinaryService.ts(331,47): error TS2304: Cannot find name 'FileCategory'.
+src/utils/fileAccessControl.ts(65,44): error TS2367: This comparison appears to be unintentional because the types 'UserRole.FREELANCER | UserRole.CLIENT' and 'UserRole.ADMIN' have no overlap.

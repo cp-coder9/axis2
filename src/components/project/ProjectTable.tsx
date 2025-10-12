@@ -50,55 +50,16 @@ import {
   User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ProjectStatus, UserRole, User as BaseUser, Project as BaseProject } from '@/types'
 
-// Enums and types (would typically come from a shared types file)
-export enum ProjectStatus {
-  PENDING_APPROVAL = 'PENDING_APPROVAL',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  ON_HOLD = 'ON_HOLD',
-  CANCELLED = 'CANCELLED',
-}
+// Use User from types.ts but allow referencing locally
+type User = BaseUser;
 
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  FREELANCER = 'FREELANCER',
-  CLIENT = 'CLIENT',
-}
-
-export interface User {
-  id: string
-  name: string
-  email: string
-  role: UserRole
-  title?: string
-  avatarUrl?: string
-}
-
-export interface Project {
-  id: string
-  title: string
-  description: string
-  clientId: string
-  clientName?: string
-  leadArchitectId: string
-  leadArchitectName?: string
-  assignedTeamIds: string[]
-  assignedTeam?: User[]
-  status: ProjectStatus
-  budget?: number
-  deadline?: Date
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-  tags: string[]
-  purchasedHours?: number
-  remainingHours?: number
-  totalTimeSpentMinutes?: number
-  totalAllocatedHours?: number
-  completionPercentage?: number
-  activeJobCards?: number
-  totalJobCards?: number
-  createdAt: Date
-  updatedAt?: Date
+// Extend Project from types with table-specific properties if needed
+export interface Project extends Omit<BaseProject, 'createdAt' | 'updatedAt' | 'deadline'> {
+  createdAt: Date;
+  updatedAt?: Date;
+  deadline?: Date;
 }
 
 export interface ProjectTableActions {
@@ -141,11 +102,23 @@ type SortField = 'title' | 'status' | 'deadline' | 'budget' | 'createdAt' | 'com
  */
 const getStatusConfig = (status: ProjectStatus) => {
   const configs = {
-    [ProjectStatus.PENDING_APPROVAL]: {
+    [ProjectStatus.DRAFT]: {
+      variant: 'secondary' as const,
+      className: 'bg-gray-100 text-gray-600',
+      icon: Clock,
+      label: 'Draft',
+    },
+    [ProjectStatus.PLANNING]: {
       variant: 'secondary' as const,
       className: 'bg-yellow-100 text-yellow-700',
       icon: Clock,
-      label: 'Pending',
+      label: 'Planning',
+    },
+    [ProjectStatus.ACTIVE]: {
+      variant: 'default' as const,
+      className: 'bg-blue-100 text-blue-700',
+      icon: Play,
+      label: 'Active',
     },
     [ProjectStatus.IN_PROGRESS]: {
       variant: 'default' as const,
@@ -301,11 +274,11 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
         aValue = a.completionPercentage ?? 0
         bValue = b.completionPercentage ?? 0
       } else if (sortField === 'deadline') {
-        aValue = a.deadline ? new Date(a.deadline).getTime() : 0
-        bValue = b.deadline ? new Date(b.deadline).getTime() : 0
+        aValue = a.deadline ? a.deadline.getTime() : 0
+        bValue = b.deadline ? b.deadline.getTime() : 0
       } else if (sortField === 'createdAt') {
-        aValue = new Date(a.createdAt).getTime()
-        bValue = new Date(b.createdAt).getTime()
+        aValue = a.createdAt.getTime()
+        bValue = b.createdAt.getTime()
       }
 
       if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
@@ -410,7 +383,9 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value={ProjectStatus.PENDING_APPROVAL}>Pending</SelectItem>
+            <SelectItem value={ProjectStatus.DRAFT}>Draft</SelectItem>
+            <SelectItem value={ProjectStatus.PLANNING}>Planning</SelectItem>
+            <SelectItem value={ProjectStatus.ACTIVE}>Active</SelectItem>
             <SelectItem value={ProjectStatus.IN_PROGRESS}>In Progress</SelectItem>
             <SelectItem value={ProjectStatus.COMPLETED}>Completed</SelectItem>
             <SelectItem value={ProjectStatus.ON_HOLD}>On Hold</SelectItem>

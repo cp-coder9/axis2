@@ -1,0 +1,66 @@
+src/components/ChatInterfaceDemo.tsx(188,9): error TS2322: Type 'import("/home/runner/work/axis2/axis2/src/types").Message[]' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/types/messaging").Message[]'.
+  Property 'channelType' is missing in type 'import("/home/runner/work/axis2/axis2/src/types").Message' but required in type 'import("/home/runner/work/axis2/axis2/src/types/messaging").Message'.
+src/components/admin/ShadcnFileManagementDashboard.tsx(143,22): error TS2345: Argument of type '{ totalFiles: number; totalSize: number; filesByCategory: Record<string, number>; filesByUploader: Record<string, number>; mostAccessedFiles: any[]; recentlyUploadedFiles: { ...; }[]; }' is not assignable to parameter of type 'SetStateAction<{ totalFiles: number; totalSize: number; filesByCategory: Record<FileCategory, number>; filesByUploader: Record<string, number>; mostAccessedFiles: { ...; }[]; recentlyUploadedFiles: ProjectFile[]; }>'.
+  Type '{ totalFiles: number; totalSize: number; filesByCategory: Record<string, number>; filesByUploader: Record<string, number>; mostAccessedFiles: any[]; recentlyUploadedFiles: { ...; }[]; }' is not assignable to type '{ totalFiles: number; totalSize: number; filesByCategory: Record<FileCategory, number>; filesByUploader: Record<string, number>; mostAccessedFiles: { ...; }[]; recentlyUploadedFiles: ProjectFile[]; }'.
+    Types of property 'recentlyUploadedFiles' are incompatible.
+      Type '{ id: string; name: string; uploadedAt: Timestamp; }[]' is not assignable to type 'ProjectFile[]'.
+        Type '{ id: string; name: string; uploadedAt: Timestamp; }' is missing the following properties from type 'ProjectFile': size, type, url, uploaderId, and 2 more.
+src/components/dashboard/DashboardLayoutManager.tsx(345,25): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/dashboard/ResizableWidgetContainer.tsx(163,13): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/dashboard/ResizableWidgetContainer.tsx(203,21): error TS2741: Property 'component' is missing in type 'DashboardWidget' but required in type 'EnhancedWidgetType'.
+src/components/demos/FormEnhancementsDemo.tsx(126,7): error TS2322: Type 'string' is not assignable to type 'boolean'.
+src/components/demos/FormEnhancementsDemo.tsx(156,7): error TS2322: Type 'string' is not assignable to type 'boolean'.
+src/components/file/EnhancedFileUploadModal.tsx(189,9): error TS2345: Argument of type '{ folder: string; resourceType: string; }' is not assignable to parameter of type 'string'.
+src/components/file/EnhancedFileUploadModal.tsx(196,13): error TS2739: Type '{ id: string; name: string; url: string; public_id: string; secure_url: string; type: string; size: number; uploadedBy: string; uploadedByName: string; uploadedAt: any; projectId: string; category: FileCategory; ... 4 more ...; isLatestVersion: true; }' is missing the following properties from type 'ProjectFile': uploaderId, uploaderName
+src/components/file/EnhancedFileUploadModal.tsx(350,27): error TS2322: Type 'Record<string, FileUploadProgress>' is not assignable to type 'ReactNode'.
+  Type 'Record<string, FileUploadProgress>' is missing the following properties from type 'ReactPortal': children, type, props, key
+src/components/file/EnhancedFileUploadModal.tsx(352,29): error TS2322: Type 'Record<string, FileUploadProgress>' is not assignable to type 'number'.
+src/components/file/FileOrganizationDashboard.tsx(56,5): error TS2740: Type '{ DOCUMENTS: number; IMAGES: number; ARCHIVES: number; SUBSTANTIATION: number; DELIVERABLES: number; PROFILE: number; SYSTEM: number; }' is missing the following properties from type 'Record<FileCategory, number>': DRAWINGS, SPECIFICATIONS, REPORTS, CONTRACTS, and 7 more.
+src/components/navigation/HeaderContent.tsx(141,36): error TS2339: Property 'avatarUrl' does not exist on type 'User | User'.
+  Property 'avatarUrl' does not exist on type 'User'.
+src/components/performance/PerformanceOptimizedCard.tsx(33,44): error TS2345: Argument of type '"content" | "layout" | "paint" | "strict" | "layout paint"' is not assignable to parameter of type 'ContainmentType'.
+  Type '"layout paint"' is not assignable to type 'ContainmentType'.
+src/components/project/ProjectCreationDialog.tsx(99,5): error TS2322: Type '"deliverables"' is not assignable to type '"teamMembers" | "initialTasks"'.
+src/components/project/ProjectCreationDialog.tsx(605,56): error TS2345: Argument of type 'string' is not assignable to parameter of type '{ title: string; estimatedHours: number; priority: "high" | "low" | "medium" | "urgent"; assignedTo: string; description?: string; } | { name: string; role: string; email: string; } | ({ title: string; estimatedHours: number; priority: "high" | ... 2 more ... | "urgent"; assignedTo: string; description?: string; } |...'.
+src/components/project/ProjectDetailsView.tsx(124,9): error TS2322: Type 'string' is not assignable to type 'ProjectStatus'.
+src/components/project/ProjectWorkflow.tsx(184,42): error TS2367: This comparison appears to be unintentional because the types 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectCard").ProjectStatus' and 'import("/home/runner/work/axis2/axis2/src/types").ProjectStatus' have no overlap.
+src/components/project/ProjectWorkflow.tsx(185,45): error TS2367: This comparison appears to be unintentional because the types 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectCard").ProjectStatus' and 'import("/home/runner/work/axis2/axis2/src/types").ProjectStatus' have no overlap.
+src/components/ui/bottom-sheet.tsx(69,11): error TS2430: Interface 'BottomSheetContentProps' incorrectly extends interface 'Omit<DialogContentProps & RefAttributes<HTMLDivElement>, "ref">'.
+  Types of property 'onDragEnd' are incompatible.
+    Type '(velocity: number) => void' is not assignable to type 'DragEventHandler<HTMLDivElement>'.
+      Types of parameters 'velocity' and 'event' are incompatible.
+        Type 'DragEvent<HTMLDivElement>' is not assignable to type 'number'.
+src/contexts/AppContext.tsx(902,5): error TS2353: Object literal may only specify known properties, and 'addActionItemToProject' does not exist in type 'AppContextType'.
+src/pages/ClientDashboard.tsx(308,61): error TS2322: Type 'void' is not assignable to type 'Promise<void>'.
+src/pages/ClientDashboard.tsx(324,45): error TS2322: Type 'void' is not assignable to type 'Promise<void>'.
+src/pages/ClientDashboard.tsx(329,50): error TS2322: Type 'void' is not assignable to type 'Promise<void>'.
+src/pages/FreelancerDashboard.tsx(38,13): error TS2339: Property 'team' does not exist on type 'Project'.
+src/pages/FreelancerDashboard.tsx(265,19): error TS2322: Type 'import("/home/runner/work/axis2/axis2/src/types").Project[]' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").Project[]'.
+  Type 'import("/home/runner/work/axis2/axis2/src/types").Project' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").Project'.
+    Types of property 'status' are incompatible.
+      Type 'import("/home/runner/work/axis2/axis2/src/types").ProjectStatus' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").ProjectStatus'.
+        Property 'DRAFT' is missing in type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").ProjectStatus'.
+src/pages/FreelancerProjectsPage.tsx(12,13): error TS2339: Property 'team' does not exist on type 'Project'.
+src/pages/FreelancerProjectsPage.tsx(36,15): error TS2322: Type 'import("/home/runner/work/axis2/axis2/src/types").Project[]' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").Project[]'.
+  Type 'import("/home/runner/work/axis2/axis2/src/types").Project' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").Project'.
+    Types of property 'status' are incompatible.
+      Type 'import("/home/runner/work/axis2/axis2/src/types").ProjectStatus' is not assignable to type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").ProjectStatus'.
+        Property 'DRAFT' is missing in type 'import("/home/runner/work/axis2/axis2/src/components/project/ProjectTable").ProjectStatus'.
+src/services/cloudinaryManagementService.ts(169,9): error TS2739: Type '{ level: FilePermissionLevel; allowDownload: true; allowShare: boolean; allowVersioning: boolean; }' is missing the following properties from type 'FilePermissions': allowDelete, allowComments
+src/services/cloudinaryManagementService.ts(362,5): error TS2739: Type '{ totalFiles: number; folderSizes: Record<string, number>; filesByCategory: Record<FileCategory, number>; filesByRole: Record<UserRole, number>; }' is missing the following properties from type '{ totalFiles: number; totalSize: number; folderBreakdown: Record<string, { files: number; size: number; }>; categoryBreakdown: Record<FileCategory, number>; }': totalSize, folderBreakdown, categoryBreakdown
+src/services/fileMetadataService.ts(326,7): error TS2740: Type '{ DOCUMENTS: number; IMAGES: number; ARCHIVES: number; SUBSTANTIATION: number; DELIVERABLES: number; PROFILE: number; SYSTEM: number; }' is missing the following properties from type 'Record<FileCategory, number>': DRAWINGS, SPECIFICATIONS, REPORTS, CONTRACTS, and 7 more.
+src/services/fileService.ts(40,64): error TS2353: Object literal may only specify known properties, and 'createdAt' does not exist in type 'ProjectFile'.
+src/services/profileExportImportService.ts(193,11): error TS2322: Type 'any' is not assignable to type 'never'.
+src/services/profileExportImportService.ts(196,11): error TS2322: Type 'any' is not assignable to type 'never'.
+src/services/profileExportImportService.ts(394,7): error TS2322: Type 'string | number | boolean | string[] | Timestamp | { profileCompleted: boolean; skillsAdded: boolean; firstProjectAssigned: boolean; firstTimeLogged: boolean; completedAt?: Timestamp; } | { ...; }' is not assignable to type 'never'.
+  Type 'string' is not assignable to type 'never'.
+src/services/timeTrackingService.ts(72,32): error TS2339: Property 'isBillable' does not exist on type 'TimeLog'.
+src/services/timeTrackingService.ts(76,13): error TS2353: Object literal may only specify known properties, and 'projectId' does not exist in type 'TimeTrackingReport'.
+src/utils/DashboardAnalytics.ts(92,55): error TS2339: Property 'i' does not exist on type 'WidgetLayout'.
+src/utils/cloudinaryHelpers.ts(258,5): error TS2741: Property 'categoryBreakdown' is missing in type '{ quotaUsed: number; quotaLimit: number; totalFiles: number; totalSize: number; filesByCategory: Record<FileCategory, number>; recentFiles: ProjectFile[]; }' but required in type '{ totalFiles: number; totalSize: number; quotaUsed: number; quotaLimit: number; categoryBreakdown: Record<FileCategory, number>; }'.
+src/utils/cloudinaryHelpers.ts(270,7): error TS2740: Type '{ DOCUMENTS: number; IMAGES: number; ARCHIVES: number; SUBSTANTIATION: number; DELIVERABLES: number; PROFILE: number; SYSTEM: number; }' is missing the following properties from type 'Record<FileCategory, number>': DRAWINGS, SPECIFICATIONS, REPORTS, CONTRACTS, and 7 more.
+src/utils/cspAwareCloudinaryService.ts(231,9): error TS2322: Type 'string' is not assignable to type 'FileCategory'.
+src/utils/cspAwareCloudinaryService.ts(245,11): error TS2353: Object literal may only specify known properties, and 'cloudinaryPublicId' does not exist in type 'FileMetadata'.
+src/utils/cspAwareCloudinaryService.ts(329,17): error TS2322: Type 'string' is not assignable to type 'FileCategory'.
+src/utils/cspAwareCloudinaryService.ts(343,19): error TS2353: Object literal may only specify known properties, and 'storageProvider' does not exist in type 'FileMetadata'.
+src/utils/fileAccessControl.ts(65,44): error TS2367: This comparison appears to be unintentional because the types 'UserRole.FREELANCER | UserRole.CLIENT' and 'UserRole.ADMIN' have no overlap.

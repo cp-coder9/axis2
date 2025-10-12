@@ -161,7 +161,7 @@ export const CSPTestPage: React.FC = () => {
         'Test User',
         UserRole.ADMIN,
         {
-          category: 'DOCUMENTS',
+          category: FileCategory.DOCUMENTS,
           tags: ['test-upload'],
           fallbackToFirebase: true,
           retryAttempts: 3,

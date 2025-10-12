@@ -62,7 +62,7 @@ export const checkFileAccess = (
     canView: true,
     canDownload: permissions.allowDownload,
     canShare: permissions.allowShare,
-    canDelete: permissions.allowDelete && (userRole === UserRole.ADMIN || isFileOwner || userRole === UserRole.FREELANCER),
+    canDelete: permissions.allowDelete && (userRole === UserRole.ADMIN || isFileOwner || (userRole === UserRole.FREELANCER)),
     canEdit: permissions.allowVersioning,
     canComment: permissions.allowComments,
     canManagePermissions: false, // Only owner and admin can manage permissions

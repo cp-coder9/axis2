@@ -21,11 +21,19 @@ import {
 } from 'lucide-react';
 import { AdminDashboardSkeleton } from '@/components/loading/DashboardSkeleton';
 import { ModernDashboardCard, AnimatedStatCard } from '@/components/dashboard/ModernDashboardCard';
-import { ProjectTable } from '@/components/project/ProjectTable';
+import { ProjectTable, Project as TableProject } from '@/components/project/ProjectTable';
 import { FreelancerTimerWidget } from '@/components/freelancer/FreelancerTimerWidget';
 import { FreelancerEarningsDashboard } from '@/components/freelancer/FreelancerEarningsDashboard';
 import { useAppContext } from '@/contexts/AppContext';
-import { UserRole } from '@/types';
+import { UserRole, Project } from '@/types';
+
+// Convert Project from types.ts to ProjectTable's Project type
+const convertToTableProject = (project: Project): TableProject => ({
+  ...project,
+  createdAt: project.createdAt instanceof Date ? project.createdAt : new Date(project.createdAt.toMillis()),
+  updatedAt: project.updatedAt ? (project.updatedAt instanceof Date ? project.updatedAt : new Date(project.updatedAt.toMillis())) : undefined,
+  deadline: project.deadline ? (project.deadline instanceof Date ? project.deadline : new Date(project.deadline.toMillis())) : undefined,
+});
 
 export default function FreelancerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +43,8 @@ export default function FreelancerDashboard() {
 
   // Filter projects for freelancer (projects they're assigned to)
   const freelancerProjects = projects.filter(project => 
-    project.team?.some(member => member.userId === user?.id)
+    project.assignedTeam?.some(member => member.id === user?.id) || 
+    project.assignedTeamIds?.includes(user?.id || '')
   );
 
   useEffect(() => {
@@ -262,7 +271,7 @@ export default function FreelancerDashboard() {
             <CardContent>
               {freelancerProjects.length > 0 ? (
                 <ProjectTable 
-                  projects={freelancerProjects}
+                  projects={freelancerProjects.map(convertToTableProject)}
                   userRole={UserRole.FREELANCER}
                   showTimerControls={true}
                   showPagination={true}

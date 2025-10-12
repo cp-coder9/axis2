@@ -3,7 +3,7 @@
  * Handles file uploads with Content Security Policy awareness and fallback mechanisms
  */
 
-import { ProjectFile, UserRole, FilePermissionLevel } from '@/types';
+import { ProjectFile, UserRole, FilePermissionLevel, FileCategory } from '@/types';
 import { Timestamp } from 'firebase/firestore';
 import { NetworkHelper } from '@/network-helper';
 
@@ -12,7 +12,7 @@ interface CSPAwareUploadOptions {
   tags?: string[];
   transformation?: string;
   progressCallback?: (progress: number) => void;
-  category?: string;
+  category?: FileCategory;
   projectId?: string;
   description?: string;
   retryAttempts?: number;
@@ -228,7 +228,7 @@ class CSPAwareCloudinaryService {
         uploadedBy: userId,
         uploadedByName: userName,
         uploadedAt: Timestamp.now(),
-        category: options.category || 'DOCUMENTS',
+        category: options.category || FileCategory.DOCUMENTS,
         projectId: options.projectId || '',
         tags: options.tags || [],
         permissions: {
@@ -242,14 +242,16 @@ class CSPAwareCloudinaryService {
           allowComments: true
         },
         metadata: {
-          cloudinaryPublicId: data.public_id,
-          cloudinaryVersion: data.version,
-          cloudinaryFormat: data.format,
-          cloudinaryResourceType: data.resource_type,
           width: data.width,
           height: data.height,
-          bytes: data.bytes,
-          etag: data.etag
+          format: data.format,
+          customFields: {
+            cloudinaryPublicId: data.public_id,
+            cloudinaryVersion: data.version,
+            cloudinaryResourceType: data.resource_type,
+            bytes: data.bytes,
+            etag: data.etag
+          }
         }
       };
 
@@ -326,7 +328,7 @@ class CSPAwareCloudinaryService {
                 uploadedBy: userId,
                 uploadedByName: userName,
                 uploadedAt: Timestamp.now(),
-                category: options.category || 'DOCUMENTS',
+                category: options.category || FileCategory.DOCUMENTS,
                 projectId: options.projectId || '',
                 tags: [...(options.tags || []), 'firebase-fallback'],
                 permissions: {
@@ -340,9 +342,11 @@ class CSPAwareCloudinaryService {
                   allowComments: true
                 },
                 metadata: {
-                  storageProvider: 'firebase',
-                  storagePath: storagePath,
-                  fallbackReason: 'csp-violation'
+                  customFields: {
+                    storageProvider: 'firebase',
+                    storagePath: storagePath,
+                    fallbackReason: 'csp-violation'
+                  }
                 }
               };
 

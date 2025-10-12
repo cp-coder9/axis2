@@ -256,9 +256,11 @@ export const getUserFolderStats = async (
     };
     
     return {
-      ...stats,
+      totalFiles: stats.totalFiles,
+      totalSize: stats.totalSize,
       quotaUsed: stats.totalSize,
-      quotaLimit: quotaLimits[userRole]
+      quotaLimit: quotaLimits[userRole],
+      categoryBreakdown: stats.filesByCategory
     };
   } catch (error) {
     console.error('Failed to get user folder stats:', error);
@@ -268,13 +270,24 @@ export const getUserFolderStats = async (
       quotaUsed: 0,
       quotaLimit: 0,
       categoryBreakdown: {
-        [FileCategory.DOCUMENTS]: 0,
+        [FileCategory.DRAWINGS]: 0,
+        [FileCategory.SPECIFICATIONS]: 0,
+        [FileCategory.REPORTS]: 0,
+        [FileCategory.CONTRACTS]: 0,
+        [FileCategory.CORRESPONDENCE]: 0,
+        [FileCategory.MODELS]: 0,
         [FileCategory.IMAGES]: 0,
+        [FileCategory.PRESENTATIONS]: 0,
+        [FileCategory.SPREADSHEETS]: 0,
+        [FileCategory.VIDEOS]: 0,
+        [FileCategory.AUDIO]: 0,
+        [FileCategory.DOCUMENTS]: 0,
         [FileCategory.ARCHIVES]: 0,
         [FileCategory.SUBSTANTIATION]: 0,
         [FileCategory.DELIVERABLES]: 0,
         [FileCategory.PROFILE]: 0,
-        [FileCategory.SYSTEM]: 0
+        [FileCategory.SYSTEM]: 0,
+        [FileCategory.OTHER]: 0
       }
     };
   }

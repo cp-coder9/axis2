@@ -305,7 +305,7 @@ export default function ClientDashboard() {
             </CardHeader>
             <CardContent>
               <ClientMessagingInterface 
-                onSendMessage={(conversationId, content) => console.log('Send message:', { conversationId, content })}
+                onSendMessage={async (conversationId, content) => { console.log('Send message:', { conversationId, content }); }}
                 onMarkAsRead={(messageId) => console.log('Mark as read:', messageId)}
                 onStartCall={(contactId, type) => console.log('Start call:', { contactId, type })}
               />
@@ -321,12 +321,12 @@ export default function ClientDashboard() {
             </CardHeader>
             <CardContent>
               <ClientFileAccessSystem 
-                onDownloadFile={(fileId) => console.log('Download file:', fileId)}
+                onDownloadFile={async (fileId) => { console.log('Download file:', fileId); }}
                 onPreviewFile={async (fileId) => {
                   console.log('Preview file:', fileId);
                   return `https://via.placeholder.com/800x600/0ea5e9/ffffff?text=File+Preview+${fileId}`;
                 }}
-                onStarFile={(fileId, starred) => console.log('Star file:', { fileId, starred })}
+                onStarFile={async (fileId, starred) => { console.log('Star file:', { fileId, starred }); }}
                 onShareFile={(fileId) => console.log('Share file:', fileId)}
               />
             </CardContent>

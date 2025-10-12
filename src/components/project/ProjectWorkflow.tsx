@@ -16,14 +16,14 @@ import {
   Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { ProjectStatus as ProjectStatusEnum } from '@/types'
+import { ProjectStatus } from '@/types'
 
 // Import our enhanced components
 import { ProjectCreationDialog } from './ProjectCreationDialog'
 import { ProjectDetailsView } from './ProjectDetailsView'
 import { TaskManagementBoard } from './TaskManagementBoard'
 import { TimerIntegrationPanel } from './TimerIntegrationPanel'
-import { ProjectCard, ProjectStatus } from './ProjectCard'
+import { ProjectCard } from './ProjectCard'
 
 // Types for the workflow
 export interface WorkflowProject {
@@ -153,7 +153,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
         id: '2',
         title: 'Residential Complex Layout',
         description: 'Master plan for 200-unit residential development',
-        status: ProjectStatus.PENDING_APPROVAL,
+        status: ProjectStatus.PLANNING,
         priority: 'medium',
         clientName: 'Sunrise Properties',
         teamMembers: ['Sarah Connor', 'Tom Anderson'],
@@ -181,8 +181,8 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
   // Calculate dashboard stats
   const dashboardStats = {
     totalProjects: projects.length,
-    activeProjects: projects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
-    completedProjects: projects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
+    activeProjects: projects.filter(p => p.status === ProjectStatus.ACTIVE).length,
+    completedProjects: projects.filter(p => p.status === ProjectStatus.COMPLETED).length,
     totalHoursSpent: projects.reduce((sum, p) => sum + p.timeSpent, 0),
     averageProgress: projects.reduce((sum, p) => sum + p.progress, 0) / projects.length || 0
   }

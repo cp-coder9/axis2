@@ -324,13 +324,24 @@ export class FileMetadataService {
       totalFiles: 0,
       totalSize: 0,
       filesByCategory: {
-        [FileCategory.DOCUMENTS]: 0,
+        [FileCategory.DRAWINGS]: 0,
+        [FileCategory.SPECIFICATIONS]: 0,
+        [FileCategory.REPORTS]: 0,
+        [FileCategory.CONTRACTS]: 0,
+        [FileCategory.CORRESPONDENCE]: 0,
+        [FileCategory.MODELS]: 0,
         [FileCategory.IMAGES]: 0,
+        [FileCategory.PRESENTATIONS]: 0,
+        [FileCategory.SPREADSHEETS]: 0,
+        [FileCategory.VIDEOS]: 0,
+        [FileCategory.AUDIO]: 0,
+        [FileCategory.DOCUMENTS]: 0,
         [FileCategory.ARCHIVES]: 0,
         [FileCategory.SUBSTANTIATION]: 0,
         [FileCategory.DELIVERABLES]: 0,
         [FileCategory.PROFILE]: 0,
-        [FileCategory.SYSTEM]: 0
+        [FileCategory.SYSTEM]: 0,
+        [FileCategory.OTHER]: 0
       },
       recentFiles: []
     };

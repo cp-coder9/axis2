@@ -89,7 +89,7 @@ export const generatePlacementRecommendations = (
   // Recommend moving most-used widgets to top-left
   const topUsedWidgets = analytics.mostUsedWidgets.slice(0, 3);
   topUsedWidgets.forEach((widget, index) => {
-    const currentWidget = currentLayout.find((w) => w.i === widget.widgetId);
+    const currentWidget = currentLayout.find((w) => w.id === widget.widgetId);
     if (currentWidget && (currentWidget.y > 2 || currentWidget.x > 2)) {
       recommendations.push({
         widgetId: widget.widgetId,

@@ -8,7 +8,7 @@ import { DashboardWidget as WidgetType, WidgetProps, WidgetError } from '../../t
 
 // Extended widget type with component
 interface EnhancedWidgetType extends WidgetType {
-  component: React.ComponentType<WidgetProps>;
+  component?: React.ComponentType<WidgetProps>;
 }
 
 interface EnhancedDashboardWidgetProps {
@@ -164,6 +164,22 @@ export const EnhancedDashboardWidget: React.FC<EnhancedDashboardWidgetProps> = (
     onRefresh: handleRefresh,
     isVisible
   };
+
+  // If no component is provided, show a placeholder
+  if (!WidgetComponent) {
+    return (
+      <div className={`h-full ${className}`}>
+        <Card className="h-full flex flex-col">
+          <CardHeader className="pb-2 flex-shrink-0">
+            <CardTitle className="text-sm font-medium">{widget.title}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex-1 flex items-center justify-center text-muted-foreground">
+            <p className="text-sm">Widget component not configured</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className={`h-full ${className}`}>
