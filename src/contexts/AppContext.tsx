@@ -132,6 +132,13 @@ export interface AppContextType {
   updateProjectStatus?: (projectId: string, status: ProjectStatus) => Promise<void>;
   updateJobCard?: (projectId: string, jobCardId: string, jobCardData: Partial<JobCard>) => Promise<void>;
   updateJobCardStatus?: (projectId: string, jobCardId: string, status: JobCardStatus) => Promise<void>;
+  addProject?: (projectData: any) => Promise<void>;
+  addJobCardToProject?: (projectId: string, jobCardData: any) => Promise<void>;
+  
+  // Action item management methods
+  addActionItemToProject?: (projectId: string, actionItemData: any) => Promise<void>;
+  updateActionItem?: (projectId: string, actionItemId: string, updates: Partial<ActionItem>) => Promise<void>;
+  deleteActionItem?: (projectId: string, actionItemId: string) => Promise<void>;
   
   // Role and permission methods
   hasPermission: (permission: keyof RolePermissions) => boolean;

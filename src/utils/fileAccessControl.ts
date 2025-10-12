@@ -58,11 +58,15 @@ export const checkFileAccess = (
   }
 
   // User has access, now check specific permissions
+  // Note: ADMIN users already returned early, so this code handles FREELANCER and CLIENT
+  const isFreelancer = userRole === UserRole.FREELANCER;
+  const canDeleteFile = permissions.allowDelete && (isFileOwner || isFreelancer);
+  
   return {
     canView: true,
     canDownload: permissions.allowDownload,
     canShare: permissions.allowShare,
-    canDelete: permissions.allowDelete && (userRole === UserRole.ADMIN || isFileOwner || (userRole === UserRole.FREELANCER)),
+    canDelete: canDeleteFile,
     canEdit: permissions.allowVersioning,
     canComment: permissions.allowComments,
     canManagePermissions: false, // Only owner and admin can manage permissions

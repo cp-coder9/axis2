@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { NetworkHelper } from '@/network-helper';
 import { cspAwareCloudinaryService } from '@/utils/cspAwareCloudinaryService';
-import { UserRole } from '@/types';
+import { UserRole, FileCategory } from '@/types';
 import CSPViolationDashboard from '@/components/admin/CSPViolationDashboard';
 
 interface TestResult {
