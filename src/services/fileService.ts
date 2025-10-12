@@ -34,10 +34,8 @@ export const addFileToProject = async (
         const docRef = await addDoc(filesCollectionRef, {
             ...fileData,
             url: downloadURL,
-            createdAt: serverTimestamp(),
-            updatedAt: serverTimestamp(),
         });
-        return { id: docRef.id, ...fileData, url: downloadURL, createdAt: new Date(), updatedAt: new Date() };
+        return { id: docRef.id, ...fileData, url: downloadURL };
     } catch (error) {
         console.error('Error adding file to project:', error);
         throw new Error('Failed to add file to project');

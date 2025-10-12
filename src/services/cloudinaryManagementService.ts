@@ -170,7 +170,9 @@ export class CloudinaryManagementService {
           level: metadata.permissions,
           allowDownload: true,
           allowShare: metadata.userRole === UserRole.ADMIN,
-          allowVersioning: metadata.userRole !== UserRole.CLIENT
+          allowDelete: metadata.userRole === UserRole.ADMIN,
+          allowVersioning: metadata.userRole !== UserRole.CLIENT,
+          allowComments: true
         },
         tags: allTags,
         category: metadata.category,
@@ -359,7 +361,16 @@ export class CloudinaryManagementService {
     categoryBreakdown: Record<FileCategory, number>;
   }> {
     // In a real implementation, this would query Cloudinary API
-    return cloudinaryFolderService.getFolderStatistics();
+    const stats = await cloudinaryFolderService.getFolderStatistics();
+    return {
+      totalFiles: stats.totalFiles,
+      totalSize: 0, // Calculate from folderSizes if needed
+      folderBreakdown: Object.entries(stats.folderSizes).reduce((acc, [folder, size]) => {
+        acc[folder] = { files: 0, size };
+        return acc;
+      }, {} as Record<string, { files: number; size: number }>),
+      categoryBreakdown: stats.filesByCategory
+    };
   }
 
   /**

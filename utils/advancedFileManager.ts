@@ -101,8 +101,7 @@ class AdvancedFileManager {
         .sort((a, b) => {
           return b.uploadedAt.toMillis() - a.uploadedAt.toMillis();
         })
-        .slice(0, 10)
-        .map(f => ({ id: f.id, name: f.name, uploadedAt: f.uploadedAt }));
+        .slice(0, 10);
       
       // For mostAccessedFiles, we would need access count tracking in a real implementation
       const mostAccessedFiles: any[] = [];

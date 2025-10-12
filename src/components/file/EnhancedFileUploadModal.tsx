@@ -184,30 +184,25 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
     setUploadError(null);
 
     try {
-      const uploadResult = await uploadFile(
+      const fileData = await uploadFile(
         selectedFile,
+        userId,
+        userName,
+        undefined, // userRole
         {
           folder: projectId ? `projects/${projectId}` : 'general',
-          resourceType: selectedFile.type.startsWith('image/') ? 'image' : 'raw',
-        },
-        projectId || 'default'
+          category: data.category as FileCategory,
+          projectId,
+          description: data.description,
+          tags: data.tags
+        }
       );
 
-      const fileData: ProjectFile = {
-        id: uploadResult.public_id || `file-${Date.now()}`,
-        name: selectedFile.name,
-        url: uploadResult.secure_url || uploadResult.url,
-        public_id: uploadResult.public_id,
-        secure_url: uploadResult.secure_url,
-        type: selectedFile.type,
-        size: selectedFile.size,
-        uploadedBy: userId,
-        uploadedByName: userName,
-        uploadedAt: new Date() as any,
-        projectId: projectId || '',
-        category: data.category as FileCategory,
-        description: data.description,
-        tags: data.tags,
+      // Update permissions with form data
+      const updatedFileData: ProjectFile = {
+        ...fileData,
+        uploaderId: userId,
+        uploaderName: userName,
         permissions: {
           level: data.permissions.level,
           allowDownload: data.permissions.allowDownload ?? true,
@@ -216,11 +211,9 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
           allowVersioning: data.permissions.allowVersioning ?? true,
           allowComments: data.permissions.allowComments ?? true,
         },
-        version: 1,
-        isLatestVersion: true,
       };
 
-      await onUpload(fileData, data);
+      await onUpload(updatedFileData, data);
       handleClose();
     } catch (error) {
       console.error('Upload error:', error);
@@ -347,9 +340,9 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Uploading...</span>
-                    <span>{uploadProgress}%</span>
+                    <span>{Object.values(uploadProgress)[0]?.progress ?? 0}%</span>
                   </div>
-                  <Progress value={uploadProgress} className="h-2" />
+                  <Progress value={Object.values(uploadProgress)[0]?.progress ?? 0} className="h-2" />
                 </div>
               </CardContent>
             </Card>
