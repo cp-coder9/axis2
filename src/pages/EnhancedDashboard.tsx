@@ -40,6 +40,7 @@ export function EnhancedDashboard() {
   const [widgets] = useState<DashboardWidget[]>([
     {
       id: 'analytics-overview',
+      name: 'analytics-overview',
       title: 'Analytics Overview',
       description: 'Key performance indicators',
       type: 'analytics',
@@ -54,6 +55,7 @@ export function EnhancedDashboard() {
     },
     {
       id: 'project-timeline',
+      name: 'project-timeline',
       title: 'Project Timeline',
       description: 'Current project progress',
       type: 'timeline',
@@ -68,6 +70,7 @@ export function EnhancedDashboard() {
     },
     {
       id: 'team-performance',
+      name: 'team-performance',
       title: 'Team Performance',
       description: 'Resource utilization metrics',
       type: 'metrics',
@@ -82,6 +85,7 @@ export function EnhancedDashboard() {
     },
     {
       id: 'recent-files',
+      name: 'recent-files',
       title: 'Recent Files',
       description: 'Latest uploaded documents',
       type: 'files',
@@ -96,6 +100,7 @@ export function EnhancedDashboard() {
     },
     {
       id: 'notifications',
+      name: 'notifications',
       title: 'Notifications',
       description: 'System alerts and updates',
       type: 'notifications',
@@ -110,6 +115,7 @@ export function EnhancedDashboard() {
     },
     {
       id: 'quick-actions',
+      name: 'quick-actions',
       title: 'Quick Actions',
       description: 'Frequently used tools',
       type: 'actions',

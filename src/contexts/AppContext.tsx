@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
+import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
-import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus } from '../types';
+import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, Notification } from '../types';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { PresenceStatus, TypingIndicator } from '../types/messaging';
@@ -122,8 +123,15 @@ export interface AppContextType {
   
   // User management methods
   deleteUser?: (userId: string) => Promise<void>;
-  updateUser?: () => Promise<void>;
-  updateUserProfile?: () => Promise<void>;
+  updateUser?: (userId: string, updates: Partial<User>) => Promise<void>;
+  updateUserProfile?: (userId: string, updates: Partial<User>) => Promise<void>;
+  
+  // Project management methods
+  deleteProject?: (projectId: string) => Promise<void>;
+  updateProject?: (projectId: string, updateData: Partial<Project>) => Promise<void>;
+  updateProjectStatus?: (projectId: string, status: ProjectStatus) => Promise<void>;
+  updateJobCard?: (projectId: string, jobCardId: string, jobCardData: Partial<JobCard>) => Promise<void>;
+  updateJobCardStatus?: (projectId: string, jobCardId: string, status: JobCardStatus) => Promise<void>;
   
   // Role and permission methods
   hasPermission: (permission: keyof RolePermissions) => boolean;
@@ -458,7 +466,10 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     if (authState.user) {
-        const unsubscribeNotifications = subscribeToNotifications(authState.user.id, setNotifications);
+        const unsubscribeNotifications = subscribeToNotifications(
+          authState.user.id, 
+          (notifications: Notification[]) => setNotifications(notifications)
+        );
         return () => unsubscribeNotifications();
     }
   }, [authState.user]);
@@ -742,7 +753,16 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       }
 
       const { createProject } = await import('../services/projectService');
-      const projectId = await createProject(projectData, authState.user);
+      
+      // Transform ProjectCreationData to match Project interface
+      const projectDataForService: any = {
+        ...projectData,
+        status: ProjectStatus.DRAFT, // Default status for new projects
+        deadline: projectData.deadline ? Timestamp.fromDate(projectData.deadline) : undefined,
+        jobCards: []
+      };
+      
+      const projectId = await createProject(projectDataForService, authState.user);
       
       console.log('Project created successfully:', projectId);
       return projectId;
@@ -799,11 +819,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       if (!authState.user) {
         throw new Error('User not authenticated');
       }
-      await addActionItem(projectId, {
-        ...actionItemData,
-        createdBy: authState.user.id,
-        status: 'pending',
-      });
+      await addActionItem(projectId, actionItemData);
     } catch (error) {
       console.error('Error adding action item:', error);
       throw error;
@@ -1047,11 +1063,12 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         const request = projectRequests.find(pr => pr.id === projectRequestId);
         if (!request) throw new Error("Project request not found");
         const projectId = await addProject({
-            name: request.name,
+            title: request.title,
             description: request.description,
             budget: request.budget,
             clientId: request.clientId,
-            status: ProjectStatus.DRAFT,
+            leadArchitectId: authState.user?.id || '',
+            assignedTeamIds: [],
         });
         await updateProjectRequest(projectRequestId, { status: ProjectRequestStatus.APPROVED });
         return projectId;

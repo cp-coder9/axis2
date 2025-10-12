@@ -34,7 +34,7 @@ class AdvancedFileManager {
           comparison = a.name.localeCompare(b.name);
           break;
         case 'date':
-          comparison = new Date(a.uploadedAt).getTime() - new Date(b.uploadedAt).getTime();
+          comparison = a.uploadedAt.toMillis() - b.uploadedAt.toMillis();
           break;
         case 'size':
           comparison = a.size - b.size;
@@ -99,9 +99,7 @@ class AdvancedFileManager {
       // Get most recently uploaded files (top 10)
       const recentlyUploadedFiles = [...files]
         .sort((a, b) => {
-          const dateA = a.uploadedAt instanceof Date ? a.uploadedAt : new Date(a.uploadedAt);
-          const dateB = b.uploadedAt instanceof Date ? b.uploadedAt : new Date(b.uploadedAt);
-          return dateB.getTime() - dateA.getTime();
+          return b.uploadedAt.toMillis() - a.uploadedAt.toMillis();
         })
         .slice(0, 10)
         .map(f => ({ id: f.id, name: f.name, uploadedAt: f.uploadedAt }));

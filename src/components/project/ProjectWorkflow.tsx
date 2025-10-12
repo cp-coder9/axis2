@@ -16,6 +16,7 @@ import {
   Search
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ProjectStatus as ProjectStatusEnum } from '@/types'
 
 // Import our enhanced components
 import { ProjectCreationDialog } from './ProjectCreationDialog'
@@ -180,8 +181,8 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
   // Calculate dashboard stats
   const dashboardStats = {
     totalProjects: projects.length,
-    activeProjects: projects.filter(p => p.status === 'active').length,
-    completedProjects: projects.filter(p => p.status === 'completed').length,
+    activeProjects: projects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
+    completedProjects: projects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
     totalHoursSpent: projects.reduce((sum, p) => sum + p.timeSpent, 0),
     averageProgress: projects.reduce((sum, p) => sum + p.progress, 0) / projects.length || 0
   }

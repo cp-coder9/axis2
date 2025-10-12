@@ -143,7 +143,8 @@ function SkeletonCard({
   showImage = false,
   showFooter = true,
   variant = 'shimmer' as const,
-  stagger = true
+  stagger = true,
+  children
 }: {
   headerHeight?: number | string;
   bodyLines?: number;
@@ -154,7 +155,31 @@ function SkeletonCard({
   showFooter?: boolean;
   variant?: 'default' | 'shimmer' | 'wave' | 'pulse';
   stagger?: boolean;
+  children?: React.ReactNode;
 }) {
+  // If children are provided, use them instead of the default skeleton content
+  if (children) {
+    return (
+      <div 
+        className={cn(
+          "border border-border rounded-lg overflow-hidden bg-card",
+          className
+        )}
+        role="status"
+        aria-label="Loading card content"
+      >
+        {showImage && (
+          <Skeleton
+            height={imageHeight}
+            className="w-full rounded-t-lg rounded-b-none"
+            variant={variant}
+          />
+        )}
+        {children}
+      </div>
+    );
+  }
+  
   return (
     <div 
       className={cn(
@@ -242,14 +267,16 @@ function SkeletonTable({
 function SkeletonWidget({
   className = '',
   height = '200px',
-  showHeader = true
+  showHeader = true,
+  style
 }: {
   className?: string;
   height?: number | string;
   showHeader?: boolean;
+  style?: React.CSSProperties;
 }) {
   return (
-    <div className={cn("border border-border rounded-lg overflow-hidden bg-card", className)}>
+    <div className={cn("border border-border rounded-lg overflow-hidden bg-card", className)} style={style}>
       {showHeader && (
         <div className="bg-muted border-b border-border p-4 flex items-center justify-between">
           <Skeleton width="40%" height="1.5rem" />

@@ -131,6 +131,9 @@ export const updateUserDocument = async (
   }
 };
 
+// Alias for backward compatibility
+export const updateUser = updateUserDocument;
+
 /**
  * Update user's last active timestamp
  */

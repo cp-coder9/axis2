@@ -213,7 +213,7 @@ export default function FreelancerDashboard() {
                   value={2.5}
                   suffix="hrs"
                   icon={Activity}
-                  color="info"
+                  color="primary"
                   trend={{ value: 2.5, change: 15, changeType: 'decrease' }}
                 />
               </CardContent>
