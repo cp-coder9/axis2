@@ -89,7 +89,9 @@ class ImageCacheManager {
   private evictOldest(): void {
     let oldest: { url: string; timestamp: number } | null = null;
 
-    for (const [url, cached] of this.cache.entries()) {
+    // Convert entries to array to avoid iterator issues
+    const entries = Array.from(this.cache.entries());
+    for (const [url, cached] of entries) {
       if (!oldest || cached.timestamp < oldest.timestamp) {
         oldest = { url, timestamp: cached.timestamp };
       }
@@ -170,8 +172,8 @@ export function generateCloudinaryUrl(
 
   const transformString = transformations.join(',');
   
-  // Assuming Cloudinary cloud name is in environment variable
-  const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
+  // Get Cloudinary cloud name from environment (will be replaced by Vite at build time)
+  const cloudName = 'demo'; // Default fallback
   
   return `https://res.cloudinary.com/${cloudName}/image/upload/${transformString}/${publicId}`;
 }

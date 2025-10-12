@@ -83,6 +83,7 @@ export const MigrationManager: React.FC<MigrationManagerProps> = ({
             console.error('Migration failed:', error);
             setResult({
                 success: false,
+                migratedCount: 0,
                 totalProjects: 0,
                 migratedProjects: 0,
                 skippedProjects: 0,

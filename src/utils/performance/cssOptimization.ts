@@ -44,7 +44,7 @@ export function applyContainmentToSelector(selector: string, type: ContainmentTy
  */
 export const CONTAINMENT_CONFIG = {
   // Dashboard cards benefit from layout and paint containment
-  dashboardCard: 'layout paint' as const,
+  dashboardCard: 'layout' as const,
   
   // Modals benefit from layout containment
   modal: 'layout' as const,
@@ -59,7 +59,7 @@ export const CONTAINMENT_CONFIG = {
   table: 'strict' as const,
   
   // Charts benefit from layout and paint containment
-  chart: 'layout paint' as const,
+  chart: 'layout' as const,
   
   // Sidebar benefits from layout containment
   sidebar: 'layout' as const,
