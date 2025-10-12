@@ -123,7 +123,7 @@ export const FormEnhancementsDemo: React.FC = () => {
           />
         </div>
       ),
-      isValid: formData.personalInfo.name && formData.personalInfo.email,
+      isValid: !!(formData.personalInfo.name && formData.personalInfo.email),
     },
     {
       id: "address",
@@ -153,7 +153,7 @@ export const FormEnhancementsDemo: React.FC = () => {
           />
         </div>
       ),
-      isValid: formData.address.street && formData.address.city,
+      isValid: !!(formData.address.street && formData.address.city),
     },
     {
       id: "preferences",
