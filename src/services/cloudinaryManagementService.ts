@@ -163,6 +163,8 @@ export class CloudinaryManagementService {
         size: cloudinaryResult.bytes,
         type: file.type,
         uploadedAt: Timestamp.now(),
+        uploaderId: metadata.userId,
+        uploaderName: '', // This should be filled by the calling component
         uploadedBy: metadata.userId,
         uploadedByName: '', // This should be filled by the calling component
         projectId: metadata.projectId,

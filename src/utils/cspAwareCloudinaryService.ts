@@ -3,7 +3,7 @@
  * Handles file uploads with Content Security Policy awareness and fallback mechanisms
  */
 
-import { ProjectFile, UserRole, FilePermissionLevel } from '@/types';
+import { ProjectFile, UserRole, FilePermissionLevel, FileCategory } from '@/types';
 import { Timestamp } from 'firebase/firestore';
 import { NetworkHelper } from '@/network-helper';
 
