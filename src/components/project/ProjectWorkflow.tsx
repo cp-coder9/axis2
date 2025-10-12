@@ -181,8 +181,8 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
   // Calculate dashboard stats
   const dashboardStats = {
     totalProjects: projects.length,
-    activeProjects: projects.filter(p => p.status === 'active' as any).length,
-    completedProjects: projects.filter(p => p.status === 'completed' as any).length,
+    activeProjects: projects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
+    completedProjects: projects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
     totalHoursSpent: projects.reduce((sum, p) => sum + p.timeSpent, 0),
     averageProgress: projects.reduce((sum, p) => sum + p.progress, 0) / projects.length || 0
   }
