@@ -103,10 +103,10 @@ const ResponsiveModalHeader = React.forwardRef<
   const { shouldUseBottomSheet } = useResponsiveModal()
 
   if (shouldUseBottomSheet) {
-    return <BottomSheetHeader ref={ref} className={className} {...props} />
+    return <BottomSheetHeader className={className} {...props} />
   }
 
-  return <DialogHeader ref={ref} className={className} {...props} />
+  return <DialogHeader className={className} {...props} />
 })
 ResponsiveModalHeader.displayName = "ResponsiveModalHeader"
 
@@ -118,10 +118,10 @@ const ResponsiveModalFooter = React.forwardRef<
   const { shouldUseBottomSheet } = useResponsiveModal()
 
   if (shouldUseBottomSheet) {
-    return <BottomSheetFooter ref={ref} className={className} {...props} />
+    return <BottomSheetFooter className={className} {...props} />
   }
 
-  return <DialogFooter ref={ref} className={className} {...props} />
+  return <DialogFooter className={className} {...props} />
 })
 ResponsiveModalFooter.displayName = "ResponsiveModalFooter"
 

@@ -123,8 +123,8 @@ export interface AppContextType {
   
   // User management methods
   deleteUser?: (userId: string) => Promise<void>;
-  updateUser?: () => Promise<void>;
-  updateUserProfile?: () => Promise<void>;
+  updateUser?: (userId: string, updates: Partial<User>) => Promise<void>;
+  updateUserProfile?: (userId: string, updates: Partial<User>) => Promise<void>;
   
   // Role and permission methods
   hasPermission: (permission: keyof RolePermissions) => boolean;
@@ -459,7 +459,10 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     if (authState.user) {
-        const unsubscribeNotifications = subscribeToNotifications(authState.user.id, setNotifications);
+        const unsubscribeNotifications = subscribeToNotifications(
+          authState.user.id, 
+          (notifications) => setNotifications(notifications)
+        );
         return () => unsubscribeNotifications();
     }
   }, [authState.user]);
