@@ -126,6 +126,13 @@ export interface AppContextType {
   updateUser?: (userId: string, updates: Partial<User>) => Promise<void>;
   updateUserProfile?: (userId: string, updates: Partial<User>) => Promise<void>;
   
+  // Project management methods
+  deleteProject?: (projectId: string) => Promise<void>;
+  updateProject?: (projectId: string, updateData: Partial<Project>) => Promise<void>;
+  updateProjectStatus?: (projectId: string, status: ProjectStatus) => Promise<void>;
+  updateJobCard?: (projectId: string, jobCardId: string, jobCardData: Partial<JobCard>) => Promise<void>;
+  updateJobCardStatus?: (projectId: string, jobCardId: string, status: JobCardStatus) => Promise<void>;
+  
   // Role and permission methods
   hasPermission: (permission: keyof RolePermissions) => boolean;
   canAccessRoute: (route: string) => boolean;
@@ -461,7 +468,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     if (authState.user) {
         const unsubscribeNotifications = subscribeToNotifications(
           authState.user.id, 
-          (notifications) => setNotifications(notifications)
+          (notifications: Notification[]) => setNotifications(notifications)
         );
         return () => unsubscribeNotifications();
     }
