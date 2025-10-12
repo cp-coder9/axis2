@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
+import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
 import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus } from '../types';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
@@ -742,7 +743,16 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       }
 
       const { createProject } = await import('../services/projectService');
-      const projectId = await createProject(projectData, authState.user);
+      
+      // Transform ProjectCreationData to match Project interface
+      const projectDataForService: any = {
+        ...projectData,
+        status: ProjectStatus.DRAFT, // Default status for new projects
+        deadline: projectData.deadline ? Timestamp.fromDate(projectData.deadline) : undefined,
+        jobCards: []
+      };
+      
+      const projectId = await createProject(projectDataForService, authState.user);
       
       console.log('Project created successfully:', projectId);
       return projectId;
@@ -799,11 +809,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       if (!authState.user) {
         throw new Error('User not authenticated');
       }
-      await addActionItem(projectId, {
-        ...actionItemData,
-        createdBy: authState.user.id,
-        status: 'pending',
-      });
+      await addActionItem(projectId, actionItemData);
     } catch (error) {
       console.error('Error adding action item:', error);
       throw error;
@@ -1047,11 +1053,12 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         const request = projectRequests.find(pr => pr.id === projectRequestId);
         if (!request) throw new Error("Project request not found");
         const projectId = await addProject({
-            name: request.name,
+            title: request.title,
             description: request.description,
             budget: request.budget,
             clientId: request.clientId,
-            status: ProjectStatus.DRAFT,
+            leadArchitectId: authState.user?.id || '',
+            assignedTeamIds: [],
         });
         await updateProjectRequest(projectRequestId, { status: ProjectRequestStatus.APPROVED });
         return projectId;

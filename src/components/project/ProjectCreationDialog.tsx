@@ -26,7 +26,7 @@ const projectCreationSchema = z.object({
   clientEmail: z.string().email('Valid email is required').optional().or(z.literal('')),
   budget: z.number().min(18000, 'Budget must be at least R 18,000'),
   dueDate: z.date({
-    required_error: 'Due date is required'
+    message: 'Due date is required'
   }),
   priority: z.enum(['low', 'medium', 'high', 'urgent']),
   status: z.enum(['planning', 'active', 'on-hold']).default('planning'),

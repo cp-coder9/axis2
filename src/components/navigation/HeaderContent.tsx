@@ -138,7 +138,7 @@ export function HeaderContent() {
     const userName = displayUser.name || displayUser.email?.split('@')[0] || 'User'
     const userEmail = displayUser.email || mockUser.email
     const userRole = displayUser.role || mockUser.role
-    const userAvatar = displayUser.avatar || mockUser.avatar
+    const userAvatar = displayUser.avatarUrl || mockUser.avatar
 
     return (
       <DropdownMenu>

@@ -335,6 +335,9 @@ export interface ProjectApplication {
   appliedAt: Timestamp;
 }
 
+// Type alias for backward compatibility
+export type Application = ProjectApplication;
+
 export enum ApplicationStatus {
   PENDING = 'PENDING',
   ACCEPTED = 'ACCEPTED',
@@ -483,6 +486,43 @@ export enum AuditAction {
   COMPLETENESS_CHECKED = 'COMPLETENESS_CHECKED'
 }
 
+export interface AuditLog {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  action: AuditAction;
+  resourceType: string;
+  resourceId: string;
+  details: Record<string, any>;
+  timestamp: Timestamp;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+// Project Request types
+export interface ProjectRequest {
+  id: string;
+  title: string;
+  description: string;
+  clientId: string;
+  clientName: string;
+  status: ProjectRequestStatus;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  deadline?: Timestamp;
+  budget?: number;
+  priority?: 'low' | 'medium' | 'high';
+  notes?: string;
+}
+
+export enum ProjectRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  CONVERTED = 'CONVERTED'
+}
+
 // Dashboard types
 export interface DashboardWidget {
   id: string;
@@ -544,8 +584,8 @@ export interface AppContextType {
 
   // Users
   deleteUser?: (userId: string) => Promise<void>; // Task 1.5: Added deleteUser method (optional)
-  updateUser: () => Promise<void>;
-  updateUserProfile: () => Promise<void>;
+  updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
+  updateUserProfile: (userId: string, updates: Partial<User>) => Promise<void>;
 
   // UI
   isSidebarCollapsed: boolean;
