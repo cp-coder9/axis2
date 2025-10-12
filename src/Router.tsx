@@ -14,6 +14,17 @@ import FreelancerProjectsPage from './pages/FreelancerProjectsPage'
 import FreelancerTimerPage from './pages/FreelancerTimerPage'
 import FreelancerEarningsPage from './pages/FreelancerEarningsPage'
 import FreelancerApplicationsPage from './pages/FreelancerApplicationsPage'
+import FreelancerTimerActivePage from './pages/FreelancerTimerActivePage'
+import FreelancerTimeLogsPage from './pages/FreelancerTimeLogsPage'
+import FreelancerManualEntryPage from './pages/FreelancerManualEntryPage'
+import FreelancerAssignedProjectsPage from './pages/FreelancerAssignedProjectsPage'
+import FreelancerAvailableProjectsPage from './pages/FreelancerAvailableProjectsPage'
+import FreelancerEarningsOverviewPage from './pages/FreelancerEarningsOverviewPage'
+import FreelancerEarningsReportsPage from './pages/FreelancerEarningsReportsPage'
+import FreelancerInvoicesPage from './pages/FreelancerInvoicesPage'
+import FreelancerSettingsPage from './pages/FreelancerSettingsPage'
+import FreelancerNotificationsPage from './pages/FreelancerNotificationsPage'
+import FreelancerProfilePage from './pages/FreelancerProfilePage'
 import ClientDashboard from './pages/ClientDashboard'
 import ClientProjectsPage from './pages/ClientProjectsPage'
 import ClientFilesPage from './pages/ClientFilesPage'
@@ -257,16 +268,72 @@ const router = createBrowserRouter([
         element: <FreelancerProjectsPage />,
       },
       {
+        path: 'projects/assigned',
+        element: <FreelancerAssignedProjectsPage />,
+      },
+      {
+        path: 'projects/available',
+        element: <FreelancerAvailableProjectsPage />,
+      },
+      {
         path: 'timer',
         element: <FreelancerTimerPage />,
+      },
+      {
+        path: 'timer/active',
+        element: <FreelancerTimerActivePage />,
+      },
+      {
+        path: 'timer/logs',
+        element: <FreelancerTimeLogsPage />,
+      },
+      {
+        path: 'timer/manual',
+        element: <FreelancerManualEntryPage />,
       },
       {
         path: 'earnings',
         element: <FreelancerEarningsPage />,
       },
       {
+        path: 'earnings/overview',
+        element: <FreelancerEarningsOverviewPage />,
+      },
+      {
+        path: 'earnings/reports',
+        element: <FreelancerEarningsReportsPage />,
+      },
+      {
+        path: 'earnings/invoices',
+        element: <FreelancerInvoicesPage />,
+      },
+      {
         path: 'applications',
         element: <FreelancerApplicationsPage />,
+      },
+      {
+        path: 'settings',
+        element: <FreelancerSettingsPage />,
+      },
+      {
+        path: 'settings/profile',
+        element: <FreelancerSettingsPage />,
+      },
+      {
+        path: 'settings/preferences',
+        element: <FreelancerSettingsPage />,
+      },
+      {
+        path: 'settings/notifications',
+        element: <FreelancerSettingsPage />,
+      },
+      {
+        path: 'notifications',
+        element: <FreelancerNotificationsPage />,
+      },
+      {
+        path: 'profile',
+        element: <FreelancerProfilePage />,
       },
     ],
   },
