@@ -44,6 +44,7 @@ import WordAssistantPage from './pages/admin/WordAssistantPage'
 import SettingsPage from './pages/admin/SettingsPage'
 import HelpPage from './pages/admin/HelpPage'
 import SearchPage from './pages/admin/SearchPage'
+import { AdminAppLayout } from '@/components/dashboards/admin/AdminAppLayout'
 
 // Placeholder component for pages under development
 function PlaceholderPage({ title }: { title: string }) {
@@ -89,9 +90,9 @@ function AdminLayout() {
         <ChartThemeProvider>
           <Toaster position="top-right" richColors />
           <AuthGuard requiredRole={UserRole.ADMIN}>
-            <DashboardLayout userRole="Admin">
+            <AdminAppLayout>
               <Outlet />
-            </DashboardLayout>
+            </AdminAppLayout>
           </AuthGuard>
         </ChartThemeProvider>
       </ThemeProvider>
