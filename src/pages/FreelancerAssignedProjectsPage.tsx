@@ -9,7 +9,7 @@ export default function FreelancerAssignedProjectsPage() {
 
   // Filter projects for freelancer (projects they're assigned to)
   const assignedProjects = projects.filter(project => 
-    project.teamMembers?.some((member: any) => member.userId === user?.id)
+    project.assignedTeam?.some((member: any) => member.id === user?.id)
   );
 
   return (
@@ -33,7 +33,7 @@ export default function FreelancerAssignedProjectsPage() {
         <CardContent>
           {assignedProjects.length > 0 ? (
             <ProjectTable 
-              projects={assignedProjects}
+              projects={assignedProjects as any}
               userRole={UserRole.FREELANCER}
               showTimerControls={true}
               showPagination={true}
