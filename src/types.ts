@@ -584,8 +584,8 @@ export interface AppContextType {
 
   // Users
   deleteUser?: (userId: string) => Promise<void>; // Task 1.5: Added deleteUser method (optional)
-  updateUser: () => Promise<void>;
-  updateUserProfile: () => Promise<void>;
+  updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
+  updateUserProfile: (userId: string, updates: Partial<User>) => Promise<void>;
 
   // UI
   isSidebarCollapsed: boolean;
