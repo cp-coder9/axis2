@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
-import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus } from '../types';
+import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, Notification } from '../types';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { PresenceStatus, TypingIndicator } from '../types/messaging';
