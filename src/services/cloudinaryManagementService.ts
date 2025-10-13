@@ -1,12 +1,8 @@
-import { ProjectFile, UserRole, FilePermissionLevel, FileCategory } from '@/types';
-import {
-  cloudinaryFolderService,
-  FileMetadata
-} from './cloudinaryFolderService';
-import { 
-  fileMetadataService
-} from './fileMetadataService';
+import { ProjectFile, UserRole, FilePermissionLevel, FileCategory, AppFile } from '@/types';
+import { cloudinaryFolderService, FileMetadata } from './cloudinaryFolderService';
+import { fileMetadataService } from './fileMetadataService';
 import { Timestamp } from 'firebase/firestore';
+import { cspAwareCloudinaryService } from '@/utils/cspAwareCloudinaryService';
 
 export interface CloudinaryUploadResult {
   public_id: string;
@@ -96,98 +92,27 @@ export class CloudinaryManagementService {
     file: File,
     metadata: FileMetadata,
     onProgress?: (progress: number) => void
-  ): Promise<{ projectFile: ProjectFile; cloudinaryResult: CloudinaryUploadResult }> {
-    // Validate file and metadata
-    const validation = fileMetadataService.validateFileMetadata(file, metadata, metadata.userRole);
-    if (!validation.isValid) {
-      throw new Error(`File validation failed: ${validation.errors.join(', ')}`);
-    }
+  ): Promise<AppFile> {
+    const { userId, userName, userRole, ...restMetadata } = metadata;
 
-    // Auto-categorize if not specified
-    if (!metadata.category) {
-      metadata.category = fileMetadataService.categorizeFile(file, metadata.userRole);
-    }
-
-    // Get folder path
-    const folderPath = cloudinaryFolderService.getFolderPath(metadata);
-    
-    // Generate tags
-    const tags = cloudinaryFolderService.generateTags(metadata);
-    const autoTags = fileMetadataService.generateAutomaticTags(file, metadata);
-    const allTags = [...new Set([...tags, ...autoTags])];
-
-    // Create context string
-    const contextString = cloudinaryFolderService.createContextString(metadata);
-
-    // Prepare form data
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', this.config.uploadPreset);
-    formData.append('folder', folderPath);
-    formData.append('tags', allTags.join(','));
-    formData.append('context', contextString);
-    
-    // Add resource type based on file type
-    if (file.type.startsWith('video/')) {
-      formData.append('resource_type', 'video');
-    } else if (file.type.startsWith('audio/')) {
-      formData.append('resource_type', 'video'); // Cloudinary uses 'video' for audio files
-    } else {
-      formData.append('resource_type', 'auto');
-    }
-
-    try {
-      // Upload to Cloudinary
-      const response = await this.uploadWithProgress(formData, onProgress);
-      const cloudinaryResult: CloudinaryUploadResult = await response.json();
-
-      if (!response.ok) {
-        throw new Error(cloudinaryResult.error?.message || 'Upload failed');
+    const result = await cspAwareCloudinaryService.uploadFile(
+      file,
+      userId,
+      userName, // This might be empty, should be handled
+      userRole,
+      {
+        ...restMetadata,
+        progressCallback: onProgress,
+        fallbackToFirebase: true, // Enable fallback
       }
+    );
 
-      // Create enhanced metadata for future use
-      const enhancedMetadata = fileMetadataService.createFileMetadata(
-        file,
-        metadata,
-        cloudinaryResult
-      );
-      
-      // Log enhanced metadata for debugging
-      console.log('Enhanced metadata created:', enhancedMetadata);
-
-      // Create ProjectFile object
-      const projectFile: ProjectFile = {
-        id: cloudinaryResult.public_id,
-        name: file.name,
-        url: cloudinaryResult.secure_url,
-        size: cloudinaryResult.bytes,
-        type: file.type,
-        uploadedAt: Timestamp.now(),
-        uploaderId: metadata.userId,
-        uploaderName: '', // This should be filled by the calling component
-        uploadedBy: metadata.userId,
-        uploadedByName: '', // This should be filled by the calling component
-        projectId: metadata.projectId,
-        permissions: {
-          level: metadata.permissions,
-          allowDownload: true,
-          allowShare: metadata.userRole === UserRole.ADMIN,
-          allowDelete: metadata.userRole === UserRole.ADMIN,
-          allowVersioning: metadata.userRole !== UserRole.CLIENT,
-          allowComments: true
-        },
-        tags: allTags,
-        category: metadata.category,
-        version: 1,
-        folder: folderPath,
-        cloudinaryPublicId: cloudinaryResult.public_id
-      };
-
-      return { projectFile, cloudinaryResult };
-    } catch (error) {
-      console.error('Cloudinary upload failed:', error);
-      throw error;
+    if (result.success && result.projectFile) {
+      // The returned file is of type ProjectFile which is compatible with AppFile
+      return result.projectFile as AppFile;
     }
+
+    throw new Error(result.error || 'Upload failed');
   }
 
   /**

@@ -34,13 +34,14 @@ import {
   Cloud
 } from 'lucide-react';
 import { ProjectFile, FilePermissionLevel, FileCategory } from '@/types';
-import { useCloudinaryUpload } from '@/hooks/useCloudinaryUpload';
+import { useCspAwareCloudinaryUpload } from '@/hooks/useCspAwareCloudinaryUpload';
 import { formatFileSize } from '@/utils/formatters';
 import { cn } from '@/lib/utils';
+import { getCategoryFromMimeType } from '@/utils/cloudinaryHelpers';
 
 const fileUploadSchema = z.object({
   description: z.string().optional(),
-  category: z.enum(['DOCUMENTS', 'IMAGES', 'ARCHIVES', 'OTHER']),
+  category: z.nativeEnum(FileCategory),
   tags: z.array(z.string()).optional(),
   permissions: z.object({
     level: z.nativeEnum(FilePermissionLevel),
@@ -57,7 +58,7 @@ type FileUploadFormData = z.infer<typeof fileUploadSchema>;
 interface EnhancedFileUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUpload: (file: ProjectFile, metadata: any) => Promise<void>;
+  onUpload: (file: ProjectFile) => Promise<void>;
   projectId?: string;
   userId: string;
   userName: string;
@@ -75,17 +76,6 @@ const getFileIcon = (fileType: string) => {
   return <File className="h-8 w-8 text-gray-500" />;
 };
 
-const getFileCategory = (fileType: string): 'DOCUMENTS' | 'IMAGES' | 'ARCHIVES' | 'OTHER' => {
-  if (fileType.startsWith('image/')) return 'IMAGES';
-  if (fileType === 'application/pdf' || fileType.includes('document') || fileType.includes('sheet')) {
-    return 'DOCUMENTS';
-  }
-  if (fileType.includes('zip') || fileType.includes('rar') || fileType.includes('7z')) {
-    return 'ARCHIVES';
-  }
-  return 'OTHER';
-};
-
 export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = ({
   isOpen,
   onClose,
@@ -99,15 +89,21 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [newTag, setNewTag] = useState('');
-  const [isUploading, setIsUploading] = useState(false);
+  const [cspError, setCspError] = useState<boolean>(false);
 
-  const { uploadFile, uploadProgress, isUploading: cloudinaryUploading } = useCloudinaryUpload();
+  const {
+    uploadFile,
+    isUploading,
+    uploadProgress,
+    error: uploadHookError,
+    isCspError,
+  } = useCspAwareCloudinaryUpload();
 
   const form = useForm<FileUploadFormData>({
     resolver: zodResolver(fileUploadSchema),
     defaultValues: {
       description: '',
-      category: 'OTHER',
+      category: FileCategory.OTHER,
       tags: [],
       permissions: {
         level: FilePermissionLevel.PROJECT_TEAM,
@@ -119,6 +115,11 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
       },
     },
   });
+
+  React.useEffect(() => {
+    setUploadError(uploadHookError);
+    setCspError(isCspError);
+  }, [uploadHookError, isCspError]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -149,7 +150,7 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
     }
 
     setSelectedFile(file);
-    const category = getFileCategory(file.type);
+    const category = getCategoryFromMimeType(file.type, file.name);
     form.setValue('category', category);
   };
 
@@ -180,30 +181,22 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
       return;
     }
 
-    setIsUploading(true);
     setUploadError(null);
+    setCspError(false);
 
-    try {
-      const fileData = await uploadFile(
-        selectedFile,
-        userId,
-        userName,
-        undefined, // userRole
-        {
-          folder: projectId ? `projects/${projectId}` : 'general',
-          category: data.category as FileCategory,
-          projectId,
-          description: data.description,
-          tags: data.tags
-        }
-      );
+    const result = await uploadFile(selectedFile, userId, userName, {
+      category: data.category,
+      projectId,
+      description: data.description,
+      tags: data.tags,
+    });
 
-      // Update permissions with form data
-      const updatedFileData: ProjectFile = {
-        ...fileData,
-        uploaderId: userId,
-        uploaderName: userName,
+    if (result.success && result.projectFile) {
+      // Manually merge permissions from the form
+      const finalFile: ProjectFile = {
+        ...result.projectFile,
         permissions: {
+          ...result.projectFile.permissions,
           level: data.permissions.level,
           allowDownload: data.permissions.allowDownload ?? true,
           allowShare: data.permissions.allowShare ?? false,
@@ -212,15 +205,10 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
           allowComments: data.permissions.allowComments ?? true,
         },
       };
-
-      await onUpload(updatedFileData, data);
+      await onUpload(finalFile);
       handleClose();
-    } catch (error) {
-      console.error('Upload error:', error);
-      setUploadError(error instanceof Error ? error.message : 'Failed to upload file');
-    } finally {
-      setIsUploading(false);
     }
+    // Error is handled by the hook and useEffect
   };
 
   const handleClose = () => {
@@ -334,15 +322,15 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
           </div>
 
           {/* Upload Progress */}
-          {isUploading && uploadProgress !== undefined && (
+          {isUploading && (
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
                     <span>Uploading...</span>
-                    <span>{Object.values(uploadProgress)[0]?.progress ?? 0}%</span>
+                    <span>{Math.round(uploadProgress)}%</span>
                   </div>
-                  <Progress value={Object.values(uploadProgress)[0]?.progress ?? 0} className="h-2" />
+                  <Progress value={uploadProgress} className="h-2" />
                 </div>
               </CardContent>
             </Card>
@@ -352,7 +340,15 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
           {uploadError && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{uploadError}</AlertDescription>
+              <AlertDescription>
+                {uploadError}
+                {cspError && (
+                  <p className="mt-2 text-xs">
+                    This might be due to a network security policy (CSP).
+                    The file may have been uploaded to a fallback location.
+                  </p>
+                )}
+              </AlertDescription>
             </Alert>
           )}
 
@@ -391,10 +387,11 @@ export const EnhancedFileUploadModal: React.FC<EnhancedFileUploadModalProps> = (
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="DOCUMENTS">Documents</SelectItem>
-                        <SelectItem value="IMAGES">Images</SelectItem>
-                        <SelectItem value="ARCHIVES">Archives</SelectItem>
-                        <SelectItem value="OTHER">Other</SelectItem>
+                        {Object.values(FileCategory).map((cat) => (
+                          <SelectItem key={cat} value={cat}>
+                            {cat.charAt(0) + cat.slice(1).toLowerCase()}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />

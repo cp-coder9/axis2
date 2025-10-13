@@ -19,9 +19,10 @@ import {
   Shield
 } from 'lucide-react';
 import { UserRole, ProjectFile, FileCategory } from '@/types';
-import { cloudinaryManagementService } from '@/services/cloudinaryManagementService';
+import { cspAwareCloudinaryService } from '@/utils/cspAwareCloudinaryService';
 import { formatFileSize } from '@/utils/formatters';
 import FolderAccessControl from './FolderAccessControl';
+import { batchOrganizeFiles, needsOrganization } from '@/utils/cloudinaryHelpers';
 
 interface FileOrganizationDashboardProps {
   userRole: UserRole;
@@ -79,89 +80,83 @@ export const FileOrganizationDashboard: React.FC<FileOrganizationDashboardProps>
   const [organizationResults, setOrganizationResults] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Load statistics
-  const loadStats = async () => {
-    setIsLoading(true);
-    try {
-      const folderStats = await cloudinaryManagementService.getFolderStatistics(userRole);
-      
-      // Calculate organization stats from provided files
-      const organizedFiles = files.filter(file => 
-        file.folder && file.category && file.tags && file.tags.length > 0
-      ).length;
-      
-      const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
-      
-      // Group files by category
-      const categoryBreakdown = files.reduce((acc, file) => {
-        const category = (file.category as FileCategory) || FileCategory.DOCUMENTS;
-        acc[category] = (acc[category] || 0) + 1;
-        return acc;
-      }, {} as Record<FileCategory, number>);
+  const [organizationProgress, setOrganizationProgress] = useState(0);
 
-      setStats({
-        totalFiles: files.length,
-        organizedFiles,
-        unorganizedFiles: files.length - organizedFiles,
-        totalSize,
-        folderBreakdown: folderStats.folderBreakdown || {},
-        categoryBreakdown: {
-          ...stats.categoryBreakdown,
-          ...categoryBreakdown
-        }
-      });
-    } catch (error) {
-      console.error('Failed to load organization stats:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const calculateStats = useCallback(() => {
+    const organized = files.filter(file => !needsOrganization(file)).length;
+    const totalSize = files.reduce((sum, file) => sum + (file.size || 0), 0);
+
+    const categoryBreakdown = files.reduce((acc, file) => {
+      const category = file.category || FileCategory.OTHER;
+      acc[category] = (acc[category] || 0) + 1;
+      return acc;
+    }, {} as Record<FileCategory, number>);
+
+    setStats(prev => ({
+      ...prev,
+      totalFiles: files.length,
+      organizedFiles: organized,
+      unorganizedFiles: files.length - organized,
+      totalSize,
+      categoryBreakdown: {
+        ...prev.categoryBreakdown,
+        ...categoryBreakdown
+      }
+    }));
+  }, [files]);
+
+  useEffect(() => {
+    calculateStats();
+  }, [files, calculateStats]);
 
   // Organize existing files
   const organizeFiles = async () => {
     setIsOrganizing(true);
+    setOrganizationProgress(0);
+    const filesToOrganize = files.filter(needsOrganization);
+
     try {
-      const results = await cloudinaryManagementService.organizeExistingFiles(
-        files,
+      const results = await batchOrganizeFiles(
+        filesToOrganize,
+        userRole,
         userId,
-        userRole
+        (progress) => setOrganizationProgress(progress)
       );
       
       setOrganizationResults(results);
       onOrganizeFiles?.(results);
       
       // Reload stats after organization
-      await loadStats();
+      calculateStats();
     } catch (error) {
       console.error('Failed to organize files:', error);
       setOrganizationResults({
         organized: 0,
-        errors: [error.message || 'Organization failed']
+        failed: filesToOrganize.length,
+        errors: [error instanceof Error ? error.message : 'Organization failed']
       });
     } finally {
       setIsOrganizing(false);
     }
   };
 
-  // Cleanup orphaned files (admin only)
+  // Cleanup orphaned files (admin only) - This would now use a different service
+  // This is a placeholder for a more complex implementation
   const cleanupFiles = async () => {
     if (userRole !== UserRole.ADMIN) return;
     
     setIsOrganizing(true);
     try {
-      const results = await cloudinaryManagementService.cleanupOrphanedFiles();
-      setOrganizationResults(results);
-      await loadStats();
+      // This should be replaced with a call to a dedicated cleanup service
+      console.warn("Cleanup function is a placeholder.");
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      setOrganizationResults({ organized: 0, failed: 0, errors: ["Cleanup not implemented"] });
     } catch (error) {
       console.error('Failed to cleanup files:', error);
     } finally {
       setIsOrganizing(false);
     }
   };
-
-  useEffect(() => {
-    loadStats();
-  }, [files, userRole, loadStats]);
 
   const organizationProgress = stats.totalFiles > 0 
     ? (stats.organizedFiles / stats.totalFiles) * 100 
