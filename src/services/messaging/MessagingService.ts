@@ -1,26 +1,27 @@
-import { 
-  collection, 
-  doc, 
-  addDoc, 
-  updateDoc, 
-  query, 
-  orderBy, 
-  limit, 
-  startAfter, 
+import {
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  query,
+  orderBy,
+  limit,
+  startAfter,
   endBefore,
   onSnapshot,
   serverTimestamp,
   Timestamp,
   QueryDocumentSnapshot,
   DocumentData,
-  where
+  where,
+  getDoc
 } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { 
-  Message, 
-  MessageStatus, 
-  ChannelType, 
-  MessagePagination, 
+import {
+  Message,
+  MessageStatus,
+  ChannelType,
+  MessagePagination,
   PaginatedMessages,
   MessageCallback,
   Channel,
@@ -28,6 +29,8 @@ import {
   UserPresence,
   PresenceStatus
 } from '../../types/messaging';
+import { NotificationType, NotificationPriority, NotificationCategory } from '../../types/notifications';
+import { createNotification } from '../notificationService';
 
 /**
  * Firestore-based messaging service with real-time capabilities
@@ -72,6 +75,9 @@ export class MessagingService {
 
       // Update channel's last message info
       await this.updateChannelLastMessage(channelId, content, docRef.id);
+
+      // Trigger notifications for other participants
+      await this.notifyMessageRecipients(channelId, senderId, senderName, content, channelType);
 
       return docRef.id;
     } catch (error) {
@@ -136,7 +142,7 @@ export class MessagingService {
           } catch (error) {
             reject(error);
           }
-          
+
           // Unsubscribe after first load for pagination
           unsubscribe();
         }, reject);
@@ -173,7 +179,7 @@ export class MessagingService {
             ...data,
             timestamp: data.timestamp || Timestamp.now()
           } as Message;
-          
+
           callback(message);
         }
       });
@@ -183,7 +189,7 @@ export class MessagingService {
 
     // Store listener for cleanup
     this.messageListeners.set(channelId, unsubscribe);
-    
+
     return unsubscribe;
   }
 
@@ -197,7 +203,7 @@ export class MessagingService {
   ): Promise<void> {
     try {
       const messageRef = doc(db, 'channels', channelId, 'messages', messageId);
-      
+
       // Add user to readBy array if not already present
       await updateDoc(messageRef, {
         [`readBy.${userId}`]: {
@@ -242,7 +248,7 @@ export class MessagingService {
   ): Promise<void> {
     try {
       const typingRef = doc(db, 'channels', channelId, 'typing', userId);
-      
+
       if (isTyping) {
         await updateDoc(typingRef, {
           userId,
@@ -275,7 +281,7 @@ export class MessagingService {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const typingUsers: TypingIndicator[] = [];
-      
+
       snapshot.forEach((doc) => {
         const data = doc.data();
         typingUsers.push({
@@ -330,7 +336,7 @@ export class MessagingService {
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const presenceList: UserPresence[] = [];
-      
+
       snapshot.forEach((doc) => {
         const data = doc.data();
         presenceList.push({
@@ -373,7 +379,7 @@ export class MessagingService {
 
       const channelsRef = collection(db, 'channels');
       const docRef = await addDoc(channelsRef, channelData);
-      
+
       return docRef.id;
     } catch (error) {
       console.error('Error creating channel:', error);
@@ -392,7 +398,7 @@ export class MessagingService {
       return new Promise((resolve, reject) => {
         const unsubscribe = onSnapshot(q, (snapshot) => {
           const channels: Channel[] = [];
-          
+
           snapshot.forEach((doc) => {
             const data = doc.data();
             channels.push({
@@ -420,7 +426,7 @@ export class MessagingService {
     this.messageListeners.forEach((unsubscribe) => unsubscribe());
     this.typingListeners.forEach((unsubscribe) => unsubscribe());
     this.presenceListeners.forEach((unsubscribe) => unsubscribe());
-    
+
     this.messageListeners.clear();
     this.typingListeners.clear();
     this.presenceListeners.clear();
@@ -452,6 +458,56 @@ export class MessagingService {
       });
     } catch (error) {
       console.error('Error updating channel last message:', error);
+    }
+  }
+
+  /**
+   * Notify message recipients about new messages
+   */
+  private async notifyMessageRecipients(
+    channelId: string,
+    senderId: string,
+    senderName: string,
+    content: string,
+    channelType: ChannelType
+  ): Promise<void> {
+    try {
+      // Get channel participants
+      const channelRef = doc(db, 'channels', channelId);
+      const channelDoc = await getDoc(channelRef);
+
+      if (!channelDoc.exists()) return;
+
+      const channelData = channelDoc.data();
+      const participants = channelData?.participants || [];
+
+      // Send notifications to all participants except the sender
+      const recipientIds = participants.filter((userId: string) => userId !== senderId);
+
+      if (recipientIds.length === 0) return;
+
+      // Create notifications for each recipient
+      const notificationPromises = recipientIds.map(recipientId =>
+        createNotification({
+          userId: recipientId,
+          type: NotificationType.MESSAGE_RECEIVED,
+          title: `New message from ${senderName}`,
+          message: content.length > 100 ? `${content.substring(0, 100)}...` : content,
+          priority: NotificationPriority.MEDIUM,
+          category: NotificationCategory.MESSAGING,
+          data: {
+            channelId,
+            channelType,
+            senderId,
+            senderName
+          }
+        })
+      );
+
+      await Promise.all(notificationPromises);
+    } catch (error) {
+      console.error('Error notifying message recipients:', error);
+      // Don't throw - notification failure shouldn't break message sending
     }
   }
 }

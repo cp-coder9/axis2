@@ -23,7 +23,7 @@ import { ProjectCreationDialog } from './ProjectCreationDialog'
 import { ProjectDetailsView } from './ProjectDetailsView'
 import { TaskManagementBoard } from './TaskManagementBoard'
 import { TimerIntegrationPanel } from './TimerIntegrationPanel'
-import { ProjectCard, ProjectStatus } from './ProjectCard'
+import { ProjectCard } from './ProjectCard'
 
 // Types for the workflow
 export interface WorkflowProject {

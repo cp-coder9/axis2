@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom'
 import { ThemeProvider } from '@/components/theme-provider'
 import { AppProvider } from '@/contexts/AppContext'
+import { NotificationProvider } from '@/contexts/NotificationContext'
 import { ChartThemeProvider } from '@/components/charts/ChartThemeProvider'
 import { DashboardLayout } from '@/components/navigation/AppLayout'
 import { AuthGuard } from '@/components/auth/AuthGuard'
@@ -92,16 +93,18 @@ function PlaceholderPage({ title }: { title: string }) {
 function RootLayout() {
   return (
     <AppProvider>
-      <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
-        <ChartThemeProvider>
-          <Toaster position="top-right" richColors />
-          <AuthGuard>
-            <DashboardLayout userRole="Admin">
-              <Outlet />
-            </DashboardLayout>
-          </AuthGuard>
-        </ChartThemeProvider>
-      </ThemeProvider>
+      <NotificationProvider>
+        <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
+          <ChartThemeProvider>
+            <Toaster position="top-right" richColors />
+            <AuthGuard>
+              <DashboardLayout userRole="Admin">
+                <Outlet />
+              </DashboardLayout>
+            </AuthGuard>
+          </ChartThemeProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </AppProvider>
   )
 }
@@ -110,16 +113,18 @@ function RootLayout() {
 function AdminLayout() {
   return (
     <AppProvider>
-      <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
-        <ChartThemeProvider>
-          <Toaster position="top-right" richColors />
-          <AuthGuard requiredRole={UserRole.ADMIN}>
-            <AdminAppLayout>
-              <Outlet />
-            </AdminAppLayout>
-          </AuthGuard>
-        </ChartThemeProvider>
-      </ThemeProvider>
+      <NotificationProvider>
+        <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
+          <ChartThemeProvider>
+            <Toaster position="top-right" richColors />
+            <AuthGuard requiredRole={UserRole.ADMIN}>
+              <AdminAppLayout>
+                <Outlet />
+              </AdminAppLayout>
+            </AuthGuard>
+          </ChartThemeProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </AppProvider>
   )
 }
@@ -128,16 +133,18 @@ function AdminLayout() {
 function FreelancerLayout() {
   return (
     <AppProvider>
-      <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
-        <ChartThemeProvider>
-          <Toaster position="top-right" richColors />
-          <AuthGuard requiredRole={UserRole.FREELANCER}>
-            <DashboardLayout userRole="Freelancer">
-              <Outlet />
-            </DashboardLayout>
-          </AuthGuard>
-        </ChartThemeProvider>
-      </ThemeProvider>
+      <NotificationProvider>
+        <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
+          <ChartThemeProvider>
+            <Toaster position="top-right" richColors />
+            <AuthGuard requiredRole={UserRole.FREELANCER}>
+              <DashboardLayout userRole="Freelancer">
+                <Outlet />
+              </DashboardLayout>
+            </AuthGuard>
+          </ChartThemeProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </AppProvider>
   )
 }
@@ -146,16 +153,18 @@ function FreelancerLayout() {
 function ClientLayout() {
   return (
     <AppProvider>
-      <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
-        <ChartThemeProvider>
-          <Toaster position="top-right" richColors />
-          <AuthGuard requiredRole={UserRole.CLIENT}>
-            <DashboardLayout userRole="Client">
-              <Outlet />
-            </DashboardLayout>
-          </AuthGuard>
-        </ChartThemeProvider>
-      </ThemeProvider>
+      <NotificationProvider>
+        <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
+          <ChartThemeProvider>
+            <Toaster position="top-right" richColors />
+            <AuthGuard requiredRole={UserRole.CLIENT}>
+              <DashboardLayout userRole="Client">
+                <Outlet />
+              </DashboardLayout>
+            </AuthGuard>
+          </ChartThemeProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </AppProvider>
   )
 }
@@ -164,12 +173,14 @@ function ClientLayout() {
 function PublicLayout() {
   return (
     <AppProvider>
-      <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
-        <ChartThemeProvider>
-          <Toaster position="top-right" richColors />
-          <Outlet />
-        </ChartThemeProvider>
-      </ThemeProvider>
+      <NotificationProvider>
+        <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
+          <ChartThemeProvider>
+            <Toaster position="top-right" richColors />
+            <Outlet />
+          </ChartThemeProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </AppProvider>
   )
 }
@@ -178,12 +189,14 @@ function PublicLayout() {
 function DemoLayout() {
   return (
     <AppProvider>
-      <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
-        <ChartThemeProvider>
-          <Toaster position="top-right" richColors />
-          <Outlet />
-        </ChartThemeProvider>
-      </ThemeProvider>
+      <NotificationProvider>
+        <ThemeProvider defaultTheme="system" storageKey="architex-ui-theme">
+          <ChartThemeProvider>
+            <Toaster position="top-right" richColors />
+            <Outlet />
+          </ChartThemeProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </AppProvider>
   )
 }
@@ -211,7 +224,7 @@ const router = createBrowserRouter([
       },
     ],
   },
-  
+
   // Root route with role-based redirection
   {
     path: '/',
@@ -526,8 +539,8 @@ const router = createBrowserRouter([
 ])
 
 export const Router = () => {
-  return <RouterProvider 
-    router={router} 
+  return <RouterProvider
+    router={router}
     future={{
       v7_startTransition: true
     }}

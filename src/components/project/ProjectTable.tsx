@@ -50,21 +50,7 @@ import {
   User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-// Enums and types (would typically come from a shared types file)
-export enum ProjectStatus {
-  PENDING_APPROVAL = 'PENDING_APPROVAL',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  ON_HOLD = 'ON_HOLD',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  FREELANCER = 'FREELANCER',
-  CLIENT = 'CLIENT',
-}
+import { ProjectStatus, UserRole } from '@/types'
 
 export interface User {
   id: string
@@ -258,7 +244,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
   const uniqueClients = useMemo(() => {
     const clients = projects
       .map(p => ({ id: p.clientId, name: p.clientName }))
-      .filter((client, index, self) => 
+      .filter((client, index, self) =>
         client.name && self.findIndex(c => c.id === client.id) === index
       )
     return clients
@@ -403,7 +389,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
             className="pl-9"
           />
         </div>
-        
+
         <Select value={filters.status} onValueChange={(value) => handleFilterChange({ status: value as any })}>
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="Status" />
@@ -505,8 +491,8 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
           <TableBody>
             {paginatedProjects.length === 0 ? (
               <TableRow>
-                <TableCell 
-                  colSpan={userRole === UserRole.ADMIN ? 9 : 8} 
+                <TableCell
+                  colSpan={userRole === UserRole.ADMIN ? 9 : 8}
                   className="text-center py-8 text-muted-foreground"
                 >
                   No projects found
@@ -517,17 +503,17 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
                 const statusConfig = getStatusConfig(project.status)
                 const priorityConfig = getPriorityConfig(project.priority || 'MEDIUM')
                 const StatusIcon = statusConfig.icon
-                
-                const isOverdue = project.deadline && 
-                  new Date() > project.deadline && 
+
+                const isOverdue = project.deadline &&
+                  new Date() > project.deadline &&
                   project.status !== ProjectStatus.COMPLETED
-                
+
                 const hoursSpent = (project.totalTimeSpentMinutes || 0) / 60
                 const completionPercentage = project.completionPercentage ?? 0
                 const isTimerActive = activeTimerProjectId === project.id
 
                 return (
-                  <TableRow 
+                  <TableRow
                     key={project.id}
                     className={cn({
                       'border-l-4 border-l-blue-500': isTimerActive,
@@ -544,7 +530,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
                           )}
                         </div>
                         {project.priority && (
-                          <Badge 
+                          <Badge
                             variant={priorityConfig.variant}
                             className={cn('text-xs', priorityConfig.className)}
                           >
@@ -556,7 +542,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
 
                     {/* Status */}
                     <TableCell>
-                      <Badge 
+                      <Badge
                         variant={statusConfig.variant}
                         className={cn('text-xs', statusConfig.className)}
                       >
@@ -717,25 +703,25 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
                                 View Details
                               </DropdownMenuItem>
                             )}
-                            
+
                             {userRole === UserRole.ADMIN && actions.onEdit && (
                               <DropdownMenuItem onClick={() => actions.onEdit?.(project.id)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Project
                               </DropdownMenuItem>
                             )}
-                            
+
                             {userRole === UserRole.ADMIN && actions.onDuplicate && (
                               <DropdownMenuItem onClick={() => actions.onDuplicate?.(project.id)}>
                                 <Users className="mr-2 h-4 w-4" />
                                 Duplicate
                               </DropdownMenuItem>
                             )}
-                            
+
                             {userRole === UserRole.ADMIN && actions.onDelete && (
                               <>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   onClick={() => actions.onDelete?.(project.id)}
                                   className="text-red-600"
                                 >
@@ -764,7 +750,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
             {Math.min(currentPage * pageSize, filteredAndSortedProjects.length)} of{' '}
             {filteredAndSortedProjects.length} projects
           </div>
-          
+
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -775,7 +761,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Button>
-            
+
             <div className="flex items-center gap-1">
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 const page = i + 1
@@ -792,7 +778,7 @@ export const ProjectTable: React.FC<ProjectTableProps> = ({
                 )
               })}
             </div>
-            
+
             <Button
               variant="outline"
               size="sm"

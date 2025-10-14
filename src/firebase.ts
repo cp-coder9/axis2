@@ -3,6 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
+import { getMessaging, isSupported } from 'firebase/messaging';
 
 // Debug environment variables
 console.log('Firebase Environment Variables:', {
@@ -31,4 +32,14 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-export default app;
+// Initialize Firebase Cloud Messaging (only in browser environment)
+let messaging: any = null;
+try {
+  if (typeof window !== 'undefined' && isSupported()) {
+    messaging = getMessaging(app);
+  }
+} catch (error) {
+  console.warn('Firebase Cloud Messaging not supported:', error);
+}
+
+export { messaging };

@@ -18,6 +18,8 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Project, ProjectStatus, JobCard, JobCardStatus, User, UserRole } from '../types';
+import { NotificationType, NotificationPriority, NotificationCategory } from '../types/notifications';
+import { createNotification } from './notificationService';
 
 /**
  * Firebase Project Service
@@ -234,6 +236,11 @@ export const createProject = async (
         const docRef = doc(collection(db, PROJECTS_COLLECTION));
         await setDoc(docRef, newProject);
 
+        // Trigger notifications for team members
+        if (projectData.assignedTeamIds && projectData.assignedTeamIds.length > 0) {
+            await notifyProjectAssignment(docRef.id, projectData, projectData.assignedTeamIds);
+        }
+
         console.log('Project created successfully:', docRef.id);
         return docRef.id;
     } catch (error) {
@@ -256,6 +263,15 @@ export const updateProject = async (
         };
 
         await updateDoc(doc(db, PROJECTS_COLLECTION, projectId), updateData);
+
+        // Trigger notifications for important updates
+        if (updates.status || updates.assignedTeamIds) {
+            const project = await getProjectById(projectId);
+            if (project) {
+                await notifyProjectUpdate(projectId, project, updates);
+            }
+        }
+
         console.log('Project updated successfully:', projectId);
     } catch (error) {
         console.error('Error updating project:', error);
@@ -516,5 +532,125 @@ export const getProjectStatistics = async (userId?: string, userRole?: UserRole)
     } catch (error) {
         console.error('Error getting project statistics:', error);
         throw new Error('Failed to get project statistics');
+    }
+};
+
+/**
+ * Notify team members about project assignment
+ */
+const notifyProjectAssignment = async (
+    projectId: string,
+    projectData: any,
+    teamMemberIds: string[]
+): Promise<void> => {
+    try {
+        const notificationPromises = teamMemberIds.map(memberId =>
+            createNotification({
+                userId: memberId,
+                type: NotificationType.PROJECT_ASSIGNED,
+                title: `New project assigned: ${projectData.title}`,
+                message: `You have been assigned to project "${projectData.title}". Please review the project details and requirements.`,
+                priority: NotificationPriority.HIGH,
+                category: NotificationCategory.PROJECT,
+                data: {
+                    projectId,
+                    projectTitle: projectData.title,
+                    clientName: projectData.clientName
+                }
+            })
+        );
+
+        await Promise.all(notificationPromises);
+    } catch (error) {
+        console.error('Error notifying project assignment:', error);
+        // Don't throw - notification failure shouldn't break project creation
+    }
+};
+
+/**
+ * Notify relevant users about project updates
+ */
+const notifyProjectUpdate = async (
+    projectId: string,
+    project: Project,
+    updates: any
+): Promise<void> => {
+    try {
+        const notifications: any[] = [];
+
+        // Notify about status changes
+        if (updates.status && updates.status !== project.status) {
+            const statusMessage = getStatusChangeMessage(updates.status);
+            const recipients = [...(project.assignedTeamIds || []), project.clientId].filter(Boolean);
+
+            recipients.forEach(userId => {
+                notifications.push({
+                    userId,
+                    type: NotificationType.PROJECT_UPDATED,
+                    title: `Project status changed: ${project.title}`,
+                    message: statusMessage,
+                    priority: NotificationPriority.MEDIUM,
+                    category: NotificationCategory.PROJECT,
+                    data: {
+                        projectId,
+                        projectTitle: project.title,
+                        oldStatus: project.status,
+                        newStatus: updates.status
+                    }
+                });
+            });
+        }
+
+        // Notify about new team member assignments
+        if (updates.assignedTeamIds) {
+            const newMembers = updates.assignedTeamIds.filter(
+                (id: string) => !project.assignedTeamIds?.includes(id)
+            );
+
+            newMembers.forEach((memberId: string) => {
+                notifications.push({
+                    userId: memberId,
+                    type: NotificationType.PROJECT_ASSIGNED,
+                    title: `Added to project: ${project.title}`,
+                    message: `You have been added to project "${project.title}". Please review the project details.`,
+                    priority: NotificationPriority.HIGH,
+                    category: NotificationCategory.PROJECT,
+                    data: {
+                        projectId,
+                        projectTitle: project.title,
+                        clientName: project.clientName
+                    }
+                });
+            });
+        }
+
+        // Send all notifications
+        if (notifications.length > 0) {
+            const notificationPromises = notifications.map(notification =>
+                createNotification(notification)
+            );
+            await Promise.all(notificationPromises);
+        }
+    } catch (error) {
+        console.error('Error notifying project update:', error);
+        // Don't throw - notification failure shouldn't break project updates
+    }
+};
+
+/**
+ * Get status change message
+ */
+const getStatusChangeMessage = (newStatus: ProjectStatus): string => {
+    switch (newStatus) {
+        case ProjectStatus.ACTIVE:
+            return 'The project is now active and work can begin.';
+        case ProjectStatus.COMPLETED:
+            return 'The project has been completed successfully.';
+        case ProjectStatus.ON_HOLD:
+            return 'The project has been put on hold.';
+        case ProjectStatus.CANCELLED:
+            return 'The project has been cancelled.';
+        default:
+            return `Project status changed to ${newStatus}.`;
     }
 };

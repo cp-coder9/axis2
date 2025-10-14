@@ -39,10 +39,10 @@ export const SystemAnalytics: React.FC = () => {
   const projectStats = useMemo(() => {
     const stats = {
       total: projects.length,
-      active: projects.filter(p => p.status === ProjectStatus.ACTIVE).length,
+      active: projects.filter(p => p.status === ProjectStatus.IN_PROGRESS).length,
       completed: projects.filter(p => p.status === ProjectStatus.COMPLETED).length,
       onHold: projects.filter(p => p.status === ProjectStatus.ON_HOLD).length,
-      draft: projects.filter(p => p.status === ProjectStatus.DRAFT).length,
+      draft: projects.filter(p => p.status === ProjectStatus.PENDING_APPROVAL).length,
     };
 
     return {
@@ -70,8 +70,8 @@ export const SystemAnalytics: React.FC = () => {
       }
     });
 
-    const utilizationRate = totalAllocatedHours > 0 
-      ? (totalHours / totalAllocatedHours) * 100 
+    const utilizationRate = totalAllocatedHours > 0
+      ? (totalHours / totalAllocatedHours) * 100
       : 0;
 
     return {
@@ -89,7 +89,7 @@ export const SystemAnalytics: React.FC = () => {
     const activeFreelancers = new Set<string>();
 
     projects.forEach(project => {
-      if (project.status === ProjectStatus.ACTIVE && project.assignedTeamIds) {
+      if (project.status === ProjectStatus.IN_PROGRESS && project.assignedTeamIds) {
         project.assignedTeamIds.forEach(id => {
           if (freelancers.some(f => f.id === id)) {
             activeFreelancers.add(id);
@@ -98,8 +98,8 @@ export const SystemAnalytics: React.FC = () => {
       }
     });
 
-    const utilizationRate = freelancers.length > 0 
-      ? (activeFreelancers.size / freelancers.length) * 100 
+    const utilizationRate = freelancers.length > 0
+      ? (activeFreelancers.size / freelancers.length) * 100
       : 0;
 
     return {

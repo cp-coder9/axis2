@@ -1,4 +1,5 @@
 import { Timestamp } from 'firebase/firestore';
+import { NotificationPreferences } from './types/notifications';
 
 // Core user types
 export enum UserRole {
@@ -36,13 +37,7 @@ export interface User {
   lastSeen?: Timestamp;
   preferences?: {
     theme: 'light' | 'dark' | 'system';
-    notifications: {
-      email: boolean;
-      browser: boolean;
-      timerAlerts: boolean;
-      projectUpdates: boolean;
-      messageReceived: boolean;
-    };
+    notifications: NotificationPreferences;
     dashboard: {
       defaultView: 'grid' | 'list';
       widgetsEnabled: string[];
@@ -83,6 +78,12 @@ export interface Project {
   totalTimeSpentMinutes?: number;
   totalAllocatedHours?: number;
   totalEarnings?: number;
+  // Time Management Module fields
+  timeAllocations?: TimeAllocation[];
+  availableTimeSlots?: TimeSlot[];
+  purchasedTimeSlots?: TimeSlot[];
+  timeBudget?: number; // Total budgeted hours for the project
+  timeBudgetUsed?: number; // Hours consumed from budget
   // Additional properties used in demo and components
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   tags?: string[];
@@ -95,12 +96,10 @@ export interface Project {
 }
 
 export enum ProjectStatus {
-  DRAFT = 'DRAFT',
-  PLANNING = 'PLANNING',
-  ACTIVE = 'ACTIVE',
+  PENDING_APPROVAL = 'PENDING_APPROVAL',
   IN_PROGRESS = 'IN_PROGRESS',
-  ON_HOLD = 'ON_HOLD',
   COMPLETED = 'COMPLETED',
+  ON_HOLD = 'ON_HOLD',
   CANCELLED = 'CANCELLED'
 }
 
@@ -141,11 +140,86 @@ export interface TimeLog {
   hourlyRate?: number;
   earnings?: number;
   pausedTime?: number;
+  timeSlotId?: string; // Reference to allocated time slot
 }
 
 export interface SubstantiationFile {
   name: string;
   url: string;
+}
+
+// Time Management Module Types
+export interface TimeAllocation {
+  id: string;
+  projectId: string;
+  freelancerId: string;
+  freelancerName: string;
+  allocatedById: string; // Admin who allocated
+  allocatedByName: string;
+  allocatedHours: number; // Total hours allocated
+  hourlyRate: number;
+  startDate: Timestamp;
+  endDate: Timestamp;
+  status: TimeAllocationStatus;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export enum TimeAllocationStatus {
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  CANCELLED = 'CANCELLED'
+}
+
+export interface TimeSlot {
+  id: string;
+  allocationId: string; // Reference to parent allocation
+  projectId: string;
+  freelancerId: string;
+  freelancerName: string;
+  startTime: Timestamp;
+  endTime: Timestamp;
+  durationHours: number; // Fixed 4-hour blocks
+  hourlyRate: number;
+  status: TimeSlotStatus;
+  purchasedById?: string; // Client who purchased
+  purchasedByName?: string;
+  purchaseId?: string; // Reference to purchase record
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export enum TimeSlotStatus {
+  AVAILABLE = 'AVAILABLE', // Allocated but not purchased
+  PURCHASED = 'PURCHASED', // Purchased by client
+  IN_PROGRESS = 'IN_PROGRESS', // Freelancer working
+  COMPLETED = 'COMPLETED', // Work completed
+  CANCELLED = 'CANCELLED'
+}
+
+export interface TimePurchase {
+  id: string;
+  slotId: string;
+  clientId: string;
+  clientName: string;
+  projectId: string;
+  freelancerId: string;
+  freelancerName: string;
+  amount: number;
+  currency: string;
+  status: TimePurchaseStatus;
+  paymentMethod?: string;
+  transactionId?: string;
+  purchasedAt: Timestamp;
+  notes?: string;
+}
+
+export enum TimePurchaseStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+  REFUNDED = 'REFUNDED'
 }
 
 // File management types
@@ -335,12 +409,39 @@ export interface ProjectApplication {
   appliedAt: Timestamp;
 }
 
-// Type alias for backward compatibility
-export type Application = ProjectApplication;
-
 export enum ApplicationStatus {
   PENDING = 'PENDING',
   ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED'
+}
+
+export interface Application {
+  id: string;
+  projectId: string;
+  freelancerId: string;
+  freelancerName: string;
+  freelancerEmail: string;
+  coverLetter?: string;
+  proposedRate?: number;
+  status: ApplicationStatus;
+  createdAt: Timestamp;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  action: AuditAction;
+  entityType: string;
+  entityId: string;
+  details?: Record<string, any>;
+  timestamp: Timestamp;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export enum ProjectRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
   REJECTED = 'REJECTED'
 }
 
@@ -350,22 +451,12 @@ export interface ProjectRequest {
   description: string;
   clientId: string;
   clientName: string;
-  requestedBy: string;
-  requestedByName: string;
-  status: ProjectRequestStatus;
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  clientEmail: string;
   budget?: number;
   deadline?: Timestamp;
+  status: ProjectRequestStatus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-}
-
-export enum ProjectRequestStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED'
 }
 
 export interface ProjectCreationData {
@@ -510,43 +601,6 @@ export enum AuditAction {
   COMPLETENESS_CHECKED = 'COMPLETENESS_CHECKED'
 }
 
-export interface AuditLog {
-  id: string;
-  userId: string;
-  userName: string;
-  userEmail: string;
-  action: AuditAction;
-  resourceType: string;
-  resourceId: string;
-  details: Record<string, any>;
-  timestamp: Timestamp;
-  ipAddress?: string;
-  userAgent?: string;
-}
-
-// Project Request types
-export interface ProjectRequest {
-  id: string;
-  title: string;
-  description: string;
-  clientId: string;
-  clientName: string;
-  status: ProjectRequestStatus;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  deadline?: Timestamp;
-  budget?: number;
-  priority?: 'low' | 'medium' | 'high';
-  notes?: string;
-}
-
-export enum ProjectRequestStatus {
-  PENDING = 'PENDING',
-  APPROVED = 'APPROVED',
-  REJECTED = 'REJECTED',
-  CONVERTED = 'CONVERTED'
-}
-
 // Dashboard types
 export interface DashboardWidget {
   id: string;
@@ -612,8 +666,8 @@ export interface AppContextType {
 
   // Users
   deleteUser?: (userId: string) => Promise<void>; // Task 1.5: Added deleteUser method (optional)
-  updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
-  updateUserProfile: (userId: string, updates: Partial<User>) => Promise<void>;
+  updateUser: () => Promise<void>;
+  updateUserProfile: () => Promise<void>;
 
   // UI
   isSidebarCollapsed: boolean;
@@ -644,6 +698,17 @@ export interface AppContextType {
   // Time logs
   addManualTimeLog: (projectId: string, jobCardId: string, logData: any, file?: File) => Promise<void>;
   addAdminCommentToTimeLog: () => Promise<void>;
+
+  // Time Management Module
+  allocateTimeToFreelancer: (allocationData: TimeAllocation) => Promise<string>;
+  getTimeAllocations: (projectId?: string, freelancerId?: string) => Promise<TimeAllocation[]>;
+  updateTimeAllocation: (allocationId: string, updates: Partial<TimeAllocation>) => Promise<void>;
+  deleteTimeAllocation: (allocationId: string) => Promise<void>;
+  getAvailableTimeSlots: (projectId: string) => Promise<TimeSlot[]>;
+  purchaseTimeSlot: (slotId: string, clientId: string) => Promise<string>;
+  getTimePurchases: (clientId?: string, projectId?: string) => Promise<TimePurchase[]>;
+  getTimeSlots: () => Promise<TimeSlot[]>;
+  getTimeSlotsForFreelancer: (freelancerId: string) => Promise<TimeSlot[]>;
 
   // Applications
   applyToProject: (projectId: string, coverLetter?: string, proposedRate?: number) => Promise<void>;

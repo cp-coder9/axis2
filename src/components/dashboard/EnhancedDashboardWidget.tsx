@@ -5,10 +5,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, RefreshCw, X, GripVertical } from 'lucide-react';
 import { DashboardWidget as WidgetType, WidgetProps, WidgetError } from '../../types/dashboard';
+import { widgetRegistry } from './WidgetRegistry';
 
 // Extended widget type with component
 interface EnhancedWidgetType extends WidgetType {
-  component: React.ComponentType<WidgetProps>;
+  component?: React.ComponentType<WidgetProps>;
 }
 
 interface EnhancedDashboardWidgetProps {
@@ -151,7 +152,14 @@ export const EnhancedDashboardWidget: React.FC<EnhancedDashboardWidgetProps> = (
     return () => clearInterval(interval);
   }, [widget.refreshInterval, isVisible, handleRefresh]);
 
-  const WidgetComponent = widget.component;
+  const WidgetComponent = widget.component || widgetRegistry.get(widget.id)?.component || (() => (
+    <div className="flex items-center justify-center h-full bg-muted rounded-lg">
+      <div className="text-center">
+        <p className="text-sm font-medium">Widget Not Found</p>
+        <p className="text-xs text-muted-foreground">{widget.type}</p>
+      </div>
+    </div>
+  ));
 
   const widgetProps: WidgetProps = {
     widgetId: widget.id,

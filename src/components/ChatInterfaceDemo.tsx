@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { EnhancedChatInterface } from './EnhancedChatInterface';
-import { Message, ChatType, User, UserRole } from '../types';
+import { Message, MessageStatus, ChannelType } from '../types/messaging';
+import { ChatType, User, UserRole } from '../types';
 
 // Mock data for demonstration
 const mockUsers: User[] = [
@@ -49,81 +50,75 @@ const mockUsers: User[] = [
 const mockMessages: Message[] = [
   {
     id: 'msg1',
-    projectId: 'demo-project',
-    userId: 'user2',
-    userName: 'Sarah Client',
+    content: 'Hi everyone! I wanted to discuss the latest design revisions for the office building project.',
     senderId: 'user2',
     senderName: 'Sarah Client',
-    senderAvatarUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+    senderRole: 'CLIENT',
+    channelId: 'demo-project-general',
+    channelType: ChannelType.PROJECT_GENERAL,
     timestamp: Timestamp.fromDate(new Date(Date.now() - 3600000)), // 1 hour ago
-    content: 'Hi everyone! I wanted to discuss the latest design revisions for the office building project.',
-    chatType: ChatType.GENERAL,
-    messageType: 'text'
+    status: MessageStatus.SENT,
+    readBy: []
   },
   {
     id: 'msg2',
-    projectId: 'demo-project',
-    userId: 'user1',
-    userName: 'John Architect',
+    content: 'Hello Sarah! I\'ve been working on the revisions you requested. The structural changes are looking good.',
     senderId: 'user1',
     senderName: 'John Architect',
-    senderAvatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    senderRole: 'FREELANCER',
+    channelId: 'demo-project-general',
+    channelType: ChannelType.PROJECT_GENERAL,
     timestamp: Timestamp.fromDate(new Date(Date.now() - 3500000)), // 58 minutes ago
-    content: 'Hello Sarah! I\'ve been working on the revisions you requested. The structural changes are looking good.',
-    chatType: ChatType.GENERAL,
-    messageType: 'text'
+    status: MessageStatus.SENT,
+    readBy: []
   },
   {
     id: 'msg3',
-    projectId: 'demo-project',
-    userId: 'user3',
-    userName: 'Mike Admin',
+    content: 'Great work team! The client feedback has been very positive. Let\'s make sure we address all the accessibility requirements in the next iteration.',
     senderId: 'user3',
     senderName: 'Mike Admin',
-    senderAvatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    senderRole: 'ADMIN',
+    channelId: 'demo-project-general',
+    channelType: ChannelType.PROJECT_GENERAL,
     timestamp: Timestamp.fromDate(new Date(Date.now() - 3400000)), // 56 minutes ago
-    content: 'Great work team! The client feedback has been very positive. Let\'s make sure we address all the accessibility requirements in the next iteration.',
-    chatType: ChatType.GENERAL,
-    messageType: 'text'
+    status: MessageStatus.SENT,
+    readBy: []
   },
   {
     id: 'msg4',
-    projectId: 'demo-project',
-    userId: 'user1',
-    userName: 'John Architect',
+    content: 'Absolutely! I\'ve already started incorporating the ADA compliance updates. Should have the updated drawings ready by tomorrow.',
     senderId: 'user1',
     senderName: 'John Architect',
-    senderAvatarUrl: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
+    senderRole: 'FREELANCER',
+    channelId: 'demo-project-general',
+    channelType: ChannelType.PROJECT_GENERAL,
     timestamp: Timestamp.fromDate(new Date(Date.now() - 3300000)), // 55 minutes ago
-    content: 'Absolutely! I\'ve already started incorporating the ADA compliance updates. Should have the updated drawings ready by tomorrow.',
-    chatType: ChatType.GENERAL,
-    messageType: 'text'
+    status: MessageStatus.SENT,
+    readBy: []
   },
   {
     id: 'msg5',
-    projectId: 'demo-project',
-    userId: 'user2',
-    userName: 'Sarah Client',
+    content: 'Perfect! That timeline works well with our construction schedule. Thank you both for the excellent work! 🏗️',
     senderId: 'user2',
     senderName: 'Sarah Client',
-    senderAvatarUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
+    senderRole: 'CLIENT',
+    channelId: 'demo-project-general',
+    channelType: ChannelType.PROJECT_GENERAL,
     timestamp: Timestamp.fromDate(new Date(Date.now() - 300000)), // 5 minutes ago
-    content: 'Perfect! That timeline works well with our construction schedule. Thank you both for the excellent work! 🏗️',
-    chatType: ChatType.GENERAL,
-    messageType: 'text'
+    status: MessageStatus.SENT,
+    readBy: []
   },
   {
     id: 'msg6',
-    projectId: 'demo-project',
-    userId: 'user3',
-    userName: 'Mike Admin',
+    content: 'You\'re welcome! Let me know if you need anything else. We\'re here to help make this project a success.',
     senderId: 'user3',
     senderName: 'Mike Admin',
-    senderAvatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
+    senderRole: 'ADMIN',
+    channelId: 'demo-project-general',
+    channelType: ChannelType.PROJECT_GENERAL,
     timestamp: Timestamp.fromDate(new Date(Date.now() - 60000)), // 1 minute ago
-    content: 'You\'re welcome! Let me know if you need anything else. We\'re here to help make this project a success.',
-    chatType: ChatType.GENERAL,
-    messageType: 'text'
+    status: MessageStatus.SENT,
+    readBy: []
   }
 ];
 
@@ -151,17 +146,15 @@ export const ChatInterfaceDemo: React.FC = () => {
   const handleSendMessage = (content: string, recipientIds?: string[]) => {
     const newMessage: Message = {
       id: `msg_${Date.now()}`,
-      projectId: 'demo-project',
-      userId: currentUser.id,
-      userName: currentUser.name,
+      content,
       senderId: currentUser.id,
       senderName: currentUser.name,
-      senderAvatarUrl: currentUser.avatarUrl,
+      senderRole: currentUser.role,
+      channelId: 'demo-project-general',
+      channelType: ChannelType.PROJECT_GENERAL,
       timestamp: Timestamp.now(),
-      content,
-      chatType: ChatType.GENERAL,
-      messageType: 'text',
-      recipientIds
+      status: MessageStatus.SENT,
+      readBy: []
     };
 
     setMessages(prev => [...prev, newMessage]);
@@ -177,11 +170,11 @@ export const ChatInterfaceDemo: React.FC = () => {
       <div className="mb-4">
         <h2 className="text-2xl font-bold mb-2">Enhanced Chat Interface Demo</h2>
         <p className="text-muted-foreground">
-          This demo showcases the new shadcn/ui-based chat interface with emoji picker, 
+          This demo showcases the new shadcn/ui-based chat interface with emoji picker,
           responsive design, and modern message bubbles.
         </p>
       </div>
-      
+
       <EnhancedChatInterface
         projectId="demo-project"
         chatType={ChatType.GENERAL}

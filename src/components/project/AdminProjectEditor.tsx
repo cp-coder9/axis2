@@ -413,13 +413,13 @@ export const AdminProjectEditor: React.FC<AdminProjectEditorProps> = ({
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value={ProjectStatus.DRAFT}>
+                                <SelectItem value={ProjectStatus.PENDING_APPROVAL}>
                                   Draft
                                 </SelectItem>
-                                <SelectItem value={ProjectStatus.PLANNING}>
+                                <SelectItem value={ProjectStatus.PENDING_APPROVAL}>
                                   Planning
                                 </SelectItem>
-                                <SelectItem value={ProjectStatus.ACTIVE}>
+                                <SelectItem value={ProjectStatus.IN_PROGRESS}>
                                   Active
                                 </SelectItem>
                                 <SelectItem value={ProjectStatus.IN_PROGRESS}>In Progress</SelectItem>

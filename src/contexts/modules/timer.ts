@@ -2,13 +2,15 @@ import { useState, useCallback, useEffect } from 'react';
 import { addDoc, collection, doc, getDoc, updateDoc, Timestamp, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../../firebase';
-import { TimeLog, SubstantiationFile, NotificationType, Project, User, UserRole } from '../../types';
-import type { Notification } from '../../types';
+import { TimeLog, SubstantiationFile, Project, User, UserRole } from '../../types';
+import { NotificationType, NotificationPriority, NotificationCategory } from '../../types/notifications';
+import type { Notification } from '../../types/notifications';
 import { offlineSync } from '../../utils/offlineSync';
 import { logAuditEvent, AuditAction } from '../../utils/auditLogger';
 import { sanitizeForFirestore } from '../../utils/firebaseHelpers';
 import { canFreelancerUseTimer } from './auth';
 import { canUserStartTimerOnJobCard, getTaskHoursForJobCard } from './projects';
+import { createNotification } from '../../services/notificationService';
 
 export interface ActiveTimerInfo {
   jobCardId: string;
@@ -81,7 +83,7 @@ export const useTimer = (): TimerState => {
       try {
         // First check IndexedDB (via offlineSync) for timer state
         const storedTimer = await offlineSync.getOfflineData('active_timer');
-        
+
         if (storedTimer) {
           setActiveTimers(storedTimer.timers || {});
           setCurrentTimerKey(storedTimer.currentTimerKey || null);
@@ -96,7 +98,7 @@ export const useTimer = (): TimerState => {
             setHasActiveTimer(parsedData.currentTimerKey !== null);
           }
         }
-        
+
         // Regardless of where we loaded the timer from, sync with server state
         syncTimerState();
       } catch (error) {
@@ -105,21 +107,21 @@ export const useTimer = (): TimerState => {
     };
 
     loadTimerFromStorage();
-    
+
     // Set up periodic heartbeat and state check
     const heartbeatInterval = setInterval(() => {
       if (currentTimerKey) {
         // Update heartbeat timestamp
-        localStorage.setItem(TIMER_HEARTBEAT_KEY, JSON.stringify({ 
+        localStorage.setItem(TIMER_HEARTBEAT_KEY, JSON.stringify({
           timestamp: Date.now(),
           userId: JSON.parse(localStorage.getItem('architex_user') || '{}').id || 'unknown'
         }));
-        
+
         // Check for other active tabs/devices
         syncTimerState();
       }
     }, 30000); // 30 second intervals
-    
+
     return () => {
       clearInterval(heartbeatInterval);
     };
@@ -134,19 +136,19 @@ export const useTimer = (): TimerState => {
           currentTimerKey,
           timestamp: Date.now()
         };
-        
+
         // Store in IndexedDB (production module supports saveOfflineData but not cacheData)
         await offlineSync.saveOfflineData('active_timer', timerData);
-        
+
         // Also store in localStorage for cross-tab communication
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timerData));
-        
+
         // Update heartbeat
-        localStorage.setItem(TIMER_HEARTBEAT_KEY, JSON.stringify({ 
+        localStorage.setItem(TIMER_HEARTBEAT_KEY, JSON.stringify({
           timestamp: Date.now(),
           userId: JSON.parse(localStorage.getItem('architex_user') || '{}').id || 'unknown'
         }));
-        
+
         setHasActiveTimer(currentTimerKey !== null);
       } catch (error) {
         console.error('Error saving timer to storage:', error);
@@ -155,13 +157,13 @@ export const useTimer = (): TimerState => {
 
     saveTimerToStorage();
   }, [activeTimers, currentTimerKey]);
-  
+
   // Sync timer state with server and other tabs/devices
   const syncTimerState = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('architex_user') || '{}');
       if (!user.id) return;
-      
+
       // Check for active timers in Firestore
       const activeTimersQuery = query(
         collection(db, 'activeTimers'),
@@ -169,13 +171,13 @@ export const useTimer = (): TimerState => {
         orderBy('startTime', 'desc'),
         limit(1)
       );
-      
+
       const snapshot = await getDocs(activeTimersQuery);
-      
+
       if (!snapshot.empty) {
         const serverTimer = snapshot.docs[0].data();
         const serverTimerKey = `${serverTimer.projectId}-${serverTimer.jobCardId}`;
-        
+
         // If server has an active timer but we don't, or it's different from ours
         if (!currentTimerKey || currentTimerKey !== serverTimerKey) {
           // Server timer takes precedence
@@ -200,7 +202,7 @@ export const useTimer = (): TimerState => {
         // If we have a local timer but server doesn't, push our timer to server
         const timerKey = currentTimerKey;
         const timer = activeTimers[timerKey];
-        
+
         if (timer) {
           await addDoc(collection(db, 'activeTimers'), {
             userId: user.id,
@@ -251,7 +253,7 @@ export const useTimer = (): TimerState => {
 
       // Check for existing timers on server first
       await syncTimerState();
-      
+
       // Generate a unique idempotency key for this timer start operation
       const idempotencyKey = generateIdempotencyKey();
 
@@ -261,7 +263,7 @@ export const useTimer = (): TimerState => {
         const h = getTaskHoursForJobCard(projectData, jobCardId);
         allocated = h.remaining || h.assigned; // prefer remaining countdown
       }
-      
+
       // If there's already an active timer, stop it first
       if (currentTimerKey) {
         const activeTimer = activeTimers[currentTimerKey];
@@ -273,7 +275,7 @@ export const useTimer = (): TimerState => {
             collection(db, 'activeTimers'),
             where('userId', '==', user.id)
           );
-          
+
           const snapshot = await getDocs(activeTimersQuery);
           if (!snapshot.empty) {
             // Delete all active timers for this user
@@ -281,21 +283,21 @@ export const useTimer = (): TimerState => {
               await updateDoc(doc.ref, sanitizeForFirestore({ active: false, endTime: Timestamp.now() }));
             }
           }
-          
+
           // Notify the user that their previous timer was stopped automatically
           alert('Your previous timer has been automatically stopped to start a new one.');
-          
-              // Log this action for audit
-              await logAuditEvent(user, AuditAction.TIMER_AUTO_STOPPED, {
-                projectId,
-                jobCardId,
-                reason: 'auto_stopped_for_new_timer'
-              });
+
+          // Log this action for audit
+          await logAuditEvent(user, AuditAction.TIMER_AUTO_STOPPED, {
+            projectId,
+            jobCardId,
+            reason: 'auto_stopped_for_new_timer'
+          });
         }
       }
-      
+
       const timerKey = `${projectId}-${jobCardId}`;
-      
+
       // Create new timer in state
       const newTimer: ActiveTimerInfo = {
         jobCardId,
@@ -308,13 +310,13 @@ export const useTimer = (): TimerState => {
         pauseWarningShown: false,
         idempotencyKey
       };
-      
+
       setActiveTimers(prev => ({
         ...prev,
         [timerKey]: newTimer
       }));
       setCurrentTimerKey(timerKey);
-      
+
       // Add to Firestore for cross-device syncing
       await addDoc(collection(db, 'activeTimers'), {
         userId: user.id,
@@ -329,14 +331,14 @@ export const useTimer = (): TimerState => {
         idempotencyKey,
         lastUpdated: Timestamp.now()
       });
-      
-          // Log this action for audit
-          await logAuditEvent(user, AuditAction.TIMER_STARTED, {
-            projectId,
-            jobCardId,
-            idempotencyKey
-          });
-      
+
+      // Log this action for audit
+      await logAuditEvent(user, AuditAction.TIMER_STARTED, {
+        projectId,
+        jobCardId,
+        idempotencyKey
+      });
+
       // Queue for offline sync
       await queueForSyncSafe('timeEntry', 'create', {
         action: 'start',
@@ -347,7 +349,15 @@ export const useTimer = (): TimerState => {
         idempotencyKey,
         userId: user.id
       });
-      
+
+      // Notify project team members about timer start
+      try {
+        await notifyTimerStarted(projectId, jobCardId, jobCardTitle, user.name, projectData);
+      } catch (error) {
+        console.error('Error sending timer start notification:', error);
+        // Don't fail timer start if notification fails
+      }
+
       return true;
     } catch (error) {
       console.error('Error starting timer:', error);
@@ -359,7 +369,7 @@ export const useTimer = (): TimerState => {
     const timerKey = `${projectId}-${jobCardId}`;
     const user = JSON.parse(localStorage.getItem('architex_user') || '{}');
     if (!user.id) return false;
-    
+
     try {
       setActiveTimers(prev => {
         const timer = prev[timerKey];
@@ -373,7 +383,7 @@ export const useTimer = (): TimerState => {
           }
 
           const pauseDuration = new Date().getTime() - new Date(timer.pausedAt).getTime();
-          
+
           // Update Firestore
           const updateTimerInFirestore = async () => {
             try {
@@ -383,7 +393,7 @@ export const useTimer = (): TimerState => {
                 where('projectId', '==', projectId),
                 where('jobCardId', '==', jobCardId)
               );
-              
+
               const snapshot = await getDocs(activeTimersQuery);
               if (!snapshot.empty) {
                 for (const doc of snapshot.docs) {
@@ -396,7 +406,7 @@ export const useTimer = (): TimerState => {
                   }));
                 }
               }
-              
+
               // Log this action for audit
               await logAuditEvent(user, AuditAction.TIMER_RESUMED, {
                 projectId,
@@ -408,7 +418,7 @@ export const useTimer = (): TimerState => {
             }
           };
           updateTimerInFirestore();
-          
+
           // Queue for offline sync
           queueForSyncSafe('timeEntry', 'update', {
             action: 'resume',
@@ -418,7 +428,7 @@ export const useTimer = (): TimerState => {
             idempotencyKey: timer.idempotencyKey,
             userId: user.id
           });
-          
+
           return {
             ...prev,
             [timerKey]: {
@@ -445,7 +455,7 @@ export const useTimer = (): TimerState => {
     const timerKey = `${projectId}-${jobCardId}`;
     const user = JSON.parse(localStorage.getItem('architex_user') || '{}');
     if (!user.id) return false;
-    
+
     try {
       setActiveTimers(prev => {
         const timer = prev[timerKey];
@@ -458,7 +468,7 @@ export const useTimer = (): TimerState => {
             setActiveTimers(current => {
               const cur = current[timerKey];
               if (!cur || !cur.isPaused) return current;
-              
+
               // Show browser notification for pause warning
               if ('Notification' in window && Notification.permission === 'granted') {
                 new Notification('Timer Pause Warning', {
@@ -467,7 +477,7 @@ export const useTimer = (): TimerState => {
                   tag: 'timer-pause-warning'
                 });
               }
-              
+
               return {
                 ...current,
                 [timerKey]: { ...cur, pauseWarningShown: true }
@@ -478,7 +488,7 @@ export const useTimer = (): TimerState => {
           const autoResumeTimeout = setTimeout(() => {
             // Use timestamps to avoid drift issues if tab sleeps
             resumeGlobalTimer(projectId, jobCardId);
-            
+
             // Show notification when auto-resumed
             if ('Notification' in window && Notification.permission === 'granted') {
               new Notification('Timer Auto-Resumed', {
@@ -498,7 +508,7 @@ export const useTimer = (): TimerState => {
                 where('projectId', '==', projectId),
                 where('jobCardId', '==', jobCardId)
               );
-              
+
               const snapshot = await getDocs(activeTimersQuery);
               if (!snapshot.empty) {
                 for (const doc of snapshot.docs) {
@@ -510,7 +520,7 @@ export const useTimer = (): TimerState => {
                   }));
                 }
               }
-              
+
               // Log this action for audit
               await logAuditEvent(user, AuditAction.TIMER_PAUSED, {
                 projectId,
@@ -523,7 +533,7 @@ export const useTimer = (): TimerState => {
             }
           };
           updateTimerInFirestore();
-          
+
           // Queue for offline sync
           queueForSyncSafe('timeEntry', 'update', {
             action: 'pause',
@@ -547,7 +557,7 @@ export const useTimer = (): TimerState => {
         }
         return prev;
       });
-      
+
       // When pausing, we don't have an active timer key
       setCurrentTimerKey(null);
       return true;
@@ -558,9 +568,9 @@ export const useTimer = (): TimerState => {
   }, [resumeGlobalTimer, queueForSyncSafe]);
 
   const stopGlobalTimerAndLog = async (
-    projectId: string, 
-    jobCardId: string, 
-    details: { notes?: string; file?: File }, 
+    projectId: string,
+    jobCardId: string,
+    details: { notes?: string; file?: File },
     user: any,
     setNotifications: (callback: (prev: Notification[]) => Notification[]) => void
   ) => {
@@ -620,21 +630,21 @@ export const useTimer = (): TimerState => {
     const projectSnap = await getDoc(projectDocRef);
     if (projectSnap.exists()) {
       const projectData = projectSnap.data() as Project;
-      
+
       // Calculate project totals
       const updatedJobCards = projectData.jobCards.map(jc => {
         if (jc.id === newLog.jobCardId) {
-          const updatedJobCard = { 
-            ...jc, 
+          const updatedJobCard = {
+            ...jc,
             timeLogs: [...(jc.timeLogs || []), newLog]
           };
-          
+
           // Deduct time from allocated hours if they exist
           if (jc.allocatedHours && jc.allocatedHours > 0) {
             const remainingHours = Math.max(0, jc.allocatedHours - durationHours);
             updatedJobCard.allocatedHours = remainingHours;
           }
-          
+
           return updatedJobCard;
         }
         return jc;
@@ -654,7 +664,7 @@ export const useTimer = (): TimerState => {
       }, 0);
 
       // Update project with new job cards and totals
-      const updateData: any = { 
+      const updateData: any = {
         jobCards: updatedJobCards,
         totalTimeSpentMinutes: totalTimeSpent,
         totalAllocatedHours: totalAllocatedHours,
@@ -671,10 +681,12 @@ export const useTimer = (): TimerState => {
       const notification: Notification = {
         id: `ntf-${Date.now()}`,
         userId: projectData.clientId,
-        type: NotificationType.PROJECT_UPDATE,
+        type: NotificationType.PROJECT_UPDATED,
         title: 'Time Logged',
         message: `${user.name} logged ${Math.floor(durationHours)}h ${durationMinutes % 60}m for task "${timer.jobCardTitle}" in ${projectData.title}`,
-        projectId: projectData.id,
+        data: { projectId: projectData.id },
+        priority: NotificationPriority.MEDIUM,
+        category: NotificationCategory.PROJECT,
         createdAt: Timestamp.now(),
         read: false
       };
@@ -688,10 +700,12 @@ export const useTimer = (): TimerState => {
           const warningNotification: Notification = {
             id: `ntf-warn-${Date.now()}`,
             userId: projectData.clientId,
-            type: NotificationType.WARNING,
+            type: NotificationType.DEADLINE_APPROACHING,
             title: 'Low Hours Remaining',
             message: `Task "${timer.jobCardTitle}" has ${Math.round(remainingHours * 60)} minutes remaining. Consider allocating more hours.`,
-            projectId: projectData.id,
+            data: { projectId: projectData.id },
+            priority: NotificationPriority.MEDIUM,
+            category: NotificationCategory.PROJECT,
             createdAt: Timestamp.now(),
             read: false
           };
@@ -699,62 +713,134 @@ export const useTimer = (): TimerState => {
           setNotifications(prev => [...prev, warningNotification]);
         }
       }
-    }
 
-    // Remove from active timers in Firestore for cross-device syncing
-    const activeTimersQuery = query(
-      collection(db, 'activeTimers'),
-      where('userId', '==', user.id),
-      where('projectId', '==', projectId),
-      where('jobCardId', '==', jobCardId)
-    );
-    
-    const snapshot = await getDocs(activeTimersQuery);
-    if (!snapshot.empty) {
-      for (const doc of snapshot.docs) {
-        await updateDoc(doc.ref, sanitizeForFirestore({ 
-          active: false,
-          endTime: endTime,
-          durationMinutes,
-          totalPausedTime: timer.totalPausedTime,
-          lastUpdated: Timestamp.now()
-        }));
+      // Notify project team members about timer stop and time logged
+      try {
+        await notifyTimerStopped(projectId, jobCardId, timer.jobCardTitle, user.name, durationHours, projectData);
+      } catch (error) {
+        console.error('Error sending timer stop notification:', error);
+        // Don't fail timer stop if notification fails
       }
-    }
-    
-              // Log this action for audit
-              await logAuditEvent(user, AuditAction.TIMER_STOPPED, {
-                projectId,
-                jobCardId,
-                durationMinutes,
-                pausedTime: pausedMinutes,
-                idempotencyKey: timer.idempotencyKey,
-                timeLogId: newLog.id
-              });
-    
-    // Queue for offline sync in case stop is triggered offline
-    await queueForSyncSafe('timeEntry', 'create', {
-      timeLog: newLog,
-      projectId,
-      jobCardId,
-      idempotencyKey: timer.idempotencyKey,
-      userId: user.id
-    });
 
-    setActiveTimers(prev => {
-      const newTimers = { ...prev };
-      delete newTimers[timerKey];
-      return newTimers;
-    });
-    setCurrentTimerKey(null);
-    
-    // Clear from localStorage
-    const timerData = {
-      timers: {},
-      currentTimerKey: null,
-      timestamp: Date.now()
-    };
-    localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timerData));
+      // Remove from active timers in Firestore for cross-device syncing
+      const activeTimersQuery = query(
+        collection(db, 'activeTimers'),
+        where('userId', '==', user.id),
+        where('projectId', '==', projectId),
+        where('jobCardId', '==', jobCardId)
+      );
+
+      const snapshot = await getDocs(activeTimersQuery);
+      if (!snapshot.empty) {
+        for (const doc of snapshot.docs) {
+          await updateDoc(doc.ref, sanitizeForFirestore({
+            active: false,
+            endTime: endTime,
+            durationMinutes,
+            totalPausedTime: timer.totalPausedTime,
+            lastUpdated: Timestamp.now()
+          }));
+        }
+      }
+
+      // Log this action for audit
+      await logAuditEvent(user, AuditAction.TIMER_STOPPED, {
+        projectId,
+        jobCardId,
+        durationMinutes,
+        pausedTime: pausedMinutes,
+        idempotencyKey: timer.idempotencyKey,
+        timeLogId: newLog.id
+      });
+
+      // Queue for offline sync in case stop is triggered offline
+      await queueForSyncSafe('timeEntry', 'create', {
+        timeLog: newLog,
+        projectId,
+        jobCardId,
+        idempotencyKey: timer.idempotencyKey,
+        userId: user.id
+      });
+
+      setActiveTimers(prev => {
+        const newTimers = { ...prev };
+        delete newTimers[timerKey];
+        return newTimers;
+      });
+      setCurrentTimerKey(null);
+
+      // Clear from localStorage
+      const timerData = {
+        timers: {},
+        currentTimerKey: null,
+        timestamp: Date.now()
+      };
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timerData));
+    }
+  };
+
+  // Helper functions for timer notifications
+  const notifyTimerStarted = async (
+    projectId: string,
+    jobCardId: string,
+    jobCardTitle: string,
+    userName: string,
+    projectData?: Project
+  ): Promise<void> => {
+    if (!projectData) return;
+
+    // Notify client and team members (excluding the timer starter)
+    const recipients = [projectData.clientId, ...projectData.assignedTeamIds].filter(
+      (userId, index, arr) => arr.indexOf(userId) === index // Remove duplicates
+    );
+
+    const notifications = recipients.map(recipientId =>
+      createNotification({
+        userId: recipientId,
+        type: NotificationType.TIMER_STARTED,
+        title: 'Timer Started',
+        message: `${userName} started working on "${jobCardTitle}" in project "${projectData.title}"`,
+        data: { projectId, jobCardId },
+        priority: NotificationPriority.MEDIUM,
+        category: NotificationCategory.TIMER
+      })
+    );
+
+    await Promise.all(notifications);
+  };
+
+  const notifyTimerStopped = async (
+    projectId: string,
+    jobCardId: string,
+    jobCardTitle: string,
+    userName: string,
+    durationHours: number,
+    projectData?: Project
+  ): Promise<void> => {
+    if (!projectData) return;
+
+    // Notify client and team members
+    const recipients = [projectData.clientId, ...projectData.assignedTeamIds].filter(
+      (userId, index, arr) => arr.indexOf(userId) === index // Remove duplicates
+    );
+
+    const durationText = durationHours >= 1
+      ? `${Math.floor(durationHours)}h ${Math.round((durationHours % 1) * 60)}m`
+      : `${Math.round(durationHours * 60)}m`;
+
+    const notifications = recipients.map(recipientId =>
+      createNotification({
+        userId: recipientId,
+        type: NotificationType.TIMER_STOPPED,
+        title: 'Time Logged',
+        message: `${userName} logged ${durationText} for "${jobCardTitle}" in project "${projectData.title}"`,
+        data: { projectId, jobCardId, durationHours },
+        priority: NotificationPriority.MEDIUM,
+        category: NotificationCategory.TIMER
+      })
+    );
+
+    await Promise.all(notifications);
   };
 
   return {

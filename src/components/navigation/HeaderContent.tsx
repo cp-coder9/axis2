@@ -18,6 +18,7 @@ interface User {
   email: string
   role: 'Admin' | 'Freelancer' | 'Client'
   avatar?: string
+  avatarUrl?: string
 }
 
 interface Notification {
@@ -50,7 +51,7 @@ const mockNotifications: Notification[] = [
     icon: <FileText className="h-4 w-4" />
   },
   {
-    id: '2', 
+    id: '2',
     title: 'Timer Alert',
     message: 'You have 30 minutes remaining on your current task',
     type: 'warning',
@@ -77,7 +78,7 @@ export function HeaderContent() {
   const [searchValue, setSearchValue] = useState("")
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const searchRef = useRef<HTMLInputElement>(null)
-  
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -87,7 +88,7 @@ export function HeaderContent() {
         searchRef.current?.focus()
       }
     }
-    
+
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
@@ -174,7 +175,7 @@ export function HeaderContent() {
             <span>Settings</span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem 
+          <DropdownMenuItem
             className="text-red-600 focus:text-red-600"
             onClick={handleLogout}
             disabled={isLoggingOut}
@@ -189,15 +190,15 @@ export function HeaderContent() {
 
   const NotificationCenter = () => {
     const unreadCount = mockNotifications.filter(n => !n.read).length
-    
+
     return (
       <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" size="icon" className="relative h-9 w-9">
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <Badge 
-                variant="destructive" 
+              <Badge
+                variant="destructive"
                 className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
               >
                 {unreadCount > 9 ? '9+' : unreadCount}
@@ -288,16 +289,16 @@ export function HeaderContent() {
       {/* Right side - Actions */}
       <div className="flex items-center space-x-2">
         {/* Mobile search button */}
-        <Button 
-          variant="outline" 
-          size="icon" 
+        <Button
+          variant="outline"
+          size="icon"
           className="md:hidden h-9 w-9"
           onClick={() => searchRef.current?.focus()}
         >
           <Search className="h-4 w-4" />
           <span className="sr-only">Search</span>
         </Button>
-        
+
         <ThemeToggle />
         <NotificationCenter />
         <UserMenu />
@@ -310,12 +311,12 @@ export function HeaderContent() {
 function formatRelativeTime(date: Date): string {
   const now = new Date()
   const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-  
+
   if (diffInSeconds < 60) return 'Just now'
   if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
   if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
   if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`
-  
+
   return date.toLocaleDateString()
 }
 

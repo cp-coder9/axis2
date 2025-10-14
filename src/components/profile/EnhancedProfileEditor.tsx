@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { User, UserRole } from '@/types'
+import { NotificationType } from '@/types/notifications'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -162,8 +163,8 @@ export function EnhancedProfileEditor({
         portfolio: ''
       } : {}),
       emailNotifications: {
-        projectUpdates: user.preferences?.notifications?.projectUpdates ?? true,
-        messageReceived: user.preferences?.notifications?.messageReceived ?? true,
+        projectUpdates: user.preferences?.notifications?.email?.types?.includes(NotificationType.PROJECT_UPDATED) ?? true,
+        messageReceived: user.preferences?.notifications?.email?.types?.includes(NotificationType.MESSAGE_RECEIVED) ?? true,
         timerReminders: user.role === UserRole.FREELANCER,
         weeklyReports: user.role === UserRole.ADMIN,
         systemAnnouncements: true,

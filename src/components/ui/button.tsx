@@ -278,26 +278,26 @@ function Button({
 
   return (
     <Comp
-      ref={buttonRef}
+      ref={asChild ? undefined : buttonRef}
       data-slot="button"
       className={cn(
-        buttonVariants({ 
-          variant: showSuccess ? 'success' : showError ? 'error' : variant, 
-          size, 
-          className 
+        buttonVariants({
+          variant: showSuccess ? 'success' : showError ? 'error' : variant,
+          size,
+          className
         }),
         fullWidth && 'w-full',
         isPressed && 'transform scale-95',
         loading && 'cursor-wait'
       )}
       disabled={disabled || loading}
-      onClick={handleClick}
+      onClick={asChild ? undefined : handleClick}
       aria-busy={loading}
       aria-live="polite"
       {...props}
     >
       {renderContent()}
-      
+
       {/* Ripple effect overlay */}
       <span className="absolute inset-0 overflow-hidden rounded-inherit">
         <span

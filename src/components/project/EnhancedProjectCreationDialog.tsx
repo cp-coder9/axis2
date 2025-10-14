@@ -69,7 +69,7 @@ export function EnhancedProjectCreationDialog({
       allocatedHours: undefined,
       startDate: new Date(),
       endDate: undefined,
-      status: ProjectStatus.PLANNING,
+      status: ProjectStatus.PENDING_APPROVAL,
       tags: [],
     },
   })
@@ -352,7 +352,7 @@ export function EnhancedProjectCreationDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ProjectStatus.PLANNING}>Planning</SelectItem>
+                  <SelectItem value={ProjectStatus.PENDING_APPROVAL}>Planning</SelectItem>
                   <SelectItem value={ProjectStatus.IN_PROGRESS}>In Progress</SelectItem>
                   <SelectItem value={ProjectStatus.ON_HOLD}>On Hold</SelectItem>
                   <SelectItem value={ProjectStatus.COMPLETED}>Completed</SelectItem>

@@ -38,21 +38,7 @@ import {
   Target,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-// Enums and types (would typically come from a shared types file)
-export enum ProjectStatus {
-  PENDING_APPROVAL = 'PENDING_APPROVAL',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  ON_HOLD = 'ON_HOLD',
-  CANCELLED = 'CANCELLED',
-}
-
-export enum UserRole {
-  ADMIN = 'ADMIN',
-  FREELANCER = 'FREELANCER',
-  CLIENT = 'CLIENT',
-}
+import { ProjectStatus, UserRole } from '@/types'
 
 export interface User {
   id: string
@@ -210,7 +196,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   const StatusIcon = statusConfig.icon
 
   // Calculate completion percentage
-  const completionPercentage = project.completionPercentage ?? 
+  const completionPercentage = project.completionPercentage ??
     (project.totalAllocatedHours && project.totalAllocatedHours > 0
       ? Math.min(100, ((project.totalTimeSpentMinutes || 0) / 60 / project.totalAllocatedHours) * 100)
       : 0)
@@ -224,7 +210,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   // Timer control handlers
   const handleTimerAction = (action: 'start' | 'pause' | 'stop') => {
     if (disabled) return
-    
+
     switch (action) {
       case 'start':
         actions.onStartTimer?.(project.id)
@@ -249,7 +235,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
   }
 
   return (
-    <Card 
+    <Card
       className={cn(
         'project-card relative transition-all duration-200 hover:shadow-md',
         {
@@ -283,25 +269,25 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 </TooltipProvider>
               )}
             </div>
-            
+
             {project.description && !compact && (
               <CardDescription className="text-sm line-clamp-2">
                 {project.description}
               </CardDescription>
             )}
           </div>
-          
+
           <div className="flex items-center gap-2 ml-2">
-            <Badge 
+            <Badge
               variant={statusConfig.variant}
               className={cn('text-xs', statusConfig.className)}
             >
               <StatusIcon className="w-3 h-3 mr-1" />
               {compact ? statusConfig.label.slice(0, 6) : statusConfig.label}
             </Badge>
-            
+
             {project.priority && (
-              <Badge 
+              <Badge
                 variant={priorityConfig.variant}
                 className={cn('text-xs capitalize', priorityConfig.className)}
               >
@@ -320,14 +306,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 {project.clientName}
               </div>
             )}
-            
+
             {project.leadArchitectName && (
               <div className="flex items-center gap-1">
                 <User className="w-3 h-3" />
                 {project.leadArchitectName}
               </div>
             )}
-            
+
             {project.deadline && (
               <div className={cn('flex items-center gap-1', {
                 'text-red-600 font-medium': isOverdue,
@@ -353,14 +339,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                   {project.purchasedHours && ` / ${formatHours(project.purchasedHours)}`}
                 </span>
               </div>
-              
+
               {project.budget && (
                 <div className="flex items-center text-muted-foreground">
                   <DollarSign className="w-3 h-3 mr-1" />
                   <span className="text-xs">{formatCurrency(project.budget)}</span>
                 </div>
               )}
-              
+
               {project.totalJobCards && (
                 <div className="flex items-center text-muted-foreground">
                   <Target className="w-3 h-3 mr-1" />
@@ -375,8 +361,8 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           {/* Progress bar */}
           {completionPercentage > 0 && (
             <div className="space-y-1">
-              <Progress 
-                value={completionPercentage} 
+              <Progress
+                value={completionPercentage}
                 className="h-2"
                 aria-label={`Project progress: ${Math.round(completionPercentage)}%`}
               />
@@ -426,9 +412,9 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
           {project.tags && project.tags.length > 0 && !compact && (
             <div className="flex flex-wrap gap-1">
               {project.tags.slice(0, 3).map((tag, index) => (
-                <Badge 
-                  key={index} 
-                  variant="outline" 
+                <Badge
+                  key={index}
+                  variant="outline"
                   className="text-xs px-2 py-0.5"
                 >
                   {tag}
@@ -504,7 +490,7 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                 View
               </Button>
             )}
-            
+
             {userRole === UserRole.ADMIN && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -525,25 +511,25 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({
                       Edit Project
                     </DropdownMenuItem>
                   )}
-                  
+
                   {actions.onDuplicate && (
                     <DropdownMenuItem onClick={() => actions.onDuplicate?.(project.id)}>
                       <Target className="mr-2 h-4 w-4" />
                       Duplicate
                     </DropdownMenuItem>
                   )}
-                  
+
                   {actions.onArchive && (
                     <DropdownMenuItem onClick={() => actions.onArchive?.(project.id)}>
                       <Square className="mr-2 h-4 w-4" />
                       Archive
                     </DropdownMenuItem>
                   )}
-                  
+
                   {actions.onDelete && (
                     <>
                       <DropdownMenuSeparator />
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         onClick={() => actions.onDelete?.(project.id)}
                         className="text-red-600"
                       >

@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useTheme } from "@/components/theme-provider"
-import { Bell, Search, Settings, LogOut, User, Sun, Moon, Monitor, Menu, MessageSquare, Clock, FileText } from "lucide-react"
+import { Bell, Search, Settings, LogOut, User, Sun, Moon, Monitor, Menu } from "lucide-react"
 import { cn, shadcnClasses, responsive } from "@/lib/shadcn-utils"
 import { useState, useEffect, useRef } from "react"
+import { useAppContext } from "@/contexts/AppContext"
+import { NotificationCenter } from "@/components/notifications/NotificationCenter"
 
 interface HeaderProps {
   onMobileMenuToggle?: () => void
@@ -23,57 +25,13 @@ interface User {
   avatar?: string
 }
 
-interface Notification {
-  id: string
-  title: string
-  message: string
-  type: 'info' | 'warning' | 'success' | 'error'
-  timestamp: Date
-  read: boolean
-  icon?: React.ReactNode
-}
-
-// Import the AppContext to get real user data
-import { useAppContext } from '../../contexts/AppContext';
-
-// Mock notifications - this would come from your notification context
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    title: 'Project Update',
-    message: 'Modern Office Complex project has been updated',
-    type: 'info',
-    timestamp: new Date(Date.now() - 5 * 60 * 1000),
-    read: false,
-    icon: <FileText className="h-4 w-4" />
-  },
-  {
-    id: '2', 
-    title: 'Timer Alert',
-    message: 'You have 30 minutes remaining on your current task',
-    type: 'warning',
-    timestamp: new Date(Date.now() - 15 * 60 * 1000),
-    read: false,
-    icon: <Clock className="h-4 w-4" />
-  },
-  {
-    id: '3',
-    title: 'New Message',
-    message: 'You have a new message from client',
-    type: 'success',
-    timestamp: new Date(Date.now() - 60 * 60 * 1000),
-    read: true,
-    icon: <MessageSquare className="h-4 w-4" />
-  }
-]
-
 export function Header({ className, showMobileMenu = true, onMobileMenuToggle }: HeaderProps) {
   const { setTheme } = useTheme()
   const { user, logout } = useAppContext()
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const searchRef = useRef<HTMLInputElement>(null)
-  
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -83,7 +41,7 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
         searchRef.current?.focus()
       }
     }
-    
+
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [])
@@ -148,7 +106,7 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
           <span>Settings</span>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem 
+        <DropdownMenuItem
           className="text-red-600 focus:text-red-600"
           onClick={() => logout()}
         >
@@ -159,76 +117,10 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
     </DropdownMenu>
   )
 
-  const NotificationCenter = () => {
-    const unreadCount = mockNotifications.filter(n => !n.read).length
-    
-    return (
-      <Popover open={notificationsOpen} onOpenChange={setNotificationsOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="icon" className="relative h-9 w-9">
-            <Bell className="h-4 w-4" />
-            {unreadCount > 0 && (
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
-              >
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </Badge>
-            )}
-            <span className="sr-only">View notifications ({unreadCount} unread)</span>
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80 p-0" align="end">
-          <Card className="border-0 shadow-none">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Notifications</CardTitle>
-              <CardDescription>
-                You have {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0">
-              <div className="max-h-[300px] overflow-y-auto">
-                {mockNotifications.length === 0 ? (
-                  <div className="p-6 text-center text-muted-foreground">
-                    No notifications yet
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {mockNotifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={cn(
-                          "flex items-start gap-3 p-3 hover:bg-muted/50 transition-colors cursor-pointer",
-                          !notification.read && "bg-muted/30"
-                        )}
-                      >
-                        <div className="flex-shrink-0 mt-0.5">
-                          {notification.icon || <Bell className="h-4 w-4" />}
-                        </div>
-                        <div className="flex-1 space-y-1">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-medium">{notification.title}</p>
-                            {!notification.read && (
-                              <div className="h-2 w-2 bg-blue-500 rounded-full" />
-                            )}
-                          </div>
-                          <p className="text-xs text-muted-foreground line-clamp-2">
-                            {notification.message}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {formatRelativeTime(notification.timestamp)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </PopoverContent>
-      </Popover>
-    )
+  const NotificationCenterWrapper = () => {
+    if (!user?.id) return null;
+
+    return <NotificationCenter />;
   }
 
   const SearchBar = () => (
@@ -251,7 +143,7 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
       className
     )}>
       <div className={cn("flex h-14 items-center", responsive.padding)}>
-        
+
         {/* Mobile Menu Toggle */}
         {showMobileMenu && (
           <Button
@@ -264,7 +156,7 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
             <span className="sr-only">Toggle mobile menu</span>
           </Button>
         )}
-        
+
         {/* Mobile Logo (shown when mobile menu is not displayed) */}
         {!showMobileMenu && (
           <div className="mr-4 flex md:hidden">
@@ -287,7 +179,7 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
 
         {/* Search and Actions */}
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
-          
+
           {/* Search Bar - Hidden on mobile when space is limited */}
           <div className="hidden sm:block">
             <SearchBar />
@@ -296,23 +188,23 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
           {/* Right side actions */}
           <nav className="flex items-center space-x-2">
             {/* Mobile search button */}
-            <Button 
-              variant="outline" 
-              size="icon" 
+            <Button
+              variant="outline"
+              size="icon"
               className="sm:hidden h-9 w-9"
               onClick={() => searchRef.current?.focus()}
             >
               <Search className="h-4 w-4" />
               <span className="sr-only">Search</span>
             </Button>
-            
+
             <ThemeToggle />
-            <NotificationCenter />
+            <NotificationCenterWrapper />
             <UserMenu />
           </nav>
         </div>
       </div>
-      
+
       {/* Mobile search bar (revealed when search button is tapped) */}
       <div className="block sm:hidden border-t">
         <div className={cn("py-2", responsive.padding)}>
@@ -321,17 +213,4 @@ export function Header({ className, showMobileMenu = true, onMobileMenuToggle }:
       </div>
     </header>
   )
-}
-
-// Helper function to format relative time
-function formatRelativeTime(date: Date): string {
-  const now = new Date()
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
-  
-  if (diffInSeconds < 60) return 'Just now'
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)}d ago`
-  
-  return date.toLocaleDateString()
 }
