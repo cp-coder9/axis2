@@ -18,6 +18,7 @@ interface TimerPersistenceState {
   isPaused: boolean;
   pauseCount: number;
   pauseHistory: any[];
+  slotId?: string;
 }
 
 interface TimerSyncEvent {
@@ -33,20 +34,20 @@ export interface TimerSyncContextType {
   isLoading: boolean;
   isOnline: boolean;
   syncStatus: 'connected' | 'disconnected' | 'syncing' | 'error';
-  
+
   // Timer operations
-  startTimer: (projectId: string, jobCardId: string, jobCardTitle: string, allocatedHours: number) => Promise<boolean>;
+  startTimer: (projectId: string, jobCardId: string, jobCardTitle: string, allocatedHours: number, slotId?: string) => Promise<boolean>;
   pauseTimer: () => Promise<boolean>;
   resumeTimer: () => Promise<boolean>;
   stopTimer: (notes?: string, completionReason?: 'completed' | 'stopped' | 'timeout') => Promise<boolean>;
-  
+
   // Sync operations
   syncAllTimers: () => Promise<void>;
   resolveConflict: (resolution: 'local' | 'remote' | 'merge') => Promise<void>;
-  
+
   // Event handlers
   onSyncEvent: (handler: (event: TimerSyncEvent) => void) => () => void;
-  
+
   // Conflict state
   hasConflict: boolean;
   conflictData: any;
@@ -62,7 +63,7 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   // Temporarily mock user and toast to fix initialization
   const user = { id: 'mock-user' };
   const toast = (options: any) => console.log('Toast:', options);
-  
+
   // State
   const [activeTimer, setActiveTimer] = useState<TimerPersistenceState | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -70,19 +71,19 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   const [syncStatus, setSyncStatus] = useState<'connected' | 'disconnected' | 'syncing' | 'error'>('disconnected');
   const [hasConflict, setHasConflict] = useState(false);
   const [conflictData, setConflictData] = useState<any>(null);
-  
+
   // Mock timer API for now to fix initialization
   const timerAPI = {
-    addEventListener: (event: string, handler: any) => {},
-    removeEventListener: (event: string) => {},
+    addEventListener: (event: string, handler: any) => { },
+    removeEventListener: (event: string) => { },
     getActiveTimers: async (userId: string) => [],
     getTimer: async (id: string) => null,
     initializeTimer: async (data: any) => 'mock-timer-id',
     updateTimer: async (id: string, data: any) => true,
     completeTimer: async (id: string, data: any) => true,
-    syncAllTimers: async (userId: string) => {},
-    listenToTimer: (id: string, callback: any) => {},
-    cleanup: () => {}
+    syncAllTimers: async (userId: string) => { },
+    listenToTimer: (id: string, callback: any) => { },
+    cleanup: () => { }
   };
 
   // Setup network monitoring
@@ -119,7 +120,7 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   useEffect(() => {
     console.log('Setting up timer sync event handlers');
     setSyncStatus('connected');
-    
+
     return () => {
       console.log('Cleaning up timer sync event handlers');
     };
@@ -128,7 +129,7 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   // Load active timer from persistence - simplified for now
   const loadActiveTimer = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setIsLoading(true);
     try {
       // Mock implementation for now
@@ -153,19 +154,20 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
 
   // Start a new timer - simplified for now
   const startTimer = useCallback(async (
-    projectId: string, 
-    jobCardId: string, 
-    jobCardTitle: string, 
-    allocatedHours: number
+    projectId: string,
+    jobCardId: string,
+    jobCardTitle: string,
+    allocatedHours: number,
+    slotId?: string
   ): Promise<boolean> => {
     if (!user?.id) return false;
-    
+
     setIsLoading(true);
     setSyncStatus('syncing');
-    
+
     try {
-      console.log('Starting timer for:', { projectId, jobCardId, jobCardTitle, allocatedHours });
-      
+      console.log('Starting timer for:', { projectId, jobCardId, jobCardTitle, allocatedHours, slotId });
+
       // Mock timer creation
       const mockTimer: TimerPersistenceState = {
         id: `timer-${Date.now()}`,
@@ -179,16 +181,17 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
         isRunning: true,
         isPaused: false,
         pauseCount: 0,
-        pauseHistory: []
+        pauseHistory: [],
+        slotId
       };
-      
+
       setActiveTimer(mockTimer);
-      
+
       toast({
         title: "Timer Started",
         description: `Timer started for ${jobCardTitle}`,
       });
-      
+
       return true;
     } catch (error) {
       console.error('Failed to start timer:', error);
@@ -202,9 +205,9 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   // Pause the active timer - simplified
   const pauseTimer = useCallback(async (): Promise<boolean> => {
     if (!activeTimer || !activeTimer.isRunning) return false;
-    
+
     setSyncStatus('syncing');
-    
+
     try {
       setActiveTimer(prev => prev ? {
         ...prev,
@@ -212,12 +215,12 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
         isRunning: false,
         pauseCount: prev.pauseCount + 1
       } : null);
-      
+
       toast({
         title: "Timer Paused",
         description: "Timer has been paused",
       });
-      
+
       return true;
     } catch (error) {
       console.error('Failed to pause timer:', error);
@@ -230,21 +233,21 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   // Resume the active timer - simplified
   const resumeTimer = useCallback(async (): Promise<boolean> => {
     if (!activeTimer || !activeTimer.isPaused) return false;
-    
+
     setSyncStatus('syncing');
-    
+
     try {
       setActiveTimer(prev => prev ? {
         ...prev,
         isPaused: false,
         isRunning: true
       } : null);
-      
+
       toast({
         title: "Timer Resumed",
         description: "Timer has been resumed",
       });
-      
+
       return true;
     } catch (error) {
       console.error('Failed to resume timer:', error);
@@ -256,22 +259,22 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
 
   // Stop the active timer - simplified
   const stopTimer = useCallback(async (
-    notes?: string, 
+    notes?: string,
     completionReason: 'completed' | 'stopped' | 'timeout' = 'stopped'
   ): Promise<boolean> => {
     if (!activeTimer) return false;
-    
+
     setSyncStatus('syncing');
-    
+
     try {
       console.log('Stopping timer:', { notes, completionReason });
       setActiveTimer(null);
-      
+
       toast({
         title: "Timer Stopped",
         description: "Timer has been stopped and logged",
       });
-      
+
       return true;
     } catch (error) {
       console.error('Failed to stop timer:', error);
@@ -284,9 +287,9 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   // Sync all timers - simplified
   const syncAllTimers = useCallback(async () => {
     if (!user?.id) return;
-    
+
     setSyncStatus('syncing');
-    
+
     try {
       console.log('Syncing all timers for user:', user.id);
       toast({
@@ -303,13 +306,13 @@ export function TimerSyncProvider({ children }: TimerSyncProviderProps) {
   // Resolve conflicts
   const resolveConflict = useCallback(async (resolution: 'local' | 'remote' | 'merge') => {
     if (!hasConflict || !conflictData || !activeTimer) return;
-    
+
     try {
       // Implementation depends on the specific conflict resolution strategy
       // For now, we'll clear the conflict state
       setHasConflict(false);
       setConflictData(null);
-      
+
       toast({
         title: "Conflict Resolved",
         description: `Conflict resolved using ${resolution} strategy`,

@@ -27,6 +27,8 @@ import FreelancerInvoicesPage from './pages/FreelancerInvoicesPage'
 import FreelancerSettingsPage from './pages/FreelancerSettingsPage'
 import FreelancerNotificationsPage from './pages/FreelancerNotificationsPage'
 import FreelancerProfilePage from './pages/FreelancerProfilePage'
+import FreelancerTimeSlotsPage from './pages/FreelancerTimeSlotsPage'
+import FreelancerUtilizationPage from './pages/FreelancerUtilizationPage'
 import ClientDashboard from './pages/ClientDashboard'
 import ClientActivityPage from './pages/ClientActivityPage'
 import ClientProjectsPage from './pages/ClientProjectsPage'
@@ -425,6 +427,14 @@ const router = createBrowserRouter([
       {
         path: 'profile',
         element: <FreelancerProfilePage />,
+      },
+      {
+        path: 'time-slots',
+        element: <FreelancerTimeSlotsPage />,
+      },
+      {
+        path: 'utilization',
+        element: <FreelancerUtilizationPage />,
       },
     ],
   },

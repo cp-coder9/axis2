@@ -96,13 +96,12 @@ export const FreelancerUtilizationReport: React.FC<FreelancerUtilizationReportPr
             }
 
             const freelancerMetrics = TimerAnalytics.calculateFreelancerUtilization(
-                targetFreelancerId,
                 allocations,
                 timeSlots,
                 purchases,
                 timeLogs,
                 period
-            );
+            ).find(m => m.freelancerId === targetFreelancerId);
 
             setMetrics(freelancerMetrics);
         } catch (error) {
@@ -128,18 +127,18 @@ export const FreelancerUtilizationReport: React.FC<FreelancerUtilizationReportPr
             // Calculate daily metrics (simplified - in real app would use actual daily data)
             const dailyAllocations = allocations.filter(a =>
                 a.freelancerId === targetFreelancerId &&
-                new Date(a.startDate) <= dayEnd &&
-                new Date(a.endDate) >= dayStart
+                new Date(a.startDate.toDate()) <= dayEnd &&
+                new Date(a.endDate.toDate()) >= dayStart
             );
 
             const dailyTimeLogs = timeLogs.filter(t =>
                 t.userId === targetFreelancerId &&
-                new Date(t.startTime) >= dayStart &&
-                new Date(t.startTime) < dayEnd
+                new Date(t.startTime.toDate()) >= dayStart &&
+                new Date(t.startTime.toDate()) < dayEnd
             );
 
-            const dailyUtilizedHours = dailyTimeLogs.reduce((sum, log) => sum + log.duration, 0) / 3600000; // Convert ms to hours
-            const dailyAllocatedHours = dailyAllocations.reduce((sum, a) => sum + a.hoursAllocated, 0);
+            const dailyUtilizedHours = dailyTimeLogs.reduce((sum, log) => sum + log.durationMinutes, 0) / 60; // Convert minutes to hours
+            const dailyAllocatedHours = dailyAllocations.reduce((sum, a) => sum + a.allocatedHours, 0);
             const dailyUtilization = dailyAllocatedHours > 0 ? (dailyUtilizedHours / dailyAllocatedHours) * 100 : 0;
 
             data.push({
@@ -160,8 +159,7 @@ export const FreelancerUtilizationReport: React.FC<FreelancerUtilizationReportPr
             name: p.projectTitle.length > 20 ? p.projectTitle.substring(0, 20) + '...' : p.projectTitle,
             allocated: p.allocatedHours,
             utilized: p.utilizedHours,
-            utilization: Math.round(p.utilizationRate),
-            revenue: p.revenueGenerated
+            utilization: Math.round(p.utilizationRate)
         }));
     }, [metrics]);
 
@@ -489,7 +487,6 @@ export const FreelancerUtilizationReport: React.FC<FreelancerUtilizationReportPr
                                             <TableHead>Allocated Hours</TableHead>
                                             <TableHead>Utilized Hours</TableHead>
                                             <TableHead>Utilization Rate</TableHead>
-                                            <TableHead>Revenue</TableHead>
                                             <TableHead>Status</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -507,7 +504,6 @@ export const FreelancerUtilizationReport: React.FC<FreelancerUtilizationReportPr
                                                         <span className="text-sm">{project.utilizationRate.toFixed(1)}%</span>
                                                     </div>
                                                 </TableCell>
-                                                <TableCell>${project.revenueGenerated.toLocaleString()}</TableCell>
                                                 <TableCell>
                                                     <Badge variant={project.utilizationRate > 70 ? "default" : project.utilizationRate > 40 ? "secondary" : "destructive"}>
                                                         {project.utilizationRate > 70 ? 'High' : project.utilizationRate > 40 ? 'Medium' : 'Low'}

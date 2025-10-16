@@ -125,6 +125,7 @@ export const AdminTimePlanningDashboard: React.FC<AdminTimePlanningDashboardProp
         allocatedHours: 4,
         hourlyRate: 50,
         startDate: startOfDay(new Date()),
+        endDate: startOfDay(new Date()),
         notes: ''
     });
     const [selectedTemplate, setSelectedTemplate] = useState<string>('');
@@ -278,6 +279,7 @@ export const AdminTimePlanningDashboard: React.FC<AdminTimePlanningDashboardProp
             allocatedHours: 4,
             hourlyRate: 50,
             startDate: startOfDay(new Date()),
+            endDate: startOfDay(new Date()),
             notes: ''
         });
         setEditingAllocation(null);
@@ -291,6 +293,7 @@ export const AdminTimePlanningDashboard: React.FC<AdminTimePlanningDashboardProp
             allocatedHours: allocation.allocatedHours,
             hourlyRate: allocation.hourlyRate,
             startDate: allocation.startDate.toDate(),
+            endDate: allocation.endDate.toDate(),
             notes: allocation.notes || ''
         });
         setIsAllocationDialogOpen(true);

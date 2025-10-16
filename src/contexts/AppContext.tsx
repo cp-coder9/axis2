@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
-import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, AuthState, RolePermissions, ProjectCostReport, FreelancerPerformanceReport } from '../types';
+import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, AuthState, RolePermissions, ProjectCostReport, FreelancerPerformanceReport, TimeLog, TimeAllocation, TimeSlot, TimePurchase, TimeSlotStatus } from '../types';
 import { Notification } from '../types/notifications';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
@@ -109,6 +109,12 @@ export interface AppContextType extends AuthState {
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
 
+  // Time management state
+  timeLogs: TimeLog[];
+  allocations: TimeAllocation[];
+  timeSlots: TimeSlot[];
+  purchases: TimePurchase[];
+
   // Notifications
   notifications: Notification[];
   isLoading: boolean;
@@ -144,7 +150,7 @@ export interface AppContextType extends AuthState {
   getRoleBasedRedirectPath: () => string;
 
   // Timer methods (integrated with TimerSyncContext)
-  startGlobalTimer: (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours: number) => Promise<boolean>;
+  startGlobalTimer: (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours: number, slotId?: string) => Promise<boolean>;
   stopGlobalTimerAndLog: (projectId: string, jobCardId: string, data: any) => Promise<void>;
 
   // Timer sync state (exposed from TimerSyncContext)
@@ -639,11 +645,11 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   // Timer methods (integrated with TimerSyncContext)
-  const startGlobalTimer = async (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours: number): Promise<boolean> => {
+  const startGlobalTimer = async (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours: number, slotId?: string): Promise<boolean> => {
     try {
-      const success = await timerSyncStartTimer(projectId, jobCardId, jobCardTitle, allocatedHours);
+      const success = await timerSyncStartTimer(projectId, jobCardId, jobCardTitle, allocatedHours, slotId);
       if (success) {
-        console.log('Timer started via TimerSync:', { jobCardId, jobCardTitle, projectId, allocatedHours });
+        console.log('Timer started via TimerSync:', { jobCardId, jobCardTitle, projectId, allocatedHours, slotId });
       }
       return success;
     } catch (error) {
@@ -657,6 +663,16 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       const success = await timerSyncStopTimer(data.notes, data.completionReason);
       if (success) {
         console.log('Timer stopped via TimerSync:', { projectId, jobCardId, data });
+
+        // If this timer was associated with a time slot, mark it as completed
+        if (activeTimer?.slotId) {
+          try {
+            await updateTimeSlotStatus(activeTimer.slotId, TimeSlotStatus.COMPLETED);
+            console.log('Time slot marked as completed:', activeTimer.slotId);
+          } catch (slotError) {
+            console.error('Error updating time slot status:', slotError);
+          }
+        }
       }
     } catch (error) {
       console.error('Error stopping timer via TimerSync:', error);
@@ -955,6 +971,12 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     // Project state
     projects,
     actionItems,
+
+    // Time management state
+    timeLogs: [],
+    allocations: [],
+    timeSlots: [],
+    purchases: [],
 
     // Authentication methods
     login,

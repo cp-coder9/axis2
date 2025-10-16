@@ -190,6 +190,24 @@ export const FreelancerTimeSlotsView: React.FC<FreelancerTimeSlotsViewProps> = (
 
     const handleStartTimer = async (slot: TimeSlot) => {
         try {
+            // Validate that the freelancer can start this timer
+            if (!user?.id) {
+                console.error('User not authenticated');
+                return;
+            }
+
+            // Check if slot is in correct status for timer start
+            if (slot.status !== TimeSlotStatus.PURCHASED) {
+                console.error('Cannot start timer for slot that is not purchased');
+                return;
+            }
+
+            // Validate that this slot belongs to the current freelancer
+            if (slot.freelancerId !== user.id) {
+                console.error('Cannot start timer for slot not allocated to current user');
+                return;
+            }
+
             const project = projects.find(p => p.id === slot.projectId);
             if (project) {
                 // Find a job card for this project (assuming there's at least one)
@@ -199,12 +217,21 @@ export const FreelancerTimeSlotsView: React.FC<FreelancerTimeSlotsViewProps> = (
                         jobCard.id,
                         jobCard.title,
                         project.id,
-                        slot.durationHours
+                        slot.durationHours,
+                        slot.id
                     );
                     if (success) {
+                        // Update slot status to IN_PROGRESS when timer starts
+                        await updateTimeSlotStatus(slot.id, TimeSlotStatus.IN_PROGRESS);
                         console.log('Timer started for time slot:', slot.id);
+                        // Refresh the slots list to show updated status
+                        await loadTimeSlots();
                     }
+                } else {
+                    console.error('No job card found for project:', project.id);
                 }
+            } else {
+                console.error('Project not found for slot:', slot.projectId);
             }
         } catch (error) {
             console.error('Error starting timer:', error);

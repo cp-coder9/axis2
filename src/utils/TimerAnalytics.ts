@@ -1156,6 +1156,13 @@ export class TimerAnalytics {
   }
 
   /**
+   * Export time management analytics report to JSON
+   */
+  static exportTimeManagementReportToJSON(report: TimeManagementAnalyticsReport): string {
+    return JSON.stringify(report, null, 2);
+  }
+
+  /**
    * Format time management analytics report for display
    */
   static formatTimeManagementReportForDisplay(report: TimeManagementAnalyticsReport): string {

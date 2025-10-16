@@ -87,6 +87,14 @@ const freelancerNavData = {
           title: "Manual Entry",
           url: "/freelancer/timer/manual",
         },
+        {
+          title: "Time Slots",
+          url: "/freelancer/time-slots",
+        },
+        {
+          title: "Utilization Report",
+          url: "/freelancer/utilization",
+        },
       ],
     },
     {
@@ -198,7 +206,7 @@ export function FreelancerSidebar({ ...props }: React.ComponentProps<typeof Side
       <SidebarHeader>
         {/* Team/Organization Switcher - Enhanced from sidebar-07 */}
         <FreelancerTeamSwitcher teams={freelancerNavData.teams} />
-        
+
         {/* Freelancer Status Badge - Responsive */}
         <div className="group-data-[collapsible=icon]:hidden">
           <div className="rounded-lg p-3 bg-green-50 border-l-4 border-green-500 dark:bg-green-950">
@@ -232,7 +240,7 @@ export function FreelancerSidebar({ ...props }: React.ComponentProps<typeof Side
       <SidebarFooter>
         <FreelancerNavUser user={userData} />
       </SidebarFooter>
-      
+
       <SidebarRail />
     </Sidebar>
   )

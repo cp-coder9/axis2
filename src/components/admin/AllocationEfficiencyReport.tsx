@@ -129,8 +129,8 @@ export const AllocationEfficiencyReport: React.FC<AllocationEfficiencyReportProp
                 const freelancerAllocations = allocations.filter(a => a.freelancerId === freelancer.id);
                 const freelancerTimeLogs = timeLogs.filter(t => t.userId === freelancer.id);
 
-                const totalAllocated = freelancerAllocations.reduce((sum, a) => sum + a.hoursAllocated, 0);
-                const totalUtilized = freelancerTimeLogs.reduce((sum, t) => sum + t.duration, 0) / 3600000; // Convert to hours
+                const totalAllocated = freelancerAllocations.reduce((sum, a) => sum + a.allocatedHours, 0);
+                const totalUtilized = freelancerTimeLogs.reduce((sum, t) => sum + t.durationMinutes, 0) / 60; // Convert minutes to hours
 
                 const utilizationRate = totalAllocated > 0 ? (totalUtilized / totalAllocated) * 100 : 0;
                 const efficiencyScore = Math.min(100, utilizationRate * 1.2); // Efficiency can exceed 100% for over-performance
@@ -162,8 +162,8 @@ export const AllocationEfficiencyReport: React.FC<AllocationEfficiencyReportProp
                 const freelancerAllocations = allocations.filter(a => a.freelancerId === freelancer.id);
                 const freelancerTimeLogs = timeLogs.filter(t => t.userId === freelancer.id);
 
-                const totalAllocated = freelancerAllocations.reduce((sum, a) => sum + a.hoursAllocated, 0);
-                const totalUtilized = freelancerTimeLogs.reduce((sum, t) => sum + t.duration, 0) / 3600000;
+                const totalAllocated = freelancerAllocations.reduce((sum, a) => sum + a.allocatedHours, 0);
+                const totalUtilized = freelancerTimeLogs.reduce((sum, t) => sum + t.durationMinutes, 0) / 60;
 
                 const utilizationRate = totalAllocated > 0 ? (totalUtilized / totalAllocated) * 100 : 0;
 
@@ -185,7 +185,7 @@ export const AllocationEfficiencyReport: React.FC<AllocationEfficiencyReportProp
         // Overallocated projects
         const overallocatedProjects = projects.map(project => {
             const projectAllocations = allocations.filter(a => a.projectId === project.id);
-            const totalAllocated = projectAllocations.reduce((sum, a) => sum + a.hoursAllocated, 0);
+            const totalAllocated = projectAllocations.reduce((sum, a) => sum + a.allocatedHours, 0);
 
             return { project, totalAllocated };
         }).filter(p => p.totalAllocated > 100) // Arbitrary threshold

@@ -250,8 +250,8 @@ export type AllocationFormData = {
   freelancerId: string;
   allocatedHours: number;
   hourlyRate: number;
-  startDate: Timestamp;
-  endDate: Timestamp;
+  startDate: Date;
+  endDate: Date;
   notes?: string;
 };
 export type ProjectTemplate = {
