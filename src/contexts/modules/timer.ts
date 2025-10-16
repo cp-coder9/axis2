@@ -9,13 +9,15 @@ import { offlineSync } from '../../utils/offlineSync';
 import { logAuditEvent, AuditAction } from '../../utils/auditLogger';
 import { sanitizeForFirestore } from '../../utils/firebaseHelpers';
 import { canFreelancerUseTimer } from './auth';
-import { canUserStartTimerOnJobCard, getTaskHoursForJobCard } from './projects';
+import { canUserStartTimerOnTask, getTaskHoursForTask } from './projects';
+import { canFreelancerStartTimer } from '../../utils/timerSlotValidation';
 import { createNotification } from '../../services/notificationService';
 
 export interface ActiveTimerInfo {
-  jobCardId: string;
-  jobCardTitle: string;
   projectId: string;
+  jobId: string;
+  taskId: string;
+  taskTitle: string;
   startTime: string;
   isPaused: boolean;
   totalPausedTime: number;
@@ -30,10 +32,11 @@ export interface ActiveTimerInfo {
 export interface TimerState {
   activeTimers: Record<string, ActiveTimerInfo>;
   currentTimerKey: string | null;
-  startGlobalTimer: (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours?: number) => Promise<boolean>;
-  resumeGlobalTimer: (projectId: string, jobCardId: string) => Promise<boolean>;
-  pauseGlobalTimer: (projectId: string, jobCardId: string) => Promise<boolean>;
-  stopGlobalTimerAndLog: (projectId: string, jobCardId: string, details: { notes?: string; file?: File }, user: any, updateNotifications: (callback: (prev: Notification[]) => Notification[]) => void) => Promise<void>;
+  // Flexible APIs: support either (projectId, jobId, taskId, ...) or a single timerKey string
+  startGlobalTimer: (...args: any[]) => Promise<boolean>;
+  resumeGlobalTimer: (...args: any[]) => Promise<boolean>;
+  pauseGlobalTimer: (...args: any[]) => Promise<boolean>;
+  stopGlobalTimerAndLog: (...args: any[]) => Promise<void>;
   syncTimerState: () => Promise<void>; // Added for multi-tab/device synchronization
   hasActiveTimer: boolean; // Added for quick status check
 }
@@ -176,7 +179,7 @@ export const useTimer = (): TimerState => {
 
       if (!snapshot.empty) {
         const serverTimer = snapshot.docs[0].data();
-        const serverTimerKey = `${serverTimer.projectId}-${serverTimer.jobCardId}`;
+        const serverTimerKey = `${serverTimer.projectId}-${serverTimer.jobId}-${serverTimer.taskId}`;
 
         // If server has an active timer but we don't, or it's different from ours
         if (!currentTimerKey || currentTimerKey !== serverTimerKey) {
@@ -184,9 +187,10 @@ export const useTimer = (): TimerState => {
           setActiveTimers(prev => ({
             ...prev,
             [serverTimerKey]: {
-              jobCardId: serverTimer.jobCardId,
-              jobCardTitle: serverTimer.jobCardTitle,
               projectId: serverTimer.projectId,
+              jobId: serverTimer.jobId,
+              taskId: serverTimer.taskId,
+              taskTitle: serverTimer.taskTitle,
               startTime: serverTimer.startTime,
               isPaused: serverTimer.isPaused || false,
               totalPausedTime: serverTimer.totalPausedTime || 0,
@@ -208,8 +212,9 @@ export const useTimer = (): TimerState => {
             userId: user.id,
             userName: user.name,
             projectId: timer.projectId,
-            jobCardId: timer.jobCardId,
-            jobCardTitle: timer.jobCardTitle,
+            jobId: timer.jobId,
+            taskId: timer.taskId,
+            taskTitle: timer.taskTitle,
             startTime: timer.startTime,
             isPaused: timer.isPaused,
             totalPausedTime: timer.totalPausedTime,
@@ -226,12 +231,23 @@ export const useTimer = (): TimerState => {
     }
   };
 
-  const startGlobalTimer = useCallback(async (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours?: number): Promise<boolean> => {
+  const startGlobalTimer = useCallback(async (...args: any[]): Promise<boolean> => {
+    // Support both signatures: (timerKey) or (projectId, jobId, taskId, taskTitle?, allocatedHours?)
+    let projectId: string, jobId: string, taskId: string, taskTitle: string | undefined, allocatedHours: number | undefined;
+    if (args.length === 1 && typeof args[0] === 'string') {
+      const key = args[0] as string;
+      const parts = key.split('-');
+      projectId = parts[0]; jobId = parts[1]; taskId = parts[2];
+      allocatedHours = undefined;
+    } else {
+      [projectId, jobId, taskId, taskTitle, allocatedHours] = args;
+    }
+
     const user = JSON.parse(localStorage.getItem('architex_user') || '{}') as User;
     if (!user.id) return false;
 
     // Debounce rapid start attempts
-    if (isDebounced(`start:${user.id}:${projectId}:${jobCardId}`)) {
+    if (isDebounced(`start:${user.id}:${projectId}:${jobId}:${taskId}`)) {
       console.warn('Start timer debounced');
       return false;
     }
@@ -239,16 +255,30 @@ export const useTimer = (): TimerState => {
     try {
       // RBAC: role must be allowed
       if (!canFreelancerUseTimer(user)) {
-        await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ROLE, { projectId, jobCardId, role: user.role as UserRole });
+        await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ROLE, { projectId, jobId, taskId, role: user.role as UserRole });
         return false;
       }
 
-      // Assignment check: ensure the user is assigned to this job card
+      // Assignment check: ensure the user is assigned to this task
       const projectSnap = await getDoc(doc(db, 'projects', projectId));
       const projectData = projectSnap.exists() ? (projectSnap.data() as Project) : null;
-      if (!canUserStartTimerOnJobCard(projectData, jobCardId, user as any)) {
-        await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ASSIGNMENT, { projectId, jobCardId });
+      if (!canUserStartTimerOnTask(projectData, jobId, taskId, user as any)) {
+        await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ASSIGNMENT, { projectId, jobId, taskId });
         return false;
+      }
+
+      // Slot-based allocation check (freelancer only)
+      if (user.role === UserRole.FREELANCER) {
+        try {
+          const slotCheck = await canFreelancerStartTimer(user.id, projectId, jobId);
+          if (!slotCheck.canStart) {
+            await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ASSIGNMENT, { projectId, jobId, taskId, reason: slotCheck.reason });
+            return false;
+          }
+        } catch (error) {
+          console.error('Error during slot validation for timer start:', error);
+          return false;
+        }
       }
 
       // Check for existing timers on server first
@@ -260,7 +290,7 @@ export const useTimer = (): TimerState => {
       // Hours countdown alignment: if not provided, infer from project
       let allocated = allocatedHours;
       if (allocated == null && projectData) {
-        const h = getTaskHoursForJobCard(projectData, jobCardId);
+        const h = getTaskHoursForTask(projectData, jobId, taskId);
         allocated = h.remaining || h.assigned; // prefer remaining countdown
       }
 
@@ -290,19 +320,21 @@ export const useTimer = (): TimerState => {
           // Log this action for audit
           await logAuditEvent(user, AuditAction.TIMER_AUTO_STOPPED, {
             projectId,
-            jobCardId,
+            jobId,
+            taskId,
             reason: 'auto_stopped_for_new_timer'
           });
         }
       }
 
-      const timerKey = `${projectId}-${jobCardId}`;
+      const timerKey = `${projectId}-${jobId}-${taskId}`;
 
       // Create new timer in state
       const newTimer: ActiveTimerInfo = {
-        jobCardId,
-        jobCardTitle,
         projectId,
+        jobId,
+        taskId,
+        taskTitle,
         startTime: new Date().toISOString(),
         isPaused: false,
         totalPausedTime: 0,
@@ -322,8 +354,9 @@ export const useTimer = (): TimerState => {
         userId: user.id,
         userName: user.name,
         projectId,
-        jobCardId,
-        jobCardTitle,
+        jobId,
+        taskId,
+        taskTitle,
         startTime: newTimer.startTime,
         isPaused: false,
         totalPausedTime: 0,
@@ -335,7 +368,8 @@ export const useTimer = (): TimerState => {
       // Log this action for audit
       await logAuditEvent(user, AuditAction.TIMER_STARTED, {
         projectId,
-        jobCardId,
+        jobId,
+        taskId,
         idempotencyKey
       });
 
@@ -343,8 +377,9 @@ export const useTimer = (): TimerState => {
       await queueForSyncSafe('timeEntry', 'create', {
         action: 'start',
         projectId,
-        jobCardId,
-        jobCardTitle,
+        jobId,
+        taskId,
+        taskTitle,
         startTime: newTimer.startTime,
         idempotencyKey,
         userId: user.id
@@ -352,7 +387,7 @@ export const useTimer = (): TimerState => {
 
       // Notify project team members about timer start
       try {
-        await notifyTimerStarted(projectId, jobCardId, jobCardTitle, user.name, projectData);
+        await notifyTimerStarted(projectId, jobId, taskId, taskTitle, user.name, projectData);
       } catch (error) {
         console.error('Error sending timer start notification:', error);
         // Don't fail timer start if notification fails
@@ -365,8 +400,15 @@ export const useTimer = (): TimerState => {
     }
   }, [activeTimers, currentTimerKey, isDebounced, queueForSyncSafe, syncTimerState]);
 
-  const resumeGlobalTimer = useCallback(async (projectId: string, jobCardId: string): Promise<boolean> => {
-    const timerKey = `${projectId}-${jobCardId}`;
+  const resumeGlobalTimer = useCallback(async (...args: any[]): Promise<boolean> => {
+    let projectId: string, jobId: string, taskId: string;
+    if (args.length === 1 && typeof args[0] === 'string') {
+      const parts = args[0].split('-');
+      projectId = parts[0]; jobId = parts[1]; taskId = parts[2];
+    } else {
+      [projectId, jobId, taskId] = args;
+    }
+    const timerKey = `${projectId}-${jobId}-${taskId}`;
     const user = JSON.parse(localStorage.getItem('architex_user') || '{}');
     if (!user.id) return false;
 
@@ -391,7 +433,8 @@ export const useTimer = (): TimerState => {
                 collection(db, 'activeTimers'),
                 where('userId', '==', user.id),
                 where('projectId', '==', projectId),
-                where('jobCardId', '==', jobCardId)
+                where('jobId', '==', jobId),
+                where('taskId', '==', taskId)
               );
 
               const snapshot = await getDocs(activeTimersQuery);
@@ -410,7 +453,8 @@ export const useTimer = (): TimerState => {
               // Log this action for audit
               await logAuditEvent(user, AuditAction.TIMER_RESUMED, {
                 projectId,
-                jobCardId,
+                jobId,
+                taskId,
                 pauseDuration
               });
             } catch (error) {
@@ -423,7 +467,8 @@ export const useTimer = (): TimerState => {
           queueForSyncSafe('timeEntry', 'update', {
             action: 'resume',
             projectId,
-            jobCardId,
+            jobId,
+            taskId,
             pauseDuration,
             idempotencyKey: timer.idempotencyKey,
             userId: user.id
@@ -451,8 +496,15 @@ export const useTimer = (): TimerState => {
     }
   }, [queueForSyncSafe]);
 
-  const pauseGlobalTimer = useCallback(async (projectId: string, jobCardId: string): Promise<boolean> => {
-    const timerKey = `${projectId}-${jobCardId}`;
+  const pauseGlobalTimer = useCallback(async (...args: any[]): Promise<boolean> => {
+    let projectId: string, jobId: string, taskId: string;
+    if (args.length === 1 && typeof args[0] === 'string') {
+      const parts = args[0].split('-');
+      projectId = parts[0]; jobId = parts[1]; taskId = parts[2];
+    } else {
+      [projectId, jobId, taskId] = args;
+    }
+    const timerKey = `${projectId}-${jobId}-${taskId}`;
     const user = JSON.parse(localStorage.getItem('architex_user') || '{}');
     if (!user.id) return false;
 
@@ -487,7 +539,7 @@ export const useTimer = (): TimerState => {
 
           const autoResumeTimeout = setTimeout(() => {
             // Use timestamps to avoid drift issues if tab sleeps
-            resumeGlobalTimer(projectId, jobCardId);
+            resumeGlobalTimer(projectId, jobId, taskId);
 
             // Show notification when auto-resumed
             if ('Notification' in window && Notification.permission === 'granted') {
@@ -506,7 +558,8 @@ export const useTimer = (): TimerState => {
                 collection(db, 'activeTimers'),
                 where('userId', '==', user.id),
                 where('projectId', '==', projectId),
-                where('jobCardId', '==', jobCardId)
+                where('jobId', '==', jobId),
+                where('taskId', '==', taskId)
               );
 
               const snapshot = await getDocs(activeTimersQuery);
@@ -524,7 +577,8 @@ export const useTimer = (): TimerState => {
               // Log this action for audit
               await logAuditEvent(user, AuditAction.TIMER_PAUSED, {
                 projectId,
-                jobCardId,
+                jobId,
+                taskId,
                 pausedAt: new Date().toISOString(),
                 idempotencyKey: timer.idempotencyKey
               });
@@ -538,7 +592,8 @@ export const useTimer = (): TimerState => {
           queueForSyncSafe('timeEntry', 'update', {
             action: 'pause',
             projectId,
-            jobCardId,
+            jobId,
+            taskId,
             pausedAt: new Date().toISOString(),
             idempotencyKey: timer.idempotencyKey,
             userId: user.id
@@ -567,14 +622,17 @@ export const useTimer = (): TimerState => {
     }
   }, [resumeGlobalTimer, queueForSyncSafe]);
 
-  const stopGlobalTimerAndLog = async (
-    projectId: string,
-    jobCardId: string,
-    details: { notes?: string; file?: File },
-    user: any,
-    setNotifications: (callback: (prev: Notification[]) => Notification[]) => void
-  ) => {
-    const timerKey = `${projectId}-${jobCardId}`;
+  const stopGlobalTimerAndLog = async (...args: any[]) => {
+    // Accept either (timerKey, details, user, setNotifications) or (projectId, jobId, taskId, details, user, setNotifications)
+    let projectId: string, jobId: string, taskId: string, details: any, user: any, setNotifications: any;
+    if (args.length >= 1 && typeof args[0] === 'string' && args[0].includes('-') && args.length === 4) {
+      const parts = args[0].split('-');
+      projectId = parts[0]; jobId = parts[1]; taskId = parts[2];
+      details = args[1]; user = args[2]; setNotifications = args[3];
+    } else {
+      [projectId, jobId, taskId, details, user, setNotifications] = args;
+    }
+    const timerKey = `${projectId}-${jobId}-${taskId}`;
     const timer = activeTimers[timerKey];
     if (!timer || !user) return;
 
@@ -596,10 +654,17 @@ export const useTimer = (): TimerState => {
     let substantiationFile: SubstantiationFile | undefined;
     if (details.file) {
       try {
-        const storageRef = ref(storage, `substantiation/${timer.projectId}/${timer.jobCardId}/${user.id}/${details.file.name}`);
+        const storageRef = ref(storage, `substantiation/${timer.projectId}/${timer.jobId}/${timer.taskId}/${user.id}/${details.file.name}`);
         await uploadBytes(storageRef, details.file);
         const url = await getDownloadURL(storageRef);
-        substantiationFile = { name: details.file.name, url };
+        substantiationFile = {
+          id: `sf-${Date.now()}`,
+          name: details.file.name,
+          url,
+          projectId: timer.projectId,
+          uploadedBy: user.id,
+          uploadedAt: Timestamp.now()
+        };
       } catch (error) {
         console.error("Error uploading file:", error);
       }
@@ -611,19 +676,23 @@ export const useTimer = (): TimerState => {
 
     const newLog: TimeLog = {
       id: `tl-${Date.now()}`,
+      userId: user.id,
       startTime,
       endTime,
       durationMinutes,
       notes: details.notes,
       manualEntry: false,
       projectId: timer.projectId,
-      jobCardId: timer.jobCardId,
+      jobId: timer.jobId,
+      taskId: timer.taskId,
       loggedById: user.id,
       loggedByName: user.name,
       substantiationFile,
       hourlyRate,
       earnings,
       pausedTime: pausedMinutes,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
     };
 
     const projectDocRef = doc(db, "projects", newLog.projectId);
@@ -631,48 +700,57 @@ export const useTimer = (): TimerState => {
     if (projectSnap.exists()) {
       const projectData = projectSnap.data() as Project;
 
-      // Calculate project totals
-      const updatedJobCards = projectData.jobCards.map(jc => {
-        if (jc.id === newLog.jobCardId) {
-          const updatedJobCard = {
-            ...jc,
-            timeLogs: [...(jc.timeLogs || []), newLog]
-          };
+      // Find and update the specific job and task
+      const updatedJobs = projectData.jobs.map(job => {
+        if (job.id === timer.jobId) {
+          const updatedTasks = job.tasks.map(task => {
+            if (task.id === timer.taskId) {
+              return {
+                ...task,
+                timeLogs: [...(task.timeLogs || []), newLog]
+              };
+            }
+            return task;
+          });
 
-          // Deduct time from allocated hours if they exist
-          if (jc.allocatedHours && jc.allocatedHours > 0) {
-            const remainingHours = Math.max(0, jc.allocatedHours - durationHours);
-            updatedJobCard.allocatedHours = remainingHours;
+          // Update job allocated hours if they exist
+          let updatedJob = { ...job, tasks: updatedTasks };
+          if (job.allocatedHours && job.allocatedHours > 0) {
+            const remainingHours = Math.max(0, job.allocatedHours - durationHours);
+            updatedJob.allocatedHours = remainingHours;
           }
 
-          return updatedJobCard;
+          return updatedJob;
         }
-        return jc;
+        return job;
       });
 
       // Calculate project-level statistics
-      const totalTimeSpent = updatedJobCards.reduce((total, jc) => {
-        return total + (jc.timeLogs || []).reduce((jcTotal, log) => jcTotal + log.durationMinutes, 0);
+      const totalTimeSpent = updatedJobs.reduce((total, job) => {
+        return total + job.tasks.reduce((jobTotal, task) => {
+          return jobTotal + (task.timeLogs || []).reduce((taskTotal, log) => taskTotal + log.durationMinutes, 0);
+        }, 0);
       }, 0);
 
-      const totalAllocatedHours = updatedJobCards.reduce((total, jc) => {
-        return total + (jc.allocatedHours || 0);
+      const totalAllocatedHours = updatedJobs.reduce((total, job) => {
+        return total + (job.allocatedHours || 0);
       }, 0);
 
-      const totalEarnings = updatedJobCards.reduce((total, jc) => {
-        return total + (jc.timeLogs || []).reduce((jcTotal, log) => jcTotal + (log.earnings || 0), 0);
+      const totalEarnings = updatedJobs.reduce((total, job) => {
+        return total + job.tasks.reduce((jobTotal, task) => {
+          return jobTotal + (task.timeLogs || []).reduce((taskTotal, log) => taskTotal + (log.earnings || 0), 0);
+        }, 0);
       }, 0);
 
-      // Update project with new job cards and totals
+      // Update project with new jobs and totals
       const updateData: any = {
-        jobCards: updatedJobCards,
+        jobs: updatedJobs,
         totalTimeSpentMinutes: totalTimeSpent,
         totalAllocatedHours: totalAllocatedHours,
         totalEarnings: totalEarnings
       };
 
       // Filter out undefined values
-      // Remove undefined values and update project
       const sanitizedUpdateData = sanitizeForFirestore(updateData);
 
       await updateDoc(projectDocRef, sanitizedUpdateData);
@@ -683,7 +761,7 @@ export const useTimer = (): TimerState => {
         userId: projectData.clientId,
         type: NotificationType.PROJECT_UPDATED,
         title: 'Time Logged',
-        message: `${user.name} logged ${Math.floor(durationHours)}h ${durationMinutes % 60}m for task "${timer.jobCardTitle}" in ${projectData.title}`,
+        message: `${user.name} logged ${Math.floor(durationHours)}h ${durationMinutes % 60}m for task "${timer.taskTitle}" in ${projectData.title}`,
         data: { projectId: projectData.id },
         priority: NotificationPriority.MEDIUM,
         category: NotificationCategory.PROJECT,
@@ -702,7 +780,7 @@ export const useTimer = (): TimerState => {
             userId: projectData.clientId,
             type: NotificationType.DEADLINE_APPROACHING,
             title: 'Low Hours Remaining',
-            message: `Task "${timer.jobCardTitle}" has ${Math.round(remainingHours * 60)} minutes remaining. Consider allocating more hours.`,
+            message: `Task "${timer.taskTitle}" has ${Math.round(remainingHours * 60)} minutes remaining. Consider allocating more hours.`,
             data: { projectId: projectData.id },
             priority: NotificationPriority.MEDIUM,
             category: NotificationCategory.PROJECT,
@@ -716,7 +794,7 @@ export const useTimer = (): TimerState => {
 
       // Notify project team members about timer stop and time logged
       try {
-        await notifyTimerStopped(projectId, jobCardId, timer.jobCardTitle, user.name, durationHours, projectData);
+        await notifyTimerStopped(projectId, jobId, taskId, timer.taskTitle, user.name, durationHours, projectData);
       } catch (error) {
         console.error('Error sending timer stop notification:', error);
         // Don't fail timer stop if notification fails
@@ -727,7 +805,8 @@ export const useTimer = (): TimerState => {
         collection(db, 'activeTimers'),
         where('userId', '==', user.id),
         where('projectId', '==', projectId),
-        where('jobCardId', '==', jobCardId)
+        where('jobId', '==', jobId),
+        where('taskId', '==', taskId)
       );
 
       const snapshot = await getDocs(activeTimersQuery);
@@ -746,7 +825,8 @@ export const useTimer = (): TimerState => {
       // Log this action for audit
       await logAuditEvent(user, AuditAction.TIMER_STOPPED, {
         projectId,
-        jobCardId,
+        jobId,
+        taskId,
         durationMinutes,
         pausedTime: pausedMinutes,
         idempotencyKey: timer.idempotencyKey,
@@ -757,7 +837,8 @@ export const useTimer = (): TimerState => {
       await queueForSyncSafe('timeEntry', 'create', {
         timeLog: newLog,
         projectId,
-        jobCardId,
+        jobId,
+        taskId,
         idempotencyKey: timer.idempotencyKey,
         userId: user.id
       });
@@ -782,8 +863,9 @@ export const useTimer = (): TimerState => {
   // Helper functions for timer notifications
   const notifyTimerStarted = async (
     projectId: string,
-    jobCardId: string,
-    jobCardTitle: string,
+    jobId: string,
+    taskId: string,
+    taskTitle: string,
     userName: string,
     projectData?: Project
   ): Promise<void> => {
@@ -799,8 +881,8 @@ export const useTimer = (): TimerState => {
         userId: recipientId,
         type: NotificationType.TIMER_STARTED,
         title: 'Timer Started',
-        message: `${userName} started working on "${jobCardTitle}" in project "${projectData.title}"`,
-        data: { projectId, jobCardId },
+        message: `${userName} started working on "${taskTitle}" in project "${projectData.title}"`,
+        data: { projectId, jobId, taskId },
         priority: NotificationPriority.MEDIUM,
         category: NotificationCategory.TIMER
       })
@@ -811,8 +893,9 @@ export const useTimer = (): TimerState => {
 
   const notifyTimerStopped = async (
     projectId: string,
-    jobCardId: string,
-    jobCardTitle: string,
+    jobId: string,
+    taskId: string,
+    taskTitle: string,
     userName: string,
     durationHours: number,
     projectData?: Project
@@ -833,8 +916,8 @@ export const useTimer = (): TimerState => {
         userId: recipientId,
         type: NotificationType.TIMER_STOPPED,
         title: 'Time Logged',
-        message: `${userName} logged ${durationText} for "${jobCardTitle}" in project "${projectData.title}"`,
-        data: { projectId, jobCardId, durationHours },
+        message: `${userName} logged ${durationText} for "${taskTitle}" in project "${projectData.title}"`,
+        data: { projectId, jobId, taskId, durationHours },
         priority: NotificationPriority.MEDIUM,
         category: NotificationCategory.TIMER
       })

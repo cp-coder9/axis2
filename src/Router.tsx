@@ -1,7 +1,8 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-router-dom'
 import { ThemeProvider } from '@/components/theme-provider'
-import { AppProvider } from '@/contexts/AppContext'
+import { AppProvider, useAppContext } from '@/contexts/AppContext'
 import { NotificationProvider } from '@/contexts/NotificationContext'
+import { ProjectsProvider } from '@/contexts/ProjectsContext'
 import { ChartThemeProvider } from '@/components/charts/ChartThemeProvider'
 import { DashboardLayout } from '@/components/navigation/AppLayout'
 import { AuthGuard } from '@/components/auth/AuthGuard'
@@ -59,6 +60,10 @@ import { FormEnhancementsDemo } from '@/components/demos/FormEnhancementsDemo'
 import { MobileOptimizationsDemo } from '@/pages/MobileOptimizationsDemo'
 import CSPTestPage from '@/pages/CSPTestPage'
 import { Toaster } from 'sonner'
+
+// Time management components
+import { AdminTimePlanningDashboard } from '@/components/admin/AdminTimePlanningDashboard'
+import { ClientTimePurchasePortal } from '@/components/client/ClientTimePurchasePortal'
 
 // Admin pages
 import LifecyclePage from './pages/admin/LifecyclePage'
@@ -118,15 +123,28 @@ function AdminLayout() {
           <ChartThemeProvider>
             <Toaster position="top-right" richColors />
             <AuthGuard requiredRole={UserRole.ADMIN}>
-              <AdminAppLayout>
-                <Outlet />
-              </AdminAppLayout>
+              <AdminLayoutWithProjects>
+                <AdminAppLayout>
+                  <Outlet />
+                </AdminAppLayout>
+              </AdminLayoutWithProjects>
             </AuthGuard>
           </ChartThemeProvider>
         </ThemeProvider>
       </NotificationProvider>
     </AppProvider>
   )
+}
+
+// Wrapper component to provide projects context with current user
+function AdminLayoutWithProjects({ children }: { children: React.ReactNode }) {
+  const { user } = useAppContext();
+
+  return (
+    <ProjectsProvider currentUser={user}>
+      {children}
+    </ProjectsProvider>
+  );
 }
 
 // Freelancer layout with role-based access control
@@ -317,6 +335,10 @@ const router = createBrowserRouter([
         element: <PerformanceMonitorDashboard />,
       },
       {
+        path: 'time-planning',
+        element: <AdminTimePlanningDashboard />,
+      },
+      {
         path: 'settings',
         element: <PlaceholderPage title="Admin Settings" />,
       },
@@ -479,6 +501,10 @@ const router = createBrowserRouter([
       {
         path: 'support',
         element: <ClientSupportPage />,
+      },
+      {
+        path: 'time-purchase',
+        element: <ClientTimePurchasePortal />,
       },
     ],
   },

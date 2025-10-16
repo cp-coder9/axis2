@@ -94,7 +94,9 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
     name: 'initialTasks'
   })
 
-  const { fields: deliverableFields, append: appendDeliverable, remove: removeDeliverable } = useFieldArray({
+  const { fields: deliverableFields, append: appendDeliverable, remove: removeDeliverable } = useFieldArray<
+    typeof projectCreationSchema._type
+  >({
     control: form.control,
     name: 'deliverables'
   })
@@ -167,13 +169,13 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                 const stepKey = ['basic', 'team', 'tasks', 'deliverables'][index]
                 const isActive = currentStep === stepKey
                 const isCompleted = ['basic', 'team', 'tasks', 'deliverables'].indexOf(currentStep) > index
-                
+
                 return (
                   <div key={step} className="flex items-center">
                     <div className={cn(
                       'w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium',
                       isActive ? 'bg-primary text-primary-foreground' :
-                      isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
+                        isCompleted ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-600'
                     )}>
                       {index + 1}
                     </div>
@@ -232,10 +234,10 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                         <FormItem>
                           <FormLabel>Project Description</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="Detailed description of the project scope, requirements, and objectives..."
                               className="min-h-[100px]"
-                              {...field} 
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -254,8 +256,8 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                               Budget (ZAR)
                             </FormLabel>
                             <FormControl>
-                              <Input 
-                                type="number" 
+                              <Input
+                                type="number"
                                 placeholder="250000"
                                 {...field}
                                 onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
@@ -359,7 +361,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                             </Button>
                           )}
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                           <FormField
                             control={form.control}
@@ -442,7 +444,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                             <X className="w-4 h-4" />
                           </Button>
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
@@ -492,8 +494,8 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                               <FormItem>
                                 <FormLabel>Estimated Hours</FormLabel>
                                 <FormControl>
-                                  <Input 
-                                    type="number" 
+                                  <Input
+                                    type="number"
                                     placeholder="40"
                                     {...field}
                                     onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
@@ -536,9 +538,9 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                             <FormItem>
                               <FormLabel>Description (Optional)</FormLabel>
                               <FormControl>
-                                <Textarea 
+                                <Textarea
                                   placeholder="Task description and requirements..."
-                                  {...field} 
+                                  {...field}
                                 />
                               </FormControl>
                               <FormMessage />
@@ -551,12 +553,12 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => appendTask({ 
-                        title: '', 
-                        description: '', 
-                        estimatedHours: 1, 
-                        priority: 'medium', 
-                        assignedTo: '' 
+                      onClick={() => appendTask({
+                        title: '',
+                        description: '',
+                        estimatedHours: 1,
+                        priority: 'medium',
+                        assignedTo: ''
                       })}
                       className="w-full"
                     >
@@ -602,7 +604,7 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={() => appendDeliverable('')}
+                      onClick={() => appendDeliverable('' as any)}
                       className="w-full"
                     >
                       <Plus className="w-4 h-4 mr-2" />
@@ -616,9 +618,9 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
                         <FormItem>
                           <FormLabel>Additional Requirements</FormLabel>
                           <FormControl>
-                            <Textarea 
+                            <Textarea
                               placeholder="Special requirements, constraints, or notes..."
-                              {...field} 
+                              {...field}
                             />
                           </FormControl>
                           <FormMessage />
@@ -642,16 +644,16 @@ export const ProjectCreationDialog: React.FC<ProjectCreationDialogProps> = ({
 
               <div className="flex gap-2">
                 {currentStep !== 'deliverables' ? (
-                  <Button 
-                    type="button" 
+                  <Button
+                    type="button"
                     onClick={nextStep}
                     disabled={!canProceed()}
                   >
                     Next
                   </Button>
                 ) : (
-                  <Button 
-                    type="submit" 
+                  <Button
+                    type="submit"
                     disabled={isSubmitting}
                     className="min-w-[120px]"
                   >

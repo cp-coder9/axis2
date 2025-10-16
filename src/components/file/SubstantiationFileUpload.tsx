@@ -38,7 +38,7 @@ interface SubstantiationFileUploadProps {
 // Substantiation-specific file types
 const SUBSTANTIATION_FILE_TYPES = [
   'image/jpeg',
-  'image/png', 
+  'image/png',
   'image/gif',
   'image/webp',
   'application/pdf',
@@ -196,8 +196,12 @@ export const SubstantiationFileUpload: React.FC<SubstantiationFileUploadProps> =
       // Set substantiation-specific permissions
       const filesWithPermissions = uploadedFiles.map(file => ({
         ...file,
+        permissionLevel: FilePermissionLevel.PROJECT_TEAM,
+        uploadedBy: userId,
         permissions: {
           level: FilePermissionLevel.PROJECT_TEAM,
+          allowView: true,
+          allowEdit: false,
           allowDownload: true,
           allowShare: false,
           allowDelete: userRole === UserRole.ADMIN || file.uploaderId === userId,
@@ -226,7 +230,7 @@ export const SubstantiationFileUpload: React.FC<SubstantiationFileUploadProps> =
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">
-            Upload proof of work documents to substantiate your time log entry. 
+            Upload proof of work documents to substantiate your time log entry.
             Accepted formats: Images, PDFs, and documents up to {formatFileSize(MAX_SUBSTANTIATION_FILE_SIZE)} each.
           </p>
         </CardContent>
@@ -238,13 +242,12 @@ export const SubstantiationFileUpload: React.FC<SubstantiationFileUploadProps> =
           <div
             role="button"
             tabIndex={disabled ? -1 : 0}
-            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-              disabled 
-                ? 'border-muted-foreground/10 bg-muted/20 cursor-not-allowed' 
+            className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${disabled
+                ? 'border-muted-foreground/10 bg-muted/20 cursor-not-allowed'
                 : dragActive
                   ? 'border-primary bg-primary/5 cursor-pointer'
                   : 'border-muted-foreground/25 hover:border-muted-foreground/50 cursor-pointer'
-            }`}
+              }`}
             onDragEnter={!disabled ? handleDrag : undefined}
             onDragLeave={!disabled ? handleDrag : undefined}
             onDragOver={!disabled ? handleDrag : undefined}
@@ -422,10 +425,10 @@ export const SubstantiationFileUpload: React.FC<SubstantiationFileUploadProps> =
                     <div className="flex items-center space-x-2">
                       <Badge variant={
                         upload.status === 'completed' ? 'default' :
-                        upload.status === 'error' ? 'destructive' : 'secondary'
+                          upload.status === 'error' ? 'destructive' : 'secondary'
                       }>
                         {upload.status === 'completed' ? 'Complete' :
-                         upload.status === 'error' ? 'Failed' : `${upload.progress}%`}
+                          upload.status === 'error' ? 'Failed' : `${upload.progress}%`}
                       </Badge>
                       <Button
                         variant="ghost"

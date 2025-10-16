@@ -3,7 +3,7 @@ import {
   cloudinaryFolderService,
   FileMetadata
 } from './cloudinaryFolderService';
-import { 
+import {
   fileMetadataService
 } from './fileMetadataService';
 import { Timestamp } from 'firebase/firestore';
@@ -110,7 +110,7 @@ export class CloudinaryManagementService {
 
     // Get folder path
     const folderPath = cloudinaryFolderService.getFolderPath(metadata);
-    
+
     // Generate tags
     const tags = cloudinaryFolderService.generateTags(metadata);
     const autoTags = fileMetadataService.generateAutomaticTags(file, metadata);
@@ -126,7 +126,7 @@ export class CloudinaryManagementService {
     formData.append('folder', folderPath);
     formData.append('tags', allTags.join(','));
     formData.append('context', contextString);
-    
+
     // Add resource type based on file type
     if (file.type.startsWith('video/')) {
       formData.append('resource_type', 'video');
@@ -151,7 +151,7 @@ export class CloudinaryManagementService {
         metadata,
         cloudinaryResult
       );
-      
+
       // Log enhanced metadata for debugging
       console.log('Enhanced metadata created:', enhancedMetadata);
 
@@ -170,6 +170,8 @@ export class CloudinaryManagementService {
         projectId: metadata.projectId,
         permissions: {
           level: metadata.permissions,
+          allowView: true,
+          allowEdit: metadata.userRole === UserRole.ADMIN,
           allowDownload: true,
           allowShare: metadata.userRole === UserRole.ADMIN,
           allowDelete: metadata.userRole === UserRole.ADMIN,
@@ -243,7 +245,7 @@ export class CloudinaryManagementService {
       transformation,
       downloadName
     } = options;
-    
+
     // Log URL generation for audit purposes
     console.log(`Generating signed URL for ${publicId}, expires in ${expiresIn}s, role: ${userRole}`);
 
@@ -251,7 +253,7 @@ export class CloudinaryManagementService {
     let transformationString = '';
     if (transformation) {
       const transformParts: string[] = [];
-      
+
       if (transformation.width) transformParts.push(`w_${transformation.width}`);
       if (transformation.height) transformParts.push(`h_${transformation.height}`);
       if (transformation.crop) transformParts.push(`c_${transformation.crop}`);
@@ -267,7 +269,7 @@ export class CloudinaryManagementService {
 
     // For now, return the basic URL (in production, this would generate a signed URL)
     let url = `https://res.cloudinary.com/${this.config.cloudName}/image/upload/${transformationString}${publicId}`;
-    
+
     if (downloadName) {
       url += `?dl=${encodeURIComponent(downloadName)}`;
     }
@@ -290,7 +292,7 @@ export class CloudinaryManagementService {
     };
 
     const config = sizeConfig[size];
-    
+
     if (fileType.startsWith('image/')) {
       return this.generateSignedUrl(publicId, UserRole.ADMIN, {
         transformation: {
@@ -341,7 +343,7 @@ export class CloudinaryManagementService {
         };
 
         const properFolder = cloudinaryFolderService.getFolderPath(metadata);
-        
+
         // In a real implementation, this would call Cloudinary API to move the file
         console.log(`Would move file ${file.id} to folder: ${properFolder}`);
         organized++;
@@ -364,7 +366,7 @@ export class CloudinaryManagementService {
   }> {
     // In a real implementation, this would query Cloudinary API
     const stats = await cloudinaryFolderService.getFolderStatistics();
-    
+
     // Convert the return type to match expected format
     return {
       totalFiles: stats.totalFiles,
@@ -404,14 +406,14 @@ export class CloudinaryManagementService {
       // Check if user has permission to delete
       const folderPath = publicId.substring(0, publicId.lastIndexOf('/'));
       const access = this.checkFolderAccess(folderPath, userRole, userId);
-      
+
       if (!access.hasAccess || !access.permissions.delete) {
         return { success: false, error: 'Insufficient permissions to delete file' };
       }
 
       // In a real implementation, this would call Cloudinary API to delete the file
       console.log(`Would delete file with public_id: ${publicId}`);
-      
+
       return { success: true };
     } catch (error) {
       return { success: false, error: error.message };
@@ -429,7 +431,7 @@ export class CloudinaryManagementService {
     try {
       // In a real implementation, this would call Cloudinary API
       console.log(`Would get info for file: ${publicId}`);
-      
+
       return { exists: true };
     } catch (error) {
       return { exists: false, error: error.message };
@@ -453,10 +455,10 @@ export class CloudinaryManagementService {
     missingVars: string[];
   } {
     const missingVars: string[] = [];
-    
+
     if (!this.config.cloudName) missingVars.push('VITE_CLOUDINARY_CLOUD_NAME');
     if (!this.config.uploadPreset) missingVars.push('VITE_CLOUDINARY_UPLOAD_PRESET');
-    
+
     return {
       isConfigured: this.isConfigured(),
       hasApiCredentials: !!(this.config.apiKey && this.config.apiSecret),

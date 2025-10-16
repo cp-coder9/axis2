@@ -9,12 +9,12 @@
 
 import { DashboardWidget, UserRole } from '../types';
 import { db } from '../lib/firebase';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -57,7 +57,7 @@ export interface EnhancedDashboardWidget extends Omit<DashboardWidget, 'config' 
   updatedAt?: Timestamp;
   createdBy?: string;
   tags?: string[];
-  category?: 'analytics' | 'projects' | 'communication' | 'files' | 'system' | 'custom';
+  category?: 'analytics' | 'projects' | 'time' | 'files' | 'team' | 'reports' | 'system';
 }
 
 export interface WidgetDragDropConfig {
@@ -389,7 +389,7 @@ export const configureWidgetDragDrop = (
     },
     onResizeStop: async (widgetId, size) => {
       console.log('Resize stopped:', widgetId, size);
-      
+
       // Validate size constraints
       const widget = await getWidget(widgetId);
       if (widget) {

@@ -22,3 +22,7 @@
 [debug] [2025-10-12T22:32:18.391Z] > authorizing via signed-in user (gm.tarb@gmail.com)
 [debug] [2025-10-13T07:09:59.093Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
 [debug] [2025-10-13T07:09:59.097Z] > authorizing via signed-in user (gm.tarb@gmail.com)
+[debug] [2025-10-14T21:53:17.879Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-14T21:53:17.883Z] > authorizing via signed-in user (gm.tarb@gmail.com)
+[debug] [2025-10-16T08:48:12.578Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2025-10-16T08:48:12.585Z] > authorizing via signed-in user (gm.tarb@gmail.com)

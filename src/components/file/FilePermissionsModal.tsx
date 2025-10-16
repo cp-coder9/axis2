@@ -184,6 +184,8 @@ export const FilePermissionsModal: React.FC<FilePermissionsModalProps> = ({
     try {
       const permissions: FilePermissions = {
         level: data.level,
+        allowView: true,
+        allowEdit: false,
         allowDownload: data.allowDownload,
         allowShare: data.allowShare,
         allowDelete: data.allowDelete,
@@ -202,7 +204,7 @@ export const FilePermissionsModal: React.FC<FilePermissionsModalProps> = ({
 
   const getRestrictedActions = (level: FilePermissionLevel): string[] => {
     const restrictions: string[] = [];
-    
+
     switch (level) {
       case FilePermissionLevel.ADMIN_ONLY:
         restrictions.push('Only administrators can access this file');
@@ -369,9 +371,9 @@ export const FilePermissionsModal: React.FC<FilePermissionsModalProps> = ({
                       {PERMISSION_LEVEL_INFO[currentPermissions.level].label}
                     </Badge>
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     {PERMISSION_ACTIONS.map((action) => (
                       <div key={action.key} className="flex items-center justify-between">

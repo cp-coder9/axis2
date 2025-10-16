@@ -130,7 +130,7 @@ class CSPAwareCloudinaryService {
         }
       } catch (error) {
         lastError = error instanceof Error ? error.message : 'Upload failed';
-        
+
         // Check if error is CSP-related
         if (NetworkHelper.isCSPRelatedError(error as Error) && options.fallbackToFirebase) {
           console.warn('🔄 CSP error detected, switching to Firebase fallback');
@@ -205,7 +205,7 @@ class CSPAwareCloudinaryService {
       }
 
       const response = fetchResult.response!;
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         return {
@@ -232,9 +232,11 @@ class CSPAwareCloudinaryService {
         projectId: options.projectId || '',
         tags: options.tags || [],
         permissions: {
-          level: userRole === UserRole.CLIENT 
-            ? FilePermissionLevel.CLIENT_VISIBLE 
+          level: userRole === UserRole.CLIENT
+            ? FilePermissionLevel.CLIENT_VISIBLE
             : FilePermissionLevel.PROJECT_TEAM,
+          allowView: true,
+          allowEdit: userRole === UserRole.ADMIN,
           allowDownload: true,
           allowShare: userRole === UserRole.ADMIN,
           allowDelete: userRole === UserRole.ADMIN || userId === userId,
@@ -287,7 +289,7 @@ class CSPAwareCloudinaryService {
       const timestamp = Date.now();
       const sanitizedFileName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
       const storagePath = `${options.category || 'documents'}/${userId}/${timestamp}_${sanitizedFileName}`;
-      
+
       const storageRef = ref(storage, storagePath);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
@@ -326,9 +328,11 @@ class CSPAwareCloudinaryService {
                 projectId: options.projectId || '',
                 tags: [...(options.tags || []), 'firebase-fallback'],
                 permissions: {
-                  level: userRole === UserRole.CLIENT 
-                    ? FilePermissionLevel.CLIENT_VISIBLE 
+                  level: userRole === UserRole.CLIENT
+                    ? FilePermissionLevel.CLIENT_VISIBLE
                     : FilePermissionLevel.PROJECT_TEAM,
+                  allowView: true,
+                  allowEdit: userRole === UserRole.ADMIN,
                   allowDownload: true,
                   allowShare: userRole === UserRole.ADMIN,
                   allowDelete: userRole === UserRole.ADMIN || userId === userId,

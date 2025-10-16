@@ -36,6 +36,79 @@ service cloud.firestore {
       );
     }
     
+    // Jobs collection - hierarchical access under projects
+    match /jobs/{jobId} {
+      allow read: if request.auth != null && (
+        // Admin can read all jobs
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can read jobs in projects they're involved in
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (
+           // Client can read jobs in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can read jobs in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds)
+         ))
+      );
+      
+      allow write: if request.auth != null && (
+        // Admin can write all jobs
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can write jobs in projects they're involved in (for updates)
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (
+           // Client can write jobs in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can update jobs they're assigned to
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds &&
+            request.auth.uid in resource.data.assignedArchitectIds)
+         ))
+      );
+    }
+    
+    // Tasks collection - hierarchical access under jobs
+    match /tasks/{taskId} {
+      allow read: if request.auth != null && (
+        // Admin can read all tasks
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can read tasks in jobs they're involved in
+        (exists(/databases/$(database)/documents/jobs/$(resource.data.jobId)) &&
+         exists(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.projectId)) &&
+         (
+           // Client can read tasks in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can read tasks in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.projectId)).data.assignedTeamIds)
+         ))
+      );
+      
+      allow write: if request.auth != null && (
+        // Admin can write all tasks
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Task assignee can update their assigned tasks
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+         resource.data.assignedToId == request.auth.uid) ||
+        // Users can write tasks in projects they're involved in
+        (exists(/databases/$(database)/documents/jobs/$(resource.data.jobId)) &&
+         exists(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.projectId)) &&
+         (
+           // Client can write tasks in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(resource.data.jobId)).data.projectId)).data.clientId == request.auth.uid)
+         ))
+      );
+    }
+    
     // Time logs collection - users can read/write their own logs, admins can read all
     match /timeLogs/{logId} {
       allow read: if request.auth != null && (
@@ -48,7 +121,12 @@ service cloud.firestore {
         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
          exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
-         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid)
+         get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid) ||
+        // Freelancer can read logs for tasks they're assigned to
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+         exists(/databases/$(database)/documents/tasks/$(resource.data.taskId)) &&
+         get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.assignedToId == request.auth.uid)
       );
       
       allow write: if request.auth != null && (

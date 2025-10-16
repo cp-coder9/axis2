@@ -2,6 +2,8 @@
 export { default as JobCard, JobCard as JobCardComponent, TaskCard } from './JobCard'
 export { default as ProjectCard, ProjectCard as ProjectCardComponent } from './ProjectCard'
 export { default as ProjectTable, ProjectTable as ProjectDataTable, ProjectTable as ProjectTableComponent } from './ProjectTable'
+export { default as ProjectsList, ProjectsList as ProjectsListComponent } from './ProjectsList'
+export { default as ProjectDetails, ProjectDetails as ProjectDetailsComponent } from './ProjectDetails'
 export { default as AdminProjectEditor } from './AdminProjectEditor'
 
 // Workflow Components
@@ -32,6 +34,14 @@ export type {
   ProjectTableProps,
   ProjectFilters,
 } from './ProjectTable'
+
+export type {
+  ProjectsListProps,
+} from './ProjectsList'
+
+export type {
+  ProjectDetailsProps,
+} from './ProjectDetails'
 
 export type {
   AdminProjectEditorProps,

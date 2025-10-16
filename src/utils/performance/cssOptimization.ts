@@ -14,7 +14,7 @@
  * CSS containment improves performance by limiting the scope of layout,
  * style, paint, and size calculations.
  */
-export type ContainmentType = 'layout' | 'paint' | 'size' | 'style' | 'content' | 'strict' | 'none';
+export type ContainmentType = 'layout' | 'paint' | 'size' | 'style' | 'content' | 'strict' | 'none' | 'layout paint' | 'layout style' | 'paint style' | 'layout paint style';
 
 /**
  * Apply CSS containment to an element
@@ -24,7 +24,7 @@ export type ContainmentType = 'layout' | 'paint' | 'size' | 'style' | 'content' 
  */
 export function applyContainment(element: HTMLElement, type: ContainmentType): void {
   if (!element) return;
-  
+
   element.style.contain = type;
 }
 
@@ -45,22 +45,22 @@ export function applyContainmentToSelector(selector: string, type: ContainmentTy
 export const CONTAINMENT_CONFIG = {
   // Dashboard cards benefit from layout and paint containment
   dashboardCard: 'layout' as const,
-  
+
   // Modals benefit from layout containment
   modal: 'layout' as const,
-  
+
   // Forms benefit from layout containment
   form: 'layout' as const,
-  
+
   // Lists benefit from content containment
   list: 'content' as const,
-  
+
   // Tables benefit from strict containment
   table: 'strict' as const,
-  
+
   // Charts benefit from layout and paint containment
   chart: 'layout' as const,
-  
+
   // Sidebar benefits from layout containment
   sidebar: 'layout' as const,
 } as const;
@@ -72,26 +72,26 @@ export function initializeCSSContainment(): void {
   // Dashboard cards
   applyContainmentToSelector('[data-component="dashboard-card"]', CONTAINMENT_CONFIG.dashboardCard);
   applyContainmentToSelector('.dashboard-card', CONTAINMENT_CONFIG.dashboardCard);
-  
+
   // Modals
   applyContainmentToSelector('[role="dialog"]', CONTAINMENT_CONFIG.modal);
   applyContainmentToSelector('.modal-content', CONTAINMENT_CONFIG.modal);
-  
+
   // Forms
   applyContainmentToSelector('form', CONTAINMENT_CONFIG.form);
-  
+
   // Lists
   applyContainmentToSelector('[role="list"]', CONTAINMENT_CONFIG.list);
   applyContainmentToSelector('.list-container', CONTAINMENT_CONFIG.list);
-  
+
   // Tables
   applyContainmentToSelector('table', CONTAINMENT_CONFIG.table);
   applyContainmentToSelector('[role="table"]', CONTAINMENT_CONFIG.table);
-  
+
   // Charts
   applyContainmentToSelector('[data-component="chart"]', CONTAINMENT_CONFIG.chart);
   applyContainmentToSelector('.chart-container', CONTAINMENT_CONFIG.chart);
-  
+
   // Sidebar
   applyContainmentToSelector('[data-component="sidebar"]', CONTAINMENT_CONFIG.sidebar);
   applyContainmentToSelector('.sidebar', CONTAINMENT_CONFIG.sidebar);
@@ -122,29 +122,29 @@ export function detectCriticalCSS(options: CriticalCSSOptions = {}): string[] {
     includeSelectors = [],
     excludeSelectors = [],
   } = options;
-  
+
   const criticalRules: string[] = [];
   const styleSheets = Array.from(document.styleSheets);
-  
+
   styleSheets.forEach(sheet => {
     try {
       const rules = Array.from(sheet.cssRules || []);
-      
+
       rules.forEach(rule => {
         if (rule instanceof CSSStyleRule) {
           const selector = rule.selectorText;
-          
+
           // Skip excluded selectors
           if (excludeSelectors.some(excluded => selector.includes(excluded))) {
             return;
           }
-          
+
           // Include specified selectors
           if (includeSelectors.some(included => selector.includes(included))) {
             criticalRules.push(rule.cssText);
             return;
           }
-          
+
           // Check if elements matching this selector are in viewport
           const elements = document.querySelectorAll(selector);
           const isInViewport = Array.from(elements).some(element => {
@@ -156,7 +156,7 @@ export function detectCriticalCSS(options: CriticalCSSOptions = {}): string[] {
               rect.right > 0
             );
           });
-          
+
           if (isInViewport) {
             criticalRules.push(rule.cssText);
           }
@@ -167,7 +167,7 @@ export function detectCriticalCSS(options: CriticalCSSOptions = {}): string[] {
       console.warn('Could not access stylesheet:', e);
     }
   });
-  
+
   return criticalRules;
 }
 
@@ -233,21 +233,21 @@ export function removeUnusedCSSProperties(element: HTMLElement = document.docume
   const computedStyle = getComputedStyle(element);
   const declaredProperties = Array.from(element.style);
   const removedProperties: string[] = [];
-  
+
   declaredProperties.forEach(property => {
     if (property.startsWith('--')) {
       const value = computedStyle.getPropertyValue(property);
-      
+
       // Check if property is actually used
       const isUsed = document.body.innerHTML.includes(`var(${property})`);
-      
+
       if (!isUsed && !value) {
         element.style.removeProperty(property);
         removedProperties.push(property);
       }
     }
   });
-  
+
   return removedProperties;
 }
 
@@ -269,16 +269,16 @@ export interface CSSPerformanceMetrics {
  */
 export function measureCSSPerformance(): CSSPerformanceMetrics {
   const startTime = performance.now();
-  
+
   const styleSheets = Array.from(document.styleSheets);
   let ruleCount = 0;
   let customPropertyCount = 0;
-  
+
   styleSheets.forEach(sheet => {
     try {
       const rules = Array.from(sheet.cssRules || []);
       ruleCount += rules.length;
-      
+
       rules.forEach(rule => {
         if (rule instanceof CSSStyleRule) {
           const text = rule.cssText;
@@ -292,9 +292,9 @@ export function measureCSSPerformance(): CSSPerformanceMetrics {
       // Skip inaccessible stylesheets
     }
   });
-  
+
   const loadTime = performance.now() - startTime;
-  
+
   return {
     stylesheetCount: styleSheets.length,
     ruleCount,
@@ -309,7 +309,7 @@ export function measureCSSPerformance(): CSSPerformanceMetrics {
  */
 export function logCSSPerformance(): void {
   const metrics = measureCSSPerformance();
-  
+
   console.group('CSS Performance Metrics');
   console.log(`Stylesheets: ${metrics.stylesheetCount}`);
   console.log(`CSS Rules: ${metrics.ruleCount}`);
@@ -325,7 +325,7 @@ export function logCSSPerformance(): void {
  */
 export class WillChangeManager {
   private elements = new Map<HTMLElement, string[]>();
-  
+
   /**
    * Add will-change property to an element
    * 
@@ -336,7 +336,7 @@ export class WillChangeManager {
     this.elements.set(element, properties);
     element.style.willChange = properties.join(', ');
   }
-  
+
   /**
    * Remove will-change property from an element
    * 
@@ -346,7 +346,7 @@ export class WillChangeManager {
     this.elements.delete(element);
     element.style.willChange = 'auto';
   }
-  
+
   /**
    * Temporarily add will-change for an animation
    * 
@@ -356,12 +356,12 @@ export class WillChangeManager {
    */
   temporary(element: HTMLElement, properties: string[], duration: number = 1000): void {
     this.add(element, properties);
-    
+
     setTimeout(() => {
       this.remove(element);
     }, duration);
   }
-  
+
   /**
    * Clear all will-change properties
    */
@@ -384,11 +384,11 @@ export const willChangeManager = new WillChangeManager();
 export function initializeCSSOptimizations(): void {
   // Apply CSS containment
   initializeCSSContainment();
-  
+
   // Log performance metrics in development
   if (import.meta.env.DEV) {
     logCSSPerformance();
   }
-  
+
   console.log('CSS performance optimizations initialized');
 }

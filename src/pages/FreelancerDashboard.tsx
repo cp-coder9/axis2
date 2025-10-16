@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Briefcase, 
-  Clock, 
-  DollarSign, 
+import {
+  Briefcase,
+  Clock,
+  DollarSign,
   TrendingUp,
   Calendar,
   CheckCircle2,
@@ -34,8 +34,8 @@ export default function FreelancerDashboard() {
   const { projects, user } = useAppContext();
 
   // Filter projects for freelancer (projects they're assigned to)
-  const freelancerProjects = projects.filter(project => 
-    project.team?.some(member => member.userId === user?.id)
+  const freelancerProjects = projects.filter(project =>
+    project.assignedTeam?.some(member => member.id === user?.id)
   );
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function FreelancerDashboard() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       setIsLoading(false);
     };
-    
+
     loadFreelancerData();
   }, []);
 
@@ -62,7 +62,7 @@ export default function FreelancerDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
+          <Button
             variant={timerRunning ? "destructive" : "default"}
             onClick={() => setTimerRunning(!timerRunning)}
           >
@@ -198,7 +198,7 @@ export default function FreelancerDashboard() {
                   color="success"
                   trend={{ value: 28, change: 16.7, changeType: 'increase' }}
                 />
-                
+
                 <AnimatedStatCard
                   label="Client Satisfaction"
                   value={4.8}
@@ -207,7 +207,7 @@ export default function FreelancerDashboard() {
                   color="primary"
                   trend={{ value: 4.8, change: 4.3, changeType: 'increase' }}
                 />
-                
+
                 <AnimatedStatCard
                   label="Response Time"
                   value={2.5}
@@ -261,8 +261,8 @@ export default function FreelancerDashboard() {
             </CardHeader>
             <CardContent>
               {freelancerProjects.length > 0 ? (
-                <ProjectTable 
-                  projects={freelancerProjects}
+                <ProjectTable
+                  projects={freelancerProjects as any}
                   userRole={UserRole.FREELANCER}
                   showTimerControls={true}
                   showPagination={true}

@@ -50,7 +50,7 @@ import { cn } from '@/lib/utils'
 import { WorkflowProject } from './ProjectWorkflow'
 import { TaskManagementBoard } from './TaskManagementBoard'
 import { AdminProjectEditor, Project, User } from './AdminProjectEditor'
-import { ProjectStatus, UserRole } from '@/types'
+import { ProjectStatus, UserRole, ProjectStatus as ProjectStatusEnum } from '../../types'
 import { ProjectSettingsDialog, ProjectSettings } from './ProjectSettingsDialog'
 
 interface ProjectDetailsViewProps {
@@ -104,14 +104,15 @@ export const ProjectDetailsView: React.FC<ProjectDetailsViewProps> = ({
   const handleProjectUpdate = async (projectId: string, updates: Partial<Project>) => {
     if (onUpdateProject) {
       // Convert ProjectStatus enum back to workflow string format
-      const statusMap: Record<ProjectStatus, string> = {
-        [ProjectStatus.DRAFT]: 'pending',
-        [ProjectStatus.PLANNING]: 'planning',
-        [ProjectStatus.ACTIVE]: 'active',
-        [ProjectStatus.IN_PROGRESS]: 'active',
-        [ProjectStatus.ON_HOLD]: 'on-hold',
-        [ProjectStatus.COMPLETED]: 'completed',
-        [ProjectStatus.CANCELLED]: 'cancelled',
+      const statusMap: Record<ProjectStatus, ProjectStatusEnum> = {
+        [ProjectStatus.DRAFT]: ProjectStatusEnum.DRAFT,
+        [ProjectStatus.PLANNING]: ProjectStatusEnum.PLANNING,
+        [ProjectStatus.ACTIVE]: ProjectStatusEnum.ACTIVE,
+        [ProjectStatus.IN_PROGRESS]: ProjectStatusEnum.IN_PROGRESS,
+        [ProjectStatus.PENDING_APPROVAL]: ProjectStatusEnum.PENDING_APPROVAL,
+        [ProjectStatus.ON_HOLD]: ProjectStatusEnum.ON_HOLD,
+        [ProjectStatus.COMPLETED]: ProjectStatusEnum.COMPLETED,
+        [ProjectStatus.CANCELLED]: ProjectStatusEnum.CANCELLED,
       };
 
       // Convert updates back to WorkflowProject format if needed
