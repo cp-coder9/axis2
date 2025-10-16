@@ -62,14 +62,15 @@ interface ProjectEarningsData {
   earnings: number
   hours: number
   color: string
+  [key: string]: any // Add index signature for Recharts compatibility
 }
 
 interface FreelancerEarningsDashboardProps {
   className?: string
 }
 
-export function FreelancerEarningsDashboard({ 
-  className 
+export function FreelancerEarningsDashboard({
+  className
 }: FreelancerEarningsDashboardProps) {
   const { user } = useAppContext()
   const [selectedPeriod, setSelectedPeriod] = useState<'week' | 'month' | 'quarter' | 'year'>('month')
@@ -82,33 +83,33 @@ export function FreelancerEarningsDashboard({
     const data = []
     const now = new Date()
     const periods = selectedPeriod === 'week' ? 7 : selectedPeriod === 'month' ? 30 : selectedPeriod === 'quarter' ? 90 : 365
-    
+
     for (let i = periods - 1; i >= 0; i--) {
       const date = new Date(now)
       date.setDate(date.getDate() - i)
-      
+
       // Generate mock data with some variation
-      const baseHours = selectedPeriod === 'week' ? 4 + Math.random() * 4 : 
-                       selectedPeriod === 'month' ? 6 + Math.random() * 6 :
-                       selectedPeriod === 'quarter' ? 8 + Math.random() * 8 : 
-                       10 + Math.random() * 10
-      
+      const baseHours = selectedPeriod === 'week' ? 4 + Math.random() * 4 :
+        selectedPeriod === 'month' ? 6 + Math.random() * 6 :
+          selectedPeriod === 'quarter' ? 8 + Math.random() * 8 :
+            10 + Math.random() * 10
+
       const hours = Math.round(baseHours * 10) / 10
       const earnings = Math.round(hours * hourlyRate * 100) / 100
       const projects = Math.floor(Math.random() * 3) + 1
-      
+
       data.push({
-        date: selectedPeriod === 'week' || selectedPeriod === 'month' 
+        date: selectedPeriod === 'week' || selectedPeriod === 'month'
           ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
           : selectedPeriod === 'quarter'
-          ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-          : date.toLocaleDateString('en-US', { month: 'short' }),
+            ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : date.toLocaleDateString('en-US', { month: 'short' }),
         earnings,
         hours,
         projects
       })
     }
-    
+
     return data
   }, [selectedPeriod, hourlyRate])
 
@@ -331,13 +332,13 @@ export function FreelancerEarningsDashboard({
                     outerRadius={80}
                     fill="#8884d8"
                     dataKey="earnings"
-                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    label={({ name, percent }) => `${name} ${((percent as number) * 100).toFixed(0)}%`}
                   >
                     {projectEarningsData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <ChartTooltip 
+                  <ChartTooltip
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         const data = payload[0].payload
@@ -356,14 +357,14 @@ export function FreelancerEarningsDashboard({
                 </RechartsPieChart>
               </ResponsiveContainer>
             </div>
-            
+
             {/* Project List */}
             <div className="space-y-2 mt-4">
               {projectEarningsData.map((project) => (
                 <div key={project.name} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
+                    <div
+                      className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: project.color }}
                     />
                     <span>{project.name}</span>

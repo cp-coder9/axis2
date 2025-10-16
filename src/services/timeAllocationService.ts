@@ -23,6 +23,17 @@ const TIME_SLOTS_COLLECTION = 'timeSlots';
  */
 export const createTimeAllocation = async (allocationData: Omit<TimeAllocation, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
     try {
+        // Check for conflicts before creating
+        const conflicts = await checkAllocationConflicts(
+            allocationData.freelancerId,
+            allocationData.startDate,
+            allocationData.endDate
+        );
+
+        if (conflicts.length > 0) {
+            throw new Error(`Time allocation conflicts with existing allocations: ${conflicts.map(c => c.projectId).join(', ')}`);
+        }
+
         const allocationsCollectionRef = collection(db, TIME_ALLOCATIONS_COLLECTION);
         const docRef = await addDoc(allocationsCollectionRef, {
             ...allocationData,
@@ -79,6 +90,30 @@ export const updateTimeAllocation = async (
     updates: Partial<TimeAllocation>
 ): Promise<void> => {
     try {
+        // If updating time-related fields, check for conflicts
+        if (updates.startDate || updates.endDate || updates.freelancerId) {
+            const existingDoc = await getDoc(doc(db, TIME_ALLOCATIONS_COLLECTION, allocationId));
+            if (!existingDoc.exists()) {
+                throw new Error('Allocation not found');
+            }
+
+            const existingData = existingDoc.data() as TimeAllocation;
+            const freelancerId = updates.freelancerId || existingData.freelancerId;
+            const startDate = updates.startDate || existingData.startDate;
+            const endDate = updates.endDate || existingData.endDate;
+
+            const conflicts = await checkAllocationConflicts(
+                freelancerId,
+                startDate,
+                endDate,
+                allocationId
+            );
+
+            if (conflicts.length > 0) {
+                throw new Error(`Time allocation conflicts with existing allocations: ${conflicts.map(c => c.projectId).join(', ')}`);
+            }
+        }
+
         const allocationDocRef = doc(db, TIME_ALLOCATIONS_COLLECTION, allocationId);
         await updateDoc(allocationDocRef, {
             ...updates,
@@ -211,5 +246,52 @@ export const getTimeSlotsForFreelancer = async (freelancerId: string): Promise<T
     } catch (error) {
         console.error('Error getting freelancer time slots:', error);
         throw new Error('Failed to get freelancer time slots');
+    }
+};
+
+/**
+ * Check for time allocation conflicts for a freelancer
+ */
+export const checkAllocationConflicts = async (
+    freelancerId: string,
+    startDate: Timestamp,
+    endDate: Timestamp,
+    excludeAllocationId?: string
+): Promise<TimeAllocation[]> => {
+    try {
+        const allocationsCollectionRef = collection(db, TIME_ALLOCATIONS_COLLECTION);
+        const q = query(
+            allocationsCollectionRef,
+            where('freelancerId', '==', freelancerId),
+            where('status', '==', TimeAllocationStatus.ACTIVE)
+        );
+
+        const querySnapshot = await getDocs(q);
+        const conflicts: TimeAllocation[] = [];
+
+        querySnapshot.docs.forEach(doc => {
+            const allocation = { id: doc.id, ...doc.data() } as TimeAllocation;
+
+            // Skip the allocation being updated
+            if (excludeAllocationId && allocation.id === excludeAllocationId) {
+                return;
+            }
+
+            // Check for time overlap
+            const allocationStart = allocation.startDate.toDate().getTime();
+            const allocationEnd = allocation.endDate.toDate().getTime();
+            const newStart = startDate.toDate().getTime();
+            const newEnd = endDate.toDate().getTime();
+
+            // Check if periods overlap
+            if (newStart < allocationEnd && newEnd > allocationStart) {
+                conflicts.push(allocation);
+            }
+        });
+
+        return conflicts;
+    } catch (error) {
+        console.error('Error checking allocation conflicts:', error);
+        throw new Error('Failed to check allocation conflicts');
     }
 };

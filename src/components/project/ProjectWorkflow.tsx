@@ -30,7 +30,7 @@ export interface WorkflowProject {
   id: string
   title: string
   description: string
-  status: ProjectStatus
+  status: ProjectStatusEnum
   priority: 'low' | 'medium' | 'high' | 'urgent'
   clientName: string
   teamMembers: string[]
@@ -98,7 +98,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
         id: '1',
         title: 'Modern Office Building Design',
         description: 'Complete architectural design for a 15-story office complex in downtown area',
-        status: ProjectStatus.IN_PROGRESS,
+        status: ProjectStatusEnum.IN_PROGRESS,
         priority: 'high',
         clientName: 'Metro Development Corp',
         teamMembers: ['John Doe', 'Jane Smith', 'Mike Wilson'],
@@ -153,7 +153,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
         id: '2',
         title: 'Residential Complex Layout',
         description: 'Master plan for 200-unit residential development',
-        status: ProjectStatus.PENDING_APPROVAL,
+        status: ProjectStatusEnum.PENDING_APPROVAL,
         priority: 'medium',
         clientName: 'Sunrise Properties',
         teamMembers: ['Sarah Connor', 'Tom Anderson'],

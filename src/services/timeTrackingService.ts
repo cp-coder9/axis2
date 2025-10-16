@@ -68,18 +68,22 @@ export const generateTimeTrackingReport = async (
         const timeLogs = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as TimeLog));
 
         const totalMinutes = timeLogs.reduce((acc, log) => acc + log.durationMinutes, 0);
-        const totalBillableMinutes = timeLogs
-            .filter(log => log.isBillable)
-            .reduce((acc, log) => acc + log.durationMinutes, 0);
+        const totalHours = totalMinutes / 60;
+        const totalEarnings = timeLogs.reduce((acc, log) => acc + (log.earnings || 0), 0);
 
         return {
-            projectId,
-            startDate,
-            endDate,
-            timeLogs,
-            totalMinutes,
-            totalBillableMinutes,
-            generatedAt: new Date(),
+            totalHours,
+            totalEarnings,
+            projectBreakdown: [{
+                projectId,
+                projectTitle: 'Current Project', // This should be fetched from project data
+                hours: totalHours,
+                earnings: totalEarnings
+            }],
+            period: {
+                startDate,
+                endDate
+            }
         };
     } catch (error) {
         console.error('Error generating time tracking report:', error);

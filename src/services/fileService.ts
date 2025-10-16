@@ -37,7 +37,7 @@ export const addFileToProject = async (
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
-        return { id: docRef.id, ...fileData, url: downloadURL, createdAt: new Date(), updatedAt: new Date() };
+        return { id: docRef.id, ...fileData, url: downloadURL, uploadedAt: Timestamp.now() };
     } catch (error) {
         console.error('Error adding file to project:', error);
         throw new Error('Failed to add file to project');

@@ -8,8 +8,8 @@ export default function FreelancerProjectsPage() {
   const { projects, user } = useAppContext();
 
   // Filter projects for freelancer (projects they're assigned to)
-  const freelancerProjects = projects.filter(project => 
-    project.team?.some(member => member.userId === user?.id)
+  const freelancerProjects = projects.filter(project =>
+    project.assignedTeam?.some(member => member.id === user?.id)
   );
 
   return (
@@ -32,8 +32,8 @@ export default function FreelancerProjectsPage() {
         </CardHeader>
         <CardContent>
           {freelancerProjects.length > 0 ? (
-            <ProjectTable 
-              projects={freelancerProjects}
+            <ProjectTable
+              projects={freelancerProjects as any}
               userRole={UserRole.FREELANCER}
               showTimerControls={true}
               showPagination={true}

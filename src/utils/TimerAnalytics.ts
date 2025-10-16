@@ -4,7 +4,7 @@
  */
 
 import { Timestamp } from 'firebase/firestore';
-import { TimeLog, Project, User } from '../types';
+import { TimeLog, Project, User, TimeAllocation, TimeSlot, TimePurchase } from '../types';
 
 export interface TimerUsageStatistics {
   totalSessions: number;
@@ -107,6 +107,82 @@ export interface TimerAnalyticsReport {
   insights: ProductivityInsights;
   patterns: TimeTrackingPattern;
   performance: TimerPerformanceMetrics;
+  generatedAt: Date;
+}
+
+// Time Management Allocation Analytics Interfaces
+export interface FreelancerUtilizationMetrics {
+  freelancerId: string;
+  freelancerName: string;
+  totalAllocatedHours: number;
+  totalUtilizedHours: number;
+  utilizationRate: number;
+  availableSlots: number;
+  purchasedSlots: number;
+  completedSlots: number;
+  averageSlotUtilization: number;
+  efficiencyScore: number;
+  revenueGenerated: number;
+  costEfficiency: number;
+  projectBreakdown?: Array<{
+    projectId: string;
+    projectTitle: string;
+    allocatedHours: number;
+    utilizedHours: number;
+    utilizationRate: number;
+  }>;
+  activeProjects?: number;
+  unutilizedHours?: number;
+  recommendations?: string[];
+}
+
+export interface ProjectProfitabilityMetrics {
+  projectId: string;
+  projectTitle: string;
+  totalAllocatedBudget: number;
+  totalSpent: number;
+  totalRevenue: number;
+  profitMargin: number;
+  allocationUtilization: number;
+  freelancerCount: number;
+  averageHourlyRate: number;
+  timeSlotEfficiency: number;
+  returnOnInvestment: number;
+}
+
+export interface AllocationUtilizationComparison {
+  period: DateRange;
+  totalAllocations: number;
+  totalAllocatedHours: number;
+  totalUtilizedHours: number;
+  overallUtilizationRate: number;
+  allocationEfficiency: number;
+  revenueEfficiency: number;
+  timeSlotPerformance: {
+    available: number;
+    purchased: number;
+    inProgress: number;
+    completed: number;
+    expired: number;
+  };
+  trends: AllocationTrend[];
+  recommendations: string[];
+}
+
+export interface AllocationTrend {
+  date: string;
+  allocations: number;
+  utilizedHours: number;
+  utilizationRate: number;
+  revenue: number;
+  allocationEfficiency?: number;
+}
+
+export interface TimeManagementAnalyticsReport {
+  period: DateRange;
+  freelancerUtilization: FreelancerUtilizationMetrics[];
+  projectProfitability: ProjectProfitabilityMetrics[];
+  allocationComparison: AllocationUtilizationComparison;
   generatedAt: Date;
 }
 
@@ -697,11 +773,457 @@ export class TimerAnalytics {
     return engagementScore;
   }
 
+  // Time Management Allocation Analytics Methods
+
+  /**
+   * Calculate freelancer utilization metrics
+   */
+  static calculateFreelancerUtilization(
+    allocations: TimeAllocation[],
+    slots: TimeSlot[],
+    purchases: TimePurchase[],
+    timeLogs: TimeLog[],
+    period: DateRange
+  ): FreelancerUtilizationMetrics[] {
+    const freelancerMetrics = new Map<string, FreelancerUtilizationMetrics>();
+
+    // Process allocations
+    allocations.forEach(allocation => {
+      if (!freelancerMetrics.has(allocation.freelancerId)) {
+        freelancerMetrics.set(allocation.freelancerId, {
+          freelancerId: allocation.freelancerId,
+          freelancerName: allocation.freelancerName,
+          totalAllocatedHours: 0,
+          totalUtilizedHours: 0,
+          utilizationRate: 0,
+          availableSlots: 0,
+          purchasedSlots: 0,
+          completedSlots: 0,
+          averageSlotUtilization: 0,
+          efficiencyScore: 0,
+          revenueGenerated: 0,
+          costEfficiency: 0
+        });
+      }
+
+      const metrics = freelancerMetrics.get(allocation.freelancerId)!;
+      metrics.totalAllocatedHours += allocation.allocatedHours;
+    });
+
+    // Process time slots
+    slots.forEach(slot => {
+      const metrics = freelancerMetrics.get(slot.freelancerId);
+      if (!metrics) return;
+
+      switch (slot.status) {
+        case 'AVAILABLE':
+          metrics.availableSlots++;
+          break;
+        case 'PURCHASED':
+          metrics.purchasedSlots++;
+          break;
+        case 'COMPLETED':
+          metrics.completedSlots++;
+          break;
+      }
+    });
+
+    // Calculate utilization from time logs
+    timeLogs.forEach(log => {
+      const metrics = freelancerMetrics.get(log.loggedById);
+      if (metrics && log.timeSlotId) {
+        metrics.totalUtilizedHours += log.durationMinutes / 60;
+      }
+    });
+
+    // Calculate derived metrics
+    freelancerMetrics.forEach(metrics => {
+      const totalSlots = metrics.availableSlots + metrics.purchasedSlots + metrics.completedSlots;
+      metrics.utilizationRate = metrics.totalAllocatedHours > 0
+        ? (metrics.totalUtilizedHours / metrics.totalAllocatedHours) * 100
+        : 0;
+
+      metrics.averageSlotUtilization = totalSlots > 0
+        ? (metrics.totalUtilizedHours / totalSlots) * 100
+        : 0;
+
+      // Calculate revenue from purchases
+      const freelancerPurchases = purchases.filter(p => p.freelancerId === metrics.freelancerId);
+      metrics.revenueGenerated = freelancerPurchases.reduce((sum, p) => sum + p.amount, 0);
+
+      // Efficiency score based on utilization and completion rate
+      const completionRate = totalSlots > 0 ? (metrics.completedSlots / totalSlots) * 100 : 0;
+      metrics.efficiencyScore = (metrics.utilizationRate + completionRate) / 2;
+
+      // Cost efficiency (revenue per allocated hour)
+      metrics.costEfficiency = metrics.totalAllocatedHours > 0
+        ? metrics.revenueGenerated / metrics.totalAllocatedHours
+        : 0;
+    });
+
+    return Array.from(freelancerMetrics.values());
+  }
+
+  /**
+   * Calculate project profitability metrics
+   */
+  static calculateProjectProfitability(
+    allocations: TimeAllocation[],
+    purchases: TimePurchase[],
+    timeLogs: TimeLog[],
+    projects: Project[],
+    period: DateRange
+  ): ProjectProfitabilityMetrics[] {
+    const projectMetrics = new Map<string, ProjectProfitabilityMetrics>();
+
+    // Initialize metrics for all projects with allocations
+    allocations.forEach(allocation => {
+      if (!projectMetrics.has(allocation.projectId)) {
+        const project = projects.find(p => p.id === allocation.projectId);
+        projectMetrics.set(allocation.projectId, {
+          projectId: allocation.projectId,
+          projectTitle: project?.title || 'Unknown Project',
+          totalAllocatedBudget: 0,
+          totalSpent: 0,
+          totalRevenue: 0,
+          profitMargin: 0,
+          allocationUtilization: 0,
+          freelancerCount: 0,
+          averageHourlyRate: 0,
+          timeSlotEfficiency: 0,
+          returnOnInvestment: 0
+        });
+      }
+
+      const metrics = projectMetrics.get(allocation.projectId)!;
+      metrics.totalAllocatedBudget += allocation.allocatedHours * allocation.hourlyRate;
+      metrics.freelancerCount++;
+    });
+
+    // Calculate revenue from purchases
+    purchases.forEach(purchase => {
+      const metrics = projectMetrics.get(purchase.projectId);
+      if (metrics) {
+        metrics.totalRevenue += purchase.amount;
+      }
+    });
+
+    // Calculate actual time spent and costs
+    timeLogs.forEach(log => {
+      const metrics = projectMetrics.get(log.projectId);
+      if (metrics && log.timeSlotId) {
+        metrics.totalSpent += (log.durationMinutes / 60) * (log.hourlyRate || 0);
+      }
+    });
+
+    // Calculate derived metrics
+    projectMetrics.forEach(metrics => {
+      metrics.profitMargin = metrics.totalRevenue > 0
+        ? ((metrics.totalRevenue - metrics.totalSpent) / metrics.totalRevenue) * 100
+        : 0;
+
+      metrics.allocationUtilization = metrics.totalAllocatedBudget > 0
+        ? (metrics.totalSpent / metrics.totalAllocatedBudget) * 100
+        : 0;
+
+      const projectAllocations = allocations.filter(a => a.projectId === metrics.projectId);
+      const totalHours = projectAllocations.reduce((sum, a) => sum + a.allocatedHours, 0);
+      const totalRate = projectAllocations.reduce((sum, a) => sum + a.hourlyRate, 0);
+      metrics.averageHourlyRate = projectAllocations.length > 0
+        ? totalRate / projectAllocations.length
+        : 0;
+
+      // Time slot efficiency (revenue vs allocated budget)
+      metrics.timeSlotEfficiency = metrics.totalAllocatedBudget > 0
+        ? (metrics.totalRevenue / metrics.totalAllocatedBudget) * 100
+        : 0;
+
+      // ROI calculation
+      metrics.returnOnInvestment = metrics.totalSpent > 0
+        ? ((metrics.totalRevenue - metrics.totalSpent) / metrics.totalSpent) * 100
+        : 0;
+    });
+
+    return Array.from(projectMetrics.values());
+  }
+
+  /**
+   * Generate allocation utilization comparison report
+   */
+  static generateAllocationUtilizationComparison(
+    allocations: TimeAllocation[],
+    slots: TimeSlot[],
+    purchases: TimePurchase[],
+    timeLogs: TimeLog[],
+    period: DateRange
+  ): AllocationUtilizationComparison {
+    const filteredAllocations = allocations.filter(a =>
+      a.createdAt.toDate() >= period.startDate && a.createdAt.toDate() <= period.endDate
+    );
+
+    const filteredPurchases = purchases.filter(p =>
+      p.purchasedAt.toDate() >= period.startDate && p.purchasedAt.toDate() <= period.endDate
+    );
+
+    const filteredSlots = slots.filter(s =>
+      s.createdAt.toDate() >= period.startDate && s.createdAt.toDate() <= period.endDate
+    );
+
+    const totalAllocatedHours = filteredAllocations.reduce((sum, a) => sum + a.allocatedHours, 0);
+    const totalUtilizedHours = timeLogs
+      .filter(log => log.timeSlotId && log.startTime.toDate() >= period.startDate && log.startTime.toDate() <= period.endDate)
+      .reduce((sum, log) => sum + log.durationMinutes / 60, 0);
+
+    const overallUtilizationRate = totalAllocatedHours > 0
+      ? (totalUtilizedHours / totalAllocatedHours) * 100
+      : 0;
+
+    // Calculate time slot performance
+    const slotPerformance = {
+      available: filteredSlots.filter(s => s.status === 'AVAILABLE').length,
+      purchased: filteredSlots.filter(s => s.status === 'PURCHASED').length,
+      inProgress: filteredSlots.filter(s => s.status === 'IN_PROGRESS').length,
+      completed: filteredSlots.filter(s => s.status === 'COMPLETED').length,
+      expired: filteredSlots.filter(s => s.status === 'EXPIRED').length
+    };
+
+    // Calculate allocation efficiency (purchased vs available)
+    const totalSlots = filteredSlots.length;
+    const allocationEfficiency = totalSlots > 0
+      ? ((slotPerformance.purchased + slotPerformance.inProgress + slotPerformance.completed) / totalSlots) * 100
+      : 0;
+
+    // Calculate revenue efficiency
+    const totalRevenue = filteredPurchases.reduce((sum, p) => sum + p.amount, 0);
+    const totalAllocatedValue = filteredAllocations.reduce((sum, a) => sum + (a.allocatedHours * a.hourlyRate), 0);
+    const revenueEfficiency = totalAllocatedValue > 0
+      ? (totalRevenue / totalAllocatedValue) * 100
+      : 0;
+
+    // Generate trends
+    const trends = this.calculateAllocationTrends(filteredAllocations, filteredPurchases, filteredSlots, period);
+
+    // Generate recommendations
+    const recommendations = this.generateAllocationRecommendations(
+      overallUtilizationRate,
+      allocationEfficiency,
+      revenueEfficiency,
+      slotPerformance
+    );
+
+    return {
+      period,
+      totalAllocations: filteredAllocations.length,
+      totalAllocatedHours,
+      totalUtilizedHours,
+      overallUtilizationRate,
+      allocationEfficiency,
+      revenueEfficiency,
+      timeSlotPerformance: slotPerformance,
+      trends,
+      recommendations
+    };
+  }
+
+  /**
+   * Generate comprehensive time management analytics report
+   */
+  static generateTimeManagementAnalyticsReport(
+    allocations: TimeAllocation[],
+    slots: TimeSlot[],
+    purchases: TimePurchase[],
+    timeLogs: TimeLog[],
+    projects: Project[],
+    period: DateRange
+  ): TimeManagementAnalyticsReport {
+    const freelancerUtilization = this.calculateFreelancerUtilization(
+      allocations, slots, purchases, timeLogs, period
+    );
+
+    const projectProfitability = this.calculateProjectProfitability(
+      allocations, purchases, timeLogs, projects, period
+    );
+
+    const allocationComparison = this.generateAllocationUtilizationComparison(
+      allocations, slots, purchases, timeLogs, period
+    );
+
+    return {
+      period,
+      freelancerUtilization,
+      projectProfitability,
+      allocationComparison,
+      generatedAt: new Date()
+    };
+  }
+
+  // Helper methods for allocation analytics
+
+  private static calculateAllocationTrends(
+    allocations: TimeAllocation[],
+    purchases: TimePurchase[],
+    slots: TimeSlot[],
+    period: DateRange
+  ): AllocationTrend[] {
+    const dateMap = new Map<string, {
+      allocations: number;
+      utilizedHours: number;
+      revenue: number;
+    }>();
+
+    // Initialize date range
+    const startDate = new Date(period.startDate);
+    const endDate = new Date(period.endDate);
+
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateStr = d.toISOString().split('T')[0];
+      dateMap.set(dateStr, { allocations: 0, utilizedHours: 0, revenue: 0 });
+    }
+
+    // Count allocations by date
+    allocations.forEach(allocation => {
+      const date = allocation.createdAt.toDate().toISOString().split('T')[0];
+      const existing = dateMap.get(date);
+      if (existing) {
+        existing.allocations++;
+      }
+    });
+
+    // Count utilized hours by date (from time logs)
+    // Note: This is a simplified calculation - in practice you'd need to correlate time logs with slots
+    purchases.forEach(purchase => {
+      const date = purchase.purchasedAt.toDate().toISOString().split('T')[0];
+      const existing = dateMap.get(date);
+      if (existing) {
+        existing.revenue += purchase.amount;
+        // Estimate utilized hours based on purchase amount and rate
+        // This is approximate - real implementation would need better correlation
+        existing.utilizedHours += purchase.amount / 50; // Assuming $50/hr average
+      }
+    });
+
+    return Array.from(dateMap.entries())
+      .map(([date, data]) => ({
+        date,
+        allocations: data.allocations,
+        utilizedHours: data.utilizedHours,
+        utilizationRate: data.allocations > 0 ? (data.utilizedHours / (data.allocations * 4)) * 100 : 0, // Assuming 4 hours per allocation
+        revenue: data.revenue
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  private static generateAllocationRecommendations(
+    utilizationRate: number,
+    allocationEfficiency: number,
+    revenueEfficiency: number,
+    slotPerformance: any
+  ): string[] {
+    const recommendations: string[] = [];
+
+    if (utilizationRate < 60) {
+      recommendations.push('Low utilization rate detected. Consider adjusting freelancer allocations or improving project assignments.');
+    }
+
+    if (allocationEfficiency < 70) {
+      recommendations.push('Many allocated slots remain unpurchased. Review pricing strategy or project demand.');
+    }
+
+    if (revenueEfficiency < 80) {
+      recommendations.push('Revenue efficiency is below optimal. Consider optimizing hourly rates or allocation strategies.');
+    }
+
+    if (slotPerformance.expired > slotPerformance.completed) {
+      recommendations.push('High number of expired slots. Review allocation timing and freelancer availability.');
+    }
+
+    if (slotPerformance.available > slotPerformance.purchased * 2) {
+      recommendations.push('Excess available slots. Consider reducing allocations or increasing marketing efforts.');
+    }
+
+    if (recommendations.length === 0) {
+      recommendations.push('Allocation utilization is performing well. Continue monitoring and optimizing.');
+    }
+
+    return recommendations;
+  }
+
   /**
    * Export analytics report to JSON
    */
   static exportToJSON(report: TimerAnalyticsReport): string {
     return JSON.stringify(report, null, 2);
+  }
+
+  /**
+   * Format time management analytics report for display
+   */
+  static formatTimeManagementReportForDisplay(report: TimeManagementAnalyticsReport): string {
+    const { freelancerUtilization, projectProfitability, allocationComparison } = report;
+
+    return `
+Time Management Analytics Report
+Period: ${report.period.startDate.toLocaleDateString()} - ${report.period.endDate.toLocaleDateString()}
+Generated: ${report.generatedAt.toLocaleString()}
+
+=== ALLOCATION UTILIZATION OVERVIEW ===
+Total Allocations: ${allocationComparison.totalAllocations}
+Total Allocated Hours: ${allocationComparison.totalAllocatedHours.toFixed(1)}
+Total Utilized Hours: ${allocationComparison.totalUtilizedHours.toFixed(1)}
+Overall Utilization Rate: ${allocationComparison.overallUtilizationRate.toFixed(1)}%
+Allocation Efficiency: ${allocationComparison.allocationEfficiency.toFixed(1)}%
+Revenue Efficiency: ${allocationComparison.revenueEfficiency.toFixed(1)}%
+
+Time Slot Performance:
+- Available: ${allocationComparison.timeSlotPerformance.available}
+- Purchased: ${allocationComparison.timeSlotPerformance.purchased}
+- In Progress: ${allocationComparison.timeSlotPerformance.inProgress}
+- Completed: ${allocationComparison.timeSlotPerformance.completed}
+- Expired: ${allocationComparison.timeSlotPerformance.expired}
+
+=== FREELANCER UTILIZATION ===
+${freelancerUtilization.map(f => `
+${f.freelancerName}:
+  - Allocated Hours: ${f.totalAllocatedHours.toFixed(1)}
+  - Utilized Hours: ${f.totalUtilizedHours.toFixed(1)}
+  - Utilization Rate: ${f.utilizationRate.toFixed(1)}%
+  - Revenue Generated: $${f.revenueGenerated.toLocaleString()}
+  - Efficiency Score: ${f.efficiencyScore.toFixed(1)}/100
+`).join('')}
+
+=== PROJECT PROFITABILITY ===
+${projectProfitability.map(p => `
+${p.projectTitle}:
+  - Allocated Budget: $${p.totalAllocatedBudget.toLocaleString()}
+  - Total Revenue: $${p.totalRevenue.toLocaleString()}
+  - Total Spent: $${p.totalSpent.toLocaleString()}
+  - Profit Margin: ${p.profitMargin.toFixed(1)}%
+  - ROI: ${p.returnOnInvestment.toFixed(1)}%
+  - Allocation Utilization: ${p.allocationUtilization.toFixed(1)}%
+`).join('')}
+
+=== RECOMMENDATIONS ===
+${allocationComparison.recommendations.map(r => `- ${r}`).join('\n')}
+    `.trim();
+  }
+
+  /**
+   * Compare allocation utilization (alias for generateAllocationUtilizationComparison)
+   */
+  static compareAllocationUtilization(
+    allocations: TimeAllocation[],
+    slots: TimeSlot[],
+    purchases: TimePurchase[],
+    timeLogs: TimeLog[],
+    period: DateRange
+  ): AllocationUtilizationComparison {
+    return this.generateAllocationUtilizationComparison(
+      allocations,
+      slots,
+      purchases,
+      timeLogs,
+      period
+    );
   }
 
   /**
@@ -741,15 +1263,15 @@ ${insights.recommendations.map((r) => `- ${r}`).join('\n')}
 Pattern Type: ${patterns.patternType}
 Top Working Hours:
 ${patterns.workingHoursDistribution
-  .slice(0, 5)
-  .map((h) => `  ${h.hour}:00 - ${this.formatMinutes(h.minutes)} (${h.percentage.toFixed(1)}%)`)
-  .join('\n')}
+        .slice(0, 5)
+        .map((h) => `  ${h.hour}:00 - ${this.formatMinutes(h.minutes)} (${h.percentage.toFixed(1)}%)`)
+        .join('\n')}
 
 Top Projects:
 ${patterns.projectTimeDistribution
-  .slice(0, 5)
-  .map((p) => `  ${p.projectTitle} - ${this.formatMinutes(p.minutes)} (${p.percentage.toFixed(1)}%)`)
-  .join('\n')}
+        .slice(0, 5)
+        .map((p) => `  ${p.projectTitle} - ${this.formatMinutes(p.minutes)} (${p.percentage.toFixed(1)}%)`)
+        .join('\n')}
 
 === PERFORMANCE METRICS ===
 Accuracy: ${performance.accuracy.toFixed(1)}%

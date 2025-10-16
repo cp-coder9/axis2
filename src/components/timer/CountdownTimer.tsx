@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils';
 import { useTimer } from '../../contexts/modules/timer';
 import { canFreelancerUseTimer } from '../../contexts/modules/auth';
 import { UserRole } from '@/types';
-import { 
-  TimerAnnouncer, 
-  TimerAnnouncementMessages, 
+import {
+  TimerAnnouncer,
+  TimerAnnouncementMessages,
   KeyboardNavigation,
   HighContrastSupport,
   ReducedMotionSupport,
@@ -22,19 +22,11 @@ import {
   AnnouncementPriority
 } from '../../utils/accessibility';
 import { FocusManager } from '../../utils/focusManager';
-import { 
-  useTimerCalculations, 
-  useVisibilityHandler, 
-  useTimerInterval, 
-  useThrottledValue, 
-  useTimerHandlers, 
-  useCircularProgress, 
-  usePerformanceMonitor,
-  useTimerCleanup
-} from '../../utils/performance';
+import { canFreelancerStartTimer } from '../../utils/timerSlotValidation';
+import { usePerformanceMonitor, useTimerCalculations, useThrottledValue, useCircularProgress, useVisibilityHandler, useTimerInterval, useTimerHandlers, useTimerCleanup } from '../../hooks/timerHooks';
 
 // Mock user context for demo - replace with real useAppContext in production
-const mockUser = { 
+const mockUser = {
   id: 'demo-user-1',
   name: 'Demo User',
   email: 'demo@example.com',
@@ -113,19 +105,19 @@ export const CountdownTimer = memo(function CountdownTimer({
   const timerRef = useRef<NodeJS.Timeout>()
   const pauseTimerRef = useRef<NodeJS.Timeout>()
   const cardRef = useRef<HTMLDivElement>(null)
-  
+
   // Performance monitoring
   const { getStats } = usePerformanceMonitor('CountdownTimer')
-  
+
   // Accessibility instances
   const announcer = TimerAnnouncer.getInstance()
   const focusManager = FocusManager.getInstance()
-  
+
   // Get timer context for real timer operations
   const {
     startGlobalTimer,
     resumeGlobalTimer,
-    pauseGlobalTimer, 
+    pauseGlobalTimer,
     stopGlobalTimerAndLog,
     hasActiveTimer,
     activeTimers,
@@ -182,7 +174,7 @@ export const CountdownTimer = memo(function CountdownTimer({
         status: currentTimer.isPaused ? 'paused' : 'running',
         // Calculate time remaining if we have allocated hours and start time
         ...(currentTimer.allocatedHours && currentTimer.startTime ? {
-          timeRemaining: Math.max(0, (currentTimer.allocatedHours * 3600) - 
+          timeRemaining: Math.max(0, (currentTimer.allocatedHours * 3600) -
             (Date.now() - new Date(currentTimer.startTime).getTime()) / 1000 - currentTimer.totalPausedTime)
         } : {}),
         pauseTimeUsed: currentTimer.totalPausedTime || prevState.pauseTimeUsed
@@ -194,7 +186,7 @@ export const CountdownTimer = memo(function CountdownTimer({
   const timerTick = useCallback(() => {
     setTimerState(prevState => {
       if (prevState.status !== 'running') return prevState
-      
+
       const newTimeRemaining = prevState.timeRemaining - 1
 
       if (newTimeRemaining <= 0) {
@@ -203,9 +195,9 @@ export const CountdownTimer = memo(function CountdownTimer({
           timeRemaining: 0,
           status: 'completed' as const,
         }
-        
+
         onComplete?.(completedState)
-        
+
         toast({
           title: "Timer Completed!",
           description: `Time allocation for ${jobCardTitle || 'this task'} has been reached.`,
@@ -230,7 +222,7 @@ export const CountdownTimer = memo(function CountdownTimer({
 
       if (newTimeRemaining === 60) { // 1 minute
         toast({
-          title: "1 Minute Remaining", 
+          title: "1 Minute Remaining",
           description: "You have 1 minute left on this timer.",
           variant: "default",
         })
@@ -275,7 +267,7 @@ export const CountdownTimer = memo(function CountdownTimer({
       } catch (error) {
         console.error('Error starting timer:', error)
         toast({
-          title: "Timer Start Error", 
+          title: "Timer Start Error",
           description: "An error occurred while starting the timer.",
           variant: "destructive",
         })
@@ -302,7 +294,7 @@ export const CountdownTimer = memo(function CountdownTimer({
 
           if (newPauseTimeUsed >= maxPauseTime) {
             if (pauseTimerRef.current) clearInterval(pauseTimerRef.current)
-            
+
             toast({
               title: "Pause Time Exceeded",
               description: `Maximum pause time of ${calculations.display.formatted} reached. Timer automatically stopped.`,
@@ -411,7 +403,7 @@ export const CountdownTimer = memo(function CountdownTimer({
   // Initialize accessibility features
   useEffect(() => {
     initializeTimerAccessibility()
-    
+
     // Apply high contrast and reduced motion support
     if (cardRef.current) {
       HighContrastSupport.applyHighContrastStyles(cardRef.current)
@@ -451,7 +443,7 @@ export const CountdownTimer = memo(function CountdownTimer({
       timerState.timeRemaining,
       isOvertime
     )
-    
+
     // Don't announce initial idle state
     if (timerState.status !== 'idle' || timerState.pauseCount > 0) {
       announcer.announce({
@@ -480,7 +472,7 @@ export const CountdownTimer = memo(function CountdownTimer({
     const hours = Math.floor((totalSeconds % 86400) / 3600)
     const minutes = Math.floor((totalSeconds % 3600) / 60)
     const seconds = totalSeconds % 60
-    
+
     return { days, hours, minutes, seconds }
   }, [])
 
@@ -493,14 +485,14 @@ export const CountdownTimer = memo(function CountdownTimer({
   }, [])
 
   // Apply circular progress optimization if available
-  const optimizedCircularProgress = circularProgress ? 
+  const optimizedCircularProgress = circularProgress ?
     { ...getCircleProgress(timerState.timeRemaining, timerState.totalTime), ...circularProgress } :
     getCircleProgress(timerState.timeRemaining, timerState.totalTime)
 
   // Get timer status styling
   const getTimerStatus = useCallback(() => {
     const isExceeded = timerState.timeRemaining === 0 && timerState.status === 'running'
-    
+
     if (isExceeded) return { status: 'exceeded', color: 'text-red-400', variant: 'destructive' as const }
     if (timerState.status === 'paused') return { status: 'paused', color: 'text-yellow-400', variant: 'secondary' as const }
     if (timerState.status === 'running') return { status: 'active', color: 'text-green-400', variant: 'default' as const }
@@ -512,12 +504,12 @@ export const CountdownTimer = memo(function CountdownTimer({
   // Get role-specific timer title
   const getTimerTitle = useCallback(() => {
     const status = getTimerStatus()
-    
+
     if (userRole === 'ADMIN') {
       if (status.status === 'exceeded') return 'Overtime Monitoring'
       return 'Admin View: Timer Active'
     }
-    
+
     if (timerState.status === 'paused') return 'Timer Paused'
     if (status.status === 'exceeded') return 'Time Exceeded'
     if (timerState.timeRemaining > 0) return 'Time Remaining'
@@ -530,6 +522,31 @@ export const CountdownTimer = memo(function CountdownTimer({
 
   const handleStart = useCallback(async () => {
     if (disabled) return
+
+    // Check slot availability before starting timer
+    try {
+      // Use demo user id for validation in this component (replace with real user from context in production)
+      const slotResult = await canFreelancerStartTimer(mockUser.id, projectId || '', jobCardId || '')
+      if (!slotResult.canStart) {
+        toast({
+          title: "Timer Start Failed",
+          description: slotResult.reason || "No available time slots for this task. Please check your time allocation or contact your administrator.",
+          variant: "destructive",
+        })
+
+        // Announce error to screen readers
+        announcer.announce(TimerAnnouncementMessages.ASSIGNMENT_ERROR())
+        return
+      }
+    } catch (error) {
+      console.error('Error checking slot availability:', error)
+      toast({
+        title: "Timer Start Failed",
+        description: "Unable to verify time slot availability. Please try again.",
+        variant: "destructive",
+      })
+      return
+    }
 
     // Clear any existing intervals before starting
     if (timerRef.current) clearInterval(timerRef.current)
@@ -545,7 +562,7 @@ export const CountdownTimer = memo(function CountdownTimer({
             description: "Unable to start timer. Check your permissions and assignment.",
             variant: "destructive",
           })
-          
+
           // Announce error to screen readers
           announcer.announce(TimerAnnouncementMessages.ASSIGNMENT_ERROR())
           return
@@ -573,13 +590,13 @@ export const CountdownTimer = memo(function CountdownTimer({
               timeRemaining: 0,
               status: 'completed' as const,
             }
-            
+
             if (timerRef.current) clearInterval(timerRef.current)
             onComplete?.(completedState)
-            
+
             // Announce completion
             announcer.announce(TimerAnnouncementMessages.TIMER_COMPLETED(jobCardTitle))
-            
+
             toast({
               title: "Timer Completed!",
               description: `Time allocation for ${jobCardTitle || 'this task'} has been reached.`,
@@ -673,10 +690,10 @@ export const CountdownTimer = memo(function CountdownTimer({
         // Check if pause time limit exceeded
         if (newPauseTimeUsed >= maxPauseTime) {
           if (pauseTimerRef.current) clearInterval(pauseTimerRef.current)
-          
+
           // Announce pause limit exceeded
           announcer.announce(TimerAnnouncementMessages.PAUSE_LIMIT_EXCEEDED())
-          
+
           toast({
             title: "Pause Time Exceeded",
             description: `Maximum pause time of ${formatTime(maxPauseTime)} reached. Timer automatically stopped.`,
@@ -696,7 +713,7 @@ export const CountdownTimer = memo(function CountdownTimer({
         if (newPauseTimeUsed === maxPauseTime - PAUSE_WARNING_THRESHOLD) {
           const warningTime = formatTime(PAUSE_WARNING_THRESHOLD)
           announcer.announce(TimerAnnouncementMessages.PAUSE_WARNING(warningTime))
-          
+
           toast({
             title: "Pause Warning",
             description: `Only ${PAUSE_WARNING_THRESHOLD} seconds of pause time remaining.`,
@@ -755,13 +772,13 @@ export const CountdownTimer = memo(function CountdownTimer({
             timeRemaining: 0,
             status: 'completed' as const,
           }
-          
+
           if (timerRef.current) clearInterval(timerRef.current)
           onComplete?.(completedState)
-          
+
           // Announce completion
           announcer.announce(TimerAnnouncementMessages.TIMER_COMPLETED(jobCardTitle))
-          
+
           toast({
             title: "Timer Completed!",
             description: `Time allocation for ${jobCardTitle || 'this task'} has been reached.`,
@@ -795,7 +812,7 @@ export const CountdownTimer = memo(function CountdownTimer({
         await stopGlobalTimerAndLog(projectId, jobCardId, {
           notes: `Timer stopped manually after ${formatTime(timerState.totalTime - timerState.timeRemaining)}`,
           file: undefined
-        }, mockUser, () => {}) // Use mock user and no-op for demo
+        }, mockUser, () => { }) // Use mock user and no-op for demo
       } catch (error) {
         console.error('Failed to stop global timer:', error)
       }
@@ -819,7 +836,7 @@ export const CountdownTimer = memo(function CountdownTimer({
 
   // Extract optimized handlers for button actions (after handle functions are defined)
   const handleOptimizedStart = timerHandlers?.handleStart || handleStart
-  const handleOptimizedPause = timerHandlers?.handlePause || handlePause  
+  const handleOptimizedPause = timerHandlers?.handlePause || handlePause
   const handleOptimizedResume = timerHandlers?.handleResume || handleResume
   const handleOptimizedStop = timerHandlers?.handleStop || handleStop
 
@@ -881,8 +898,8 @@ export const CountdownTimer = memo(function CountdownTimer({
   // High contrast colors
   const statusColors = HighContrastSupport.getHighContrastColors(
     timerState.status === 'running' ? 'running' :
-    timerState.status === 'paused' ? 'paused' :
-    timerState.timeRemaining <= 0 ? 'exceeded' : 'idle'
+      timerState.status === 'paused' ? 'paused' :
+        timerState.timeRemaining <= 0 ? 'exceeded' : 'idle'
   )
 
   // Reduced motion classes
@@ -892,15 +909,15 @@ export const CountdownTimer = memo(function CountdownTimer({
 
   // Circular Progress Ring Component
   const CircularProgressRing = ({ value, max, label, size = 80 }: { value: number; max: number; label: string; size?: number }) => {
-    const { strokeDashoffset, circumference } = value === timerState.timeRemaining && max === timerState.totalTime ? 
+    const { strokeDashoffset, circumference } = value === timerState.timeRemaining && max === timerState.totalTime ?
       optimizedCircularProgress : getCircleProgress(value, max)
     const radius = size * 0.45
-    
+
     return (
       <div className="flex flex-col items-center">
         <div className="relative" style={{ width: size, height: size }}>
-          <svg 
-            className={cn("w-full h-full transform -rotate-90", animationClasses)} 
+          <svg
+            className={cn("w-full h-full transform -rotate-90", animationClasses)}
             viewBox={`0 0 ${size} ${size}`}
             role="img"
             aria-label={`${label}: ${formatTimeUnit(value)} of ${max}`}
@@ -930,7 +947,7 @@ export const CountdownTimer = memo(function CountdownTimer({
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center">
-            <span 
+            <span
               className={`text-xl font-bold ${timerStatus.color}`}
               aria-hidden="true"
             >
@@ -1030,15 +1047,15 @@ export const CountdownTimer = memo(function CountdownTimer({
   // Standard Card Display
   return (
     <TooltipProvider>
-      <Card 
+      <Card
         ref={cardRef}
         className={cn(
-          'w-full max-w-md', 
+          'w-full max-w-md',
           showAsFloating && 'fixed top-20 right-4 z-50 shadow-2xl',
           compactMode && 'max-w-sm',
           className
-        )} 
-        role="timer" 
+        )}
+        role="timer"
         aria-label="Countdown Timer"
         aria-describedby="timer-status timer-time-remaining"
         data-timer-controls="true"
@@ -1089,7 +1106,7 @@ export const CountdownTimer = memo(function CountdownTimer({
         <CardContent className="space-y-6">
           {/* Circular Progress Display */}
           {showCircularProgress ? (
-            <div 
+            <div
               className="flex justify-center space-x-2 mb-6"
               role="group"
               aria-label="Timer progress breakdown"
@@ -1102,19 +1119,19 @@ export const CountdownTimer = memo(function CountdownTimer({
           ) : (
             // Standard Linear Progress Display
             <div className="text-center space-y-2">
-              <div 
-                className="text-4xl font-mono font-bold" 
-                aria-live="polite" 
+              <div
+                className="text-4xl font-mono font-bold"
+                aria-live="polite"
                 aria-label={`Time remaining: ${timeForScreenReader}`}
                 role="timer"
               >
                 {formatTime(timerState.timeRemaining)}
               </div>
-              <Progress 
-                value={progressValue} 
+              <Progress
+                value={progressValue}
                 className={cn("w-full", animationClasses)}
-                aria-valuemin={0} 
-                aria-valuemax={100} 
+                aria-valuemin={0}
+                aria-valuemax={100}
                 aria-valuenow={Math.round(progressValue)}
                 aria-label={progressForScreenReader}
                 style={{
@@ -1131,7 +1148,7 @@ export const CountdownTimer = memo(function CountdownTimer({
 
           {/* Status Badge */}
           <div className="flex justify-center">
-            <Badge 
+            <Badge
               variant={timerStatus.variant}
               className="text-xs"
               role="status"
@@ -1151,7 +1168,7 @@ export const CountdownTimer = memo(function CountdownTimer({
             <Alert role="status" aria-label="Pause information">
               <Clock className="h-4 w-4" aria-hidden="true" />
               <AlertDescription>
-                Pauses: {timerState.pauseCount}/{maxPauseCount} | 
+                Pauses: {timerState.pauseCount}/{maxPauseCount} |
                 Pause time used: {formatTime(timerState.pauseTimeUsed)}/{formatTime(maxPauseTime)}
               </AlertDescription>
             </Alert>
@@ -1192,10 +1209,10 @@ export const CountdownTimer = memo(function CountdownTimer({
             {timerState.status === 'idle' && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    onClick={() => handleOptimizedStart()} 
-                    disabled={disabled} 
-                    className="flex-1" 
+                  <Button
+                    onClick={() => handleOptimizedStart()}
+                    disabled={disabled}
+                    className="flex-1"
                     aria-label="Start timer"
                     data-action="start"
                     ref={(el) => {
@@ -1222,11 +1239,11 @@ export const CountdownTimer = memo(function CountdownTimer({
               <>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      onClick={() => handleOptimizedPause()} 
-                      disabled={disabled || !canPause} 
-                      variant="secondary" 
-                      className="flex-1" 
+                    <Button
+                      onClick={() => handleOptimizedPause()}
+                      disabled={disabled || !canPause}
+                      variant="secondary"
+                      className="flex-1"
                       aria-label="Pause timer"
                       data-action="pause"
                       ref={(el) => {
@@ -1247,14 +1264,14 @@ export const CountdownTimer = memo(function CountdownTimer({
                     <p>Pause timer ({formatTime(pauseTimeRemaining)} pause time left)</p>
                   </TooltipContent>
                 </Tooltip>
-                
+
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      onClick={() => handleOptimizedStop()} 
-                      disabled={disabled} 
-                      variant="destructive" 
-                      className="flex-1" 
+                    <Button
+                      onClick={() => handleOptimizedStop()}
+                      disabled={disabled}
+                      variant="destructive"
+                      className="flex-1"
                       aria-label="Stop timer"
                       data-action="stop"
                       ref={(el) => {
@@ -1281,10 +1298,10 @@ export const CountdownTimer = memo(function CountdownTimer({
               <>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button 
-                      onClick={() => handleOptimizedResume()} 
-                      disabled={disabled || !canResume} 
-                      className="flex-1" 
+                    <Button
+                      onClick={() => handleOptimizedResume()}
+                      disabled={disabled || !canResume}
+                      className="flex-1"
                       aria-label="Resume timer"
                       data-action="resume"
                       ref={(el) => {
@@ -1303,12 +1320,12 @@ export const CountdownTimer = memo(function CountdownTimer({
                     <p>Resume timer</p>
                   </TooltipContent>
                 </Tooltip>
-                
-                <Button 
-                  onClick={() => handleOptimizedStop()} 
-                  disabled={disabled} 
-                  variant="destructive" 
-                  className="flex-1" 
+
+                <Button
+                  onClick={() => handleOptimizedStop()}
+                  disabled={disabled}
+                  variant="destructive"
+                  className="flex-1"
                   aria-label="Stop timer"
                   data-action="stop"
                   ref={(el) => {
@@ -1328,7 +1345,7 @@ export const CountdownTimer = memo(function CountdownTimer({
             {(timerState.status === 'completed' || timerState.status === 'stopped') && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
+                  <Button
                     onClick={() => {
                       setTimerState({
                         status: 'idle',
@@ -1340,8 +1357,8 @@ export const CountdownTimer = memo(function CountdownTimer({
                         jobCardTitle,
                         projectId,
                       })
-                    }} 
-                    disabled={disabled} 
+                    }}
+                    disabled={disabled}
                     className="flex-1"
                     aria-label="Reset timer"
                     data-action="reset"

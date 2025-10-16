@@ -43,7 +43,7 @@ export interface FileOperationResult {
 export class FileMetadataService {
   private static instance: FileMetadataService;
 
-  private constructor() {}
+  private constructor() { }
 
   public static getInstance(): FileMetadataService {
     if (!FileMetadataService.instance) {
@@ -61,7 +61,7 @@ export class FileMetadataService {
     _cloudinaryResult: any
   ): EnhancedFileMetadata {
     const now = Timestamp.now();
-    
+
     return {
       ...metadata,
       uploadedAt: now,
@@ -118,8 +118,8 @@ export class FileMetadataService {
     }
 
     // Substantiation files (for freelancers)
-    if (userRole === UserRole.FREELANCER && 
-        (fileName.includes('proof') || fileName.includes('substantiation') || fileName.includes('evidence'))) {
+    if (userRole === UserRole.FREELANCER &&
+      (fileName.includes('proof') || fileName.includes('substantiation') || fileName.includes('evidence'))) {
       return FileCategory.SUBSTANTIATION;
     }
 
@@ -130,18 +130,18 @@ export class FileMetadataService {
 
     // Archives
     if (mimeType.includes('zip') || mimeType.includes('rar') || mimeType.includes('7z') ||
-        fileName.endsWith('.zip') || fileName.endsWith('.rar') || fileName.endsWith('.7z')) {
+      fileName.endsWith('.zip') || fileName.endsWith('.rar') || fileName.endsWith('.7z')) {
       return FileCategory.ARCHIVES;
     }
 
     // Deliverables (common project file types)
-    if (mimeType.includes('pdf') || 
-        mimeType.includes('word') || 
-        mimeType.includes('excel') || 
-        mimeType.includes('powerpoint') ||
-        fileName.includes('deliverable') || 
-        fileName.includes('final') || 
-        fileName.includes('submission')) {
+    if (mimeType.includes('pdf') ||
+      mimeType.includes('word') ||
+      mimeType.includes('excel') ||
+      mimeType.includes('powerpoint') ||
+      fileName.includes('deliverable') ||
+      fileName.includes('final') ||
+      fileName.includes('submission')) {
       return FileCategory.DELIVERABLES;
     }
 
@@ -324,13 +324,24 @@ export class FileMetadataService {
       totalFiles: 0,
       totalSize: 0,
       filesByCategory: {
-        [FileCategory.DOCUMENTS]: 0,
+        [FileCategory.DRAWINGS]: 0,
+        [FileCategory.SPECIFICATIONS]: 0,
+        [FileCategory.REPORTS]: 0,
+        [FileCategory.CONTRACTS]: 0,
+        [FileCategory.CORRESPONDENCE]: 0,
+        [FileCategory.MODELS]: 0,
         [FileCategory.IMAGES]: 0,
+        [FileCategory.PRESENTATIONS]: 0,
+        [FileCategory.SPREADSHEETS]: 0,
+        [FileCategory.VIDEOS]: 0,
+        [FileCategory.AUDIO]: 0,
+        [FileCategory.DOCUMENTS]: 0,
         [FileCategory.ARCHIVES]: 0,
         [FileCategory.SUBSTANTIATION]: 0,
         [FileCategory.DELIVERABLES]: 0,
         [FileCategory.PROFILE]: 0,
-        [FileCategory.SYSTEM]: 0
+        [FileCategory.SYSTEM]: 0,
+        [FileCategory.OTHER]: 0
       },
       recentFiles: []
     };
@@ -351,11 +362,11 @@ export class FileMetadataService {
     createdAt: Timestamp;
   } {
     const changes: string[] = [];
-    
+
     if (originalFile.name !== newFile.name) {
       changes.push(`Name changed from "${originalFile.name}" to "${newFile.name}"`);
     }
-    
+
     if (originalFile.size !== newFile.size) {
       changes.push(`Size changed from ${originalFile.size} to ${newFile.size} bytes`);
     }

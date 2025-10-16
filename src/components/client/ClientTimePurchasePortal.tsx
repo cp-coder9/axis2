@@ -87,8 +87,14 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
     const [loading, setLoading] = useState(true);
     const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
     const [isPurchaseDialogOpen, setIsPurchaseDialogOpen] = useState(false);
+    const [isSuccessDialogOpen, setIsSuccessDialogOpen] = useState(false);
+    const [sortBy, setSortBy] = useState<'date' | 'price' | 'duration' | 'freelancer'>('date');
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [priceRange, setPriceRange] = useState<[number, number]>([0, 500]);
+    const [selectedFreelancers, setSelectedFreelancers] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
-    const [selectedProject, setSelectedProject] = useState<string>('all');
+    const [selectedProject, setSelectedProject] = useState('all');
+    const [purchaseReceipt, setPurchaseReceipt] = useState<any>(null);
     const [activeTab, setActiveTab] = useState('available');
 
     // Load data on component mount
@@ -134,23 +140,68 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
         }
     };
 
-    // Filter slots based on search and project
+    // Filter and sort slots
     const filteredSlots = useMemo(() => {
         let filtered = activeTab === 'available' ? availableSlots : clientPurchases;
 
+        // Text search
         if (searchTerm) {
             filtered = filtered.filter(slot =>
                 slot.freelancerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                slot.projectId.toLowerCase().includes(searchTerm.toLowerCase())
+                projects.find(p => p.id === slot.projectId)?.title.toLowerCase().includes(searchTerm.toLowerCase())
             );
         }
 
+        // Project filter
         if (selectedProject !== 'all') {
             filtered = filtered.filter(slot => slot.projectId === selectedProject);
         }
 
+        // Freelancer filter
+        if (selectedFreelancers.length > 0) {
+            filtered = filtered.filter(slot => selectedFreelancers.includes(slot.freelancerId));
+        }
+
+        // Price range filter
+        filtered = filtered.filter(slot => {
+            const totalPrice = slot.durationHours * slot.hourlyRate;
+            return totalPrice >= priceRange[0] && totalPrice <= priceRange[1];
+        });
+
+        // Sorting
+        filtered.sort((a, b) => {
+            let comparison = 0;
+
+            switch (sortBy) {
+                case 'date':
+                    comparison = a.startTime.toDate().getTime() - b.startTime.toDate().getTime();
+                    break;
+                case 'price':
+                    comparison = (a.durationHours * a.hourlyRate) - (b.durationHours * b.hourlyRate);
+                    break;
+                case 'duration':
+                    comparison = a.durationHours - b.durationHours;
+                    break;
+                case 'freelancer':
+                    comparison = a.freelancerName.localeCompare(b.freelancerName);
+                    break;
+            }
+
+            return sortOrder === 'asc' ? comparison : -comparison;
+        });
+
         return filtered;
-    }, [availableSlots, clientPurchases, searchTerm, selectedProject, activeTab]);
+    }, [availableSlots, clientPurchases, searchTerm, selectedProject, selectedFreelancers, priceRange, sortBy, sortOrder, activeTab, projects]);
+
+    // Get freelancer options for filter
+    const freelancerOptions = useMemo(() => {
+        const freelancers = new Set<string>();
+        availableSlots.forEach(slot => freelancers.add(slot.freelancerId));
+        return Array.from(freelancers).map(freelancerId => {
+            const slot = availableSlots.find(s => s.freelancerId === freelancerId);
+            return { id: freelancerId, name: slot?.freelancerName || '' };
+        });
+    }, [availableSlots]);
 
     // Get project options for filter
     const projectOptions = useMemo(() => {
@@ -165,16 +216,79 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
 
         try {
             await purchaseTimeSlot(selectedSlot.id, user.id, user.name);
+
+            // Generate receipt
+            const receipt = {
+                id: `RCP-${Date.now()}`,
+                purchaseDate: new Date(),
+                clientName: user.name,
+                clientId: user.id,
+                freelancerName: selectedSlot.freelancerName,
+                projectTitle: projects.find(p => p.id === selectedSlot.projectId)?.title || 'Unknown Project',
+                durationHours: selectedSlot.durationHours,
+                hourlyRate: selectedSlot.hourlyRate,
+                totalAmount: selectedSlot.durationHours * selectedSlot.hourlyRate,
+                startDate: selectedSlot.startTime.toDate(),
+                slotId: selectedSlot.id
+            };
+            setPurchaseReceipt(receipt);
+
             setIsPurchaseDialogOpen(false);
             setSelectedSlot(null);
 
-            // Reload data
-            await loadAvailableSlots();
-            await loadClientPurchases();
+            // Show success dialog
+            setIsSuccessDialogOpen(true);
         } catch (error) {
             console.error('Error purchasing time slot:', error);
             // TODO: Show error toast
         }
+    };
+
+    const downloadReceipt = () => {
+        if (!purchaseReceipt) return;
+
+        const receiptText = `
+TIME SLOT PURCHASE RECEIPT
+==========================
+
+Receipt ID: ${purchaseReceipt.id}
+Purchase Date: ${format(purchaseReceipt.purchaseDate, 'PPP')}
+
+CLIENT INFORMATION
+------------------
+Name: ${purchaseReceipt.clientName}
+ID: ${purchaseReceipt.clientId}
+
+TIME SLOT DETAILS
+-----------------
+Freelancer: ${purchaseReceipt.freelancerName}
+Project: ${purchaseReceipt.projectTitle}
+Duration: ${purchaseReceipt.durationHours} hours
+Hourly Rate: $${purchaseReceipt.hourlyRate}
+Start Date: ${format(purchaseReceipt.startDate, 'PPP')}
+
+PAYMENT SUMMARY
+---------------
+Subtotal: $${purchaseReceipt.totalAmount.toFixed(2)}
+Tax: $0.00
+Total: $${purchaseReceipt.totalAmount.toFixed(2)}
+
+Slot ID: ${purchaseReceipt.slotId}
+
+Thank you for your purchase!
+Generated on ${format(new Date(), 'PPP')}
+        `.trim();
+
+        const blob = new Blob([receiptText], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `receipt-${purchaseReceipt.id}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        setPurchaseReceipt(null);
     };
 
     const getSlotStatusBadge = (status: TimeSlotStatus) => {
@@ -259,8 +373,9 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
             {/* Search and Filters */}
             <Card>
                 <CardContent className="pt-6">
-                    <div className="flex flex-col md:flex-row gap-4">
-                        <div className="relative flex-1">
+                    <div className="space-y-4">
+                        {/* Search Bar */}
+                        <div className="relative">
                             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
                             <Input
                                 placeholder="Search by freelancer name or project..."
@@ -269,19 +384,95 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
                                 className="pl-10"
                             />
                         </div>
-                        <Select value={selectedProject} onValueChange={setSelectedProject}>
-                            <SelectTrigger className="w-full md:w-[200px]">
-                                <SelectValue placeholder="Filter by project" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all">All Projects</SelectItem>
-                                {projectOptions.map((project) => (
-                                    <SelectItem key={project.id} value={project.id}>
-                                        {project.title}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+
+                        {/* Filters Row */}
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <Select value={selectedProject} onValueChange={setSelectedProject}>
+                                <SelectTrigger>
+                                    <SelectValue placeholder="All Projects" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">All Projects</SelectItem>
+                                    {projectOptions.map((project) => (
+                                        <SelectItem key={project.id} value={project.id}>
+                                            {project.title}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={sortBy}
+                                onValueChange={(value: 'date' | 'price' | 'duration' | 'freelancer') => setSortBy(value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Sort by" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="date">Date</SelectItem>
+                                    <SelectItem value="price">Price</SelectItem>
+                                    <SelectItem value="duration">Duration</SelectItem>
+                                    <SelectItem value="freelancer">Freelancer</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <Select
+                                value={sortOrder}
+                                onValueChange={(value: 'asc' | 'desc') => setSortOrder(value)}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue placeholder="Order" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="asc">Ascending</SelectItem>
+                                    <SelectItem value="desc">Descending</SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-muted-foreground">Price:</span>
+                                <Input
+                                    type="number"
+                                    placeholder="Min"
+                                    value={priceRange[0]}
+                                    onChange={(e) => setPriceRange([parseInt(e.target.value) || 0, priceRange[1]])}
+                                    className="w-20"
+                                />
+                                <span className="text-muted-foreground">-</span>
+                                <Input
+                                    type="number"
+                                    placeholder="Max"
+                                    value={priceRange[1]}
+                                    onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value) || 500])}
+                                    className="w-20"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Freelancer Filter */}
+                        {freelancerOptions.length > 0 && (
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium">Filter by Freelancers:</Label>
+                                <div className="flex flex-wrap gap-2">
+                                    {freelancerOptions.map((freelancer) => (
+                                        <Badge
+                                            key={freelancer.id}
+                                            variant={selectedFreelancers.includes(freelancer.id) ? "default" : "outline"}
+                                            className="cursor-pointer"
+                                            onClick={() => {
+                                                setSelectedFreelancers(prev =>
+                                                    prev.includes(freelancer.id)
+                                                        ? prev.filter(id => id !== freelancer.id)
+                                                        : [...prev, freelancer.id]
+                                                );
+                                            }}
+                                        >
+                                            {freelancer.name}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
             </Card>
@@ -341,8 +532,39 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
                                                         <AvatarFallback>{slot.freelancerName.charAt(0)}</AvatarFallback>
                                                     </Avatar>
                                                     <div>
-                                                        <h3 className="font-semibold">{slot.freelancerName}</h3>
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="font-semibold">{slot.freelancerName}</h3>
+                                                            <div className="flex items-center">
+                                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                                    <Star
+                                                                        key={star}
+                                                                        className={cn(
+                                                                            "h-4 w-4",
+                                                                            star <= (slot.freelancerRating || 4.5)
+                                                                                ? "fill-yellow-400 text-yellow-400"
+                                                                                : "text-gray-300"
+                                                                        )}
+                                                                    />
+                                                                ))}
+                                                                <span className="text-sm text-muted-foreground ml-1">
+                                                                    {(slot.freelancerRating || 4.5).toFixed(1)}
+                                                                </span>
+                                                            </div>
+                                                        </div>
                                                         <p className="text-sm text-muted-foreground">{project?.title}</p>
+                                                        {project && (
+                                                            <div className="flex items-center gap-2 mt-1">
+                                                                <div className="w-20 bg-gray-200 rounded-full h-1.5">
+                                                                    <div
+                                                                        className="bg-green-500 h-1.5 rounded-full"
+                                                                        style={{ width: `${project.progress || 0}%` }}
+                                                                    ></div>
+                                                                </div>
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {project.progress || 0}% complete
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                         <div className="flex items-center gap-4 mt-1">
                                                             <div className="flex items-center text-sm">
                                                                 <Timer className="h-4 w-4 mr-1" />
@@ -425,6 +647,21 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
                                                                                 <span>${(selectedSlot.durationHours * selectedSlot.hourlyRate).toLocaleString()}</span>
                                                                             </div>
                                                                         </div>
+
+                                                                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                                                                            <div className="flex items-start gap-2">
+                                                                                <Info className="h-4 w-4 text-blue-600 mt-0.5" />
+                                                                                <div className="text-sm text-blue-800">
+                                                                                    <p className="font-medium">What happens next?</p>
+                                                                                    <ul className="mt-1 space-y-1 text-xs">
+                                                                                        <li>• Time slot will be reserved for your project</li>
+                                                                                        <li>• Freelancer will be notified of the assignment</li>
+                                                                                        <li>• You will receive a receipt for your records</li>
+                                                                                        <li>• Work can begin on the scheduled start date</li>
+                                                                                    </ul>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
                                                                 )}
 
@@ -436,6 +673,50 @@ export const ClientTimePurchasePortal: React.FC<ClientTimePurchasePortalProps> =
                                                                         <CreditCard className="h-4 w-4 mr-2" />
                                                                         Confirm Purchase
                                                                     </Button>
+                                                                </DialogFooter>
+                                                            </DialogContent>
+                                                        </Dialog>
+
+                                                        {/* Success Dialog */}
+                                                        <Dialog open={isSuccessDialogOpen} onOpenChange={setIsSuccessDialogOpen}>
+                                                            <DialogContent>
+                                                                <DialogHeader>
+                                                                    <DialogTitle className="flex items-center gap-2">
+                                                                        <CheckCircle className="h-5 w-5 text-green-600" />
+                                                                        Purchase Successful!
+                                                                    </DialogTitle>
+                                                                    <DialogDescription>
+                                                                        Your time slot has been purchased successfully.
+                                                                    </DialogDescription>
+                                                                </DialogHeader>
+
+                                                                {purchaseReceipt && (
+                                                                    <div className="py-4">
+                                                                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                                                            <div className="flex items-center gap-2 mb-2">
+                                                                                <CheckCircle className="h-4 w-4 text-green-600" />
+                                                                                <span className="font-medium text-green-800">Time slot reserved</span>
+                                                                            </div>
+                                                                            <div className="text-sm text-green-700 space-y-1">
+                                                                                <p>Receipt ID: <span className="font-mono">{purchaseReceipt.id}</span></p>
+                                                                                <p>Freelancer: {purchaseReceipt.freelancerName}</p>
+                                                                                <p>Project: {purchaseReceipt.projectTitle}</p>
+                                                                                <p>Total: ${purchaseReceipt.totalAmount.toLocaleString()}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                <DialogFooter>
+                                                                    <Button variant="outline" onClick={() => setIsSuccessDialogOpen(false)}>
+                                                                        Close
+                                                                    </Button>
+                                                                    {purchaseReceipt && (
+                                                                        <Button onClick={downloadReceipt}>
+                                                                            <Info className="h-4 w-4 mr-2" />
+                                                                            Download Receipt
+                                                                        </Button>
+                                                                    )}
                                                                 </DialogFooter>
                                                             </DialogContent>
                                                         </Dialog>

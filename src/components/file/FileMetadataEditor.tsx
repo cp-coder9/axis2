@@ -70,6 +70,8 @@ const fileMetadataSchema = z.object({
   tags: z.array(z.string()).default([]),
   permissions: z.object({
     level: z.nativeEnum(FilePermissionLevel),
+    allowView: z.boolean(),
+    allowEdit: z.boolean(),
     allowDownload: z.boolean(),
     allowShare: z.boolean(),
     allowDelete: z.boolean(),
@@ -108,6 +110,8 @@ interface FileMetadataEditorProps {
 
 const getPermissionIcon = (permission: string) => {
   switch (permission) {
+    case 'allowView': return <Eye className="h-4 w-4" />;
+    case 'allowEdit': return <Edit3 className="h-4 w-4" />;
     case 'allowDownload': return <Download className="h-4 w-4" />;
     case 'allowShare': return <Share2 className="h-4 w-4" />;
     case 'allowDelete': return <Trash2 className="h-4 w-4" />;
@@ -119,6 +123,8 @@ const getPermissionIcon = (permission: string) => {
 
 const getPermissionLabel = (permission: string) => {
   switch (permission) {
+    case 'allowView': return 'Allow View';
+    case 'allowEdit': return 'Allow Edit';
     case 'allowDownload': return 'Allow Download';
     case 'allowShare': return 'Allow Sharing';
     case 'allowDelete': return 'Allow Deletion';
@@ -154,6 +160,8 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
       tags: file.tags || [],
       permissions: {
         level: file.permissions?.level || FilePermissionLevel.PROJECT_TEAM,
+        allowView: file.permissions?.allowView ?? true,
+        allowEdit: file.permissions?.allowEdit ?? false,
         allowDownload: file.permissions?.allowDownload ?? true,
         allowShare: file.permissions?.allowShare ?? false,
         allowDelete: file.permissions?.allowDelete ?? false,
@@ -173,6 +181,8 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
         tags: file.tags || [],
         permissions: {
           level: file.permissions?.level || FilePermissionLevel.PROJECT_TEAM,
+          allowView: file.permissions?.allowView ?? true,
+          allowEdit: file.permissions?.allowEdit ?? false,
           allowDownload: file.permissions?.allowDownload ?? true,
           allowShare: file.permissions?.allowShare ?? false,
           allowDelete: file.permissions?.allowDelete ?? false,
@@ -472,7 +482,7 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                 <div className="space-y-4">
                   <h4 className="font-medium">Individual Permissions</h4>
                   <div className="grid grid-cols-1 gap-4">
-                    {(['allowDownload', 'allowShare', 'allowDelete', 'allowVersioning', 'allowComments'] as const).map((permission) => {
+                    {(['allowView', 'allowEdit', 'allowDownload', 'allowShare', 'allowDelete', 'allowVersioning', 'allowComments'] as const).map((permission) => {
                       const fieldName = `permissions.${permission}` as PermissionFieldName;
                       return (
                         <FormField<FileMetadataFormSchema, PermissionFieldName>
@@ -487,6 +497,8 @@ export const FileMetadataEditor: React.FC<FileMetadataEditorProps> = ({
                                   {getPermissionLabel(permission)}
                                 </FormLabel>
                                 <FormDescription>
+                                  {permission === 'allowView' && 'Allow users to view this file'}
+                                  {permission === 'allowEdit' && 'Allow users to edit this file'}
                                   {permission === 'allowDownload' && 'Allow users to download this file'}
                                   {permission === 'allowShare' && 'Allow users to share this file with others'}
                                   {permission === 'allowDelete' && 'Allow users to delete this file'}

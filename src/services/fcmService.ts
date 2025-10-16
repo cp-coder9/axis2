@@ -12,7 +12,8 @@ import {
     collection,
     query,
     where,
-    getDocs
+    getDocs,
+    Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { FCMToken, Platform } from '../types/notifications';
@@ -69,8 +70,8 @@ export const storeFCMToken = async (userId: string, token: string, platform: Pla
             token,
             deviceId,
             platform,
-            createdAt: new Date(),
-            lastUsed: new Date()
+            createdAt: Timestamp.now(),
+            lastUsed: Timestamp.now()
         };
 
         const tokenDocRef = doc(collection(db, FCM_TOKENS_COLLECTION), `${userId}_${deviceId}`);

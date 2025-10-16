@@ -105,10 +105,10 @@ export const ShadcnFileManagementDashboard: React.FC<ShadcnFileManagementDashboa
   const [analytics, setAnalytics] = useState<{
     totalFiles: number;
     totalSize: number;
-    filesByCategory: Record<FileCategory, number>;
+    filesByCategory: Record<string, number>;
     filesByUploader: Record<string, number>;
     mostAccessedFiles: { file: ProjectFile; accessCount: number }[];
-    recentlyUploadedFiles: ProjectFile[];
+    recentlyUploadedFiles: { id: string; name: string; uploadedAt: any }[];
   } | null>(null);
 
   const project = projects.find(p => p.id === projectId);

@@ -33,7 +33,7 @@ const menuData = {
       roles: ['Admin', 'Freelancer', 'Client'],
     },
     {
-      title: "Dashboard", 
+      title: "Dashboard",
       url: "/dashboard",
       icon: BarChart3,
       roles: ['Admin', 'Freelancer', 'Client'],
@@ -52,7 +52,7 @@ const menuData = {
           roles: ['Admin', 'Freelancer', 'Client'],
         },
         {
-          title: "Archived Projects", 
+          title: "Archived Projects",
           url: "/projects/archived",
           roles: ['Admin', 'Freelancer'],
         },
@@ -62,7 +62,7 @@ const menuData = {
   work: [
     {
       title: "Tasks",
-      url: "/tasks", 
+      url: "/tasks",
       icon: CheckSquare,
       badge: "8",
       roles: ['Admin', 'Freelancer'],
@@ -80,8 +80,14 @@ const menuData = {
       roles: ['Admin', 'Freelancer'],
     },
     {
+      title: "Time Purchase",
+      url: "/time-purchase",
+      icon: CreditCard,
+      roles: ['Client'],
+    },
+    {
       title: "Calendar",
-      url: "/calendar", 
+      url: "/calendar",
       icon: Calendar,
       roles: ['Admin', 'Freelancer', 'Client'],
     },
@@ -104,7 +110,7 @@ const menuData = {
       title: "Notifications",
       url: "/notifications",
       icon: Bell,
-      badge: "5", 
+      badge: "5",
       roles: ['Admin', 'Freelancer', 'Client'],
     },
   ],
@@ -113,6 +119,12 @@ const menuData = {
       title: "Analytics",
       url: "/analytics",
       icon: BarChart3,
+      roles: ['Admin'],
+    },
+    {
+      title: "Time Planning",
+      url: "/time-planning",
+      icon: Clock,
       roles: ['Admin'],
     },
     {
@@ -168,9 +180,9 @@ export function AppSidebar({ userRole = 'Admin' }: AppSidebarProps) {
   const rolePrefix = getRolePrefix()
 
   // Filter menu items based on user role
-  const filterByRole = (items: any[]) => 
+  const filterByRole = (items: any[]) =>
     items.filter(item => !item.roles || item.roles.includes(userRole))
-  
+
   // Add role prefix to URL
   const getRoleUrl = (url: string) => {
     if (url === '/') return url
@@ -189,7 +201,7 @@ export function AppSidebar({ userRole = 'Admin' }: AppSidebarProps) {
             <p className="text-xs text-muted-foreground">Project Management</p>
           </div>
         </div>
-        
+
         {/* User role indicator */}
         <div className="mt-3">
           <div className={cn(

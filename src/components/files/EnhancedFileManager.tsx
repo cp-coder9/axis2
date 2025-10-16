@@ -5,45 +5,45 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
 } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { 
-  FileText, 
-  Download, 
-  Share, 
-  Trash2, 
-  Eye, 
-  MoreHorizontal, 
-  Upload, 
-  Shield, 
+import {
+  FileText,
+  Download,
+  Share,
+  Trash2,
+  Eye,
+  MoreHorizontal,
+  Upload,
+  Shield,
   Clock,
   AlertTriangle
 } from 'lucide-react';
 
 // Import unused file management utilities
-import { 
-  fileAuditLogger, 
-  FileAuditAction, 
+import {
+  fileAuditLogger,
+  FileAuditAction,
   AuditSeverity,
-  FileAuditEntry 
+  FileAuditEntry
 } from '@/utils/fileAuditLogger';
-import { 
-  checkFileAccess, 
-  filterAccessibleFiles, 
+import {
+  checkFileAccess,
+  filterAccessibleFiles,
   getPermissionSummary,
   validatePermissionChange,
   getDefaultPermissions
@@ -89,8 +89,13 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
           uploaderName: 'System User',
           uploadedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0, toDate: () => new Date(), toMillis: () => Date.now(), isEqual: () => false } as any,
           projectId: projectId || 'project-1',
+          category: 'DOCUMENTS' as any,
+          permissionLevel: 'CLIENT_VISIBLE' as any,
+          uploadedBy: 'user-1',
           permissions: {
             level: 'CLIENT_VISIBLE' as any,
+            allowView: true,
+            allowEdit: false,
             allowDownload: true,
             allowShare: false,
             allowDelete: false,
@@ -109,8 +114,13 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
           uploaderName: 'System User',
           uploadedAt: { seconds: Math.floor((Date.now() - 86400000) / 1000), nanoseconds: 0, toDate: () => new Date(Date.now() - 86400000), toMillis: () => Date.now() - 86400000, isEqual: () => false } as any,
           projectId: projectId || 'project-1',
+          category: 'ARCHIVES' as any,
+          permissionLevel: 'PROJECT_TEAM' as any,
+          uploadedBy: 'user-2',
           permissions: {
             level: 'PROJECT_TEAM' as any,
+            allowView: true,
+            allowEdit: true,
             allowDownload: true,
             allowShare: true,
             allowDelete: true,
@@ -124,8 +134,8 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
       if (user) {
         // Use unused filterAccessibleFiles utility
         const accessibleFiles = filterAccessibleFiles(
-          mockFiles, 
-          user, 
+          mockFiles,
+          user,
           ['user-1', 'user-2'], // Mock project member IDs
           { 'file-1': 'user-1', 'file-2': 'user-2' } // Mock file owner mapping
         );
@@ -150,10 +160,10 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
 
     // Use unused checkFileAccess utility
     const access = checkFileAccess(file, user, true, file.uploaderId === user.id);
-    
-    if ((accessType === 'VIEW' && !access.canView) || 
-        (accessType === 'DOWNLOAD' && !access.canDownload)) {
-      
+
+    if ((accessType === 'VIEW' && !access.canView) ||
+      (accessType === 'DOWNLOAD' && !access.canDownload)) {
+
       // Log unauthorized access attempt using unused audit logger
       await fileAuditLogger.logUnauthorizedAccess(
         file.id,
@@ -165,7 +175,7 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
         access.reason || 'Access denied',
         { projectId }
       );
-      
+
       alert(`Access denied: ${access.reason}`);
       return;
     }
@@ -204,12 +214,12 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
     if (!uploadedFiles || !user) return;
 
     setIsUploading(true);
-    
+
     try {
       for (const file of Array.from(uploadedFiles)) {
         // Use unused getDefaultPermissions utility
         const defaultPermissions = getDefaultPermissions(user.role, true);
-        
+
         const newFile: ProjectFile = {
           id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           name: file.name,
@@ -219,6 +229,9 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
           uploaderName: user.name,
           uploadedAt: { seconds: Math.floor(Date.now() / 1000), nanoseconds: 0, toDate: () => new Date(), toMillis: () => Date.now(), isEqual: () => false } as any,
           projectId: projectId || 'default',
+          category: 'DOCUMENTS' as any, // Default category for uploaded files
+          permissionLevel: defaultPermissions.level,
+          uploadedBy: user.id,
           permissions: defaultPermissions,
           url: URL.createObjectURL(file) // Mock URL
         };
@@ -307,7 +320,7 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
     );
 
     // Update file permissions
-    setFiles(prev => prev.map(f => 
+    setFiles(prev => prev.map(f =>
       f.id === file.id ? { ...f, permissions: newPermissions } : f
     ));
 
@@ -403,7 +416,7 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
                   {filteredFiles.map((file) => {
                     const access = user ? checkFileAccess(file, user, true, file.uploaderId === user.id) : null;
                     const permissionSummary = getPermissionSummary(file.permissions);
-                    
+
                     return (
                       <TableRow key={file.id}>
                         <TableCell className="font-medium">
@@ -550,7 +563,7 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {files.map((file) => {
                     const fileSummary = fileAuditLogger.getFileSummary(file.id);
-                    
+
                     return (
                       <Card key={file.id}>
                         <CardHeader className="pb-3">
@@ -634,12 +647,12 @@ export function EnhancedFileManager({ projectId, showAuditLog = true }: Enhanced
                   </div>
                 </div>
               </div>
-              
+
               {selectedFile.thumbnailUrl && (
                 <div>
                   <Label>Preview</Label>
-                  <img 
-                    src={selectedFile.thumbnailUrl} 
+                  <img
+                    src={selectedFile.thumbnailUrl}
                     alt={selectedFile.name}
                     className="max-w-full h-auto border rounded"
                   />

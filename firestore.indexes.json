@@ -43,7 +43,7 @@
       ]
     },
     {
-      "collectionGroup": "jobCards",
+      "collectionGroup": "jobs",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -57,12 +57,12 @@
       ]
     },
     {
-      "collectionGroup": "jobCards",
+      "collectionGroup": "jobs",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "assignedTo",
-          "order": "ASCENDING"
+          "fieldPath": "assignedArchitectIds",
+          "arrayConfig": "CONTAINS"
         },
         {
           "fieldPath": "updatedAt",
@@ -71,7 +71,7 @@
       ]
     },
     {
-      "collectionGroup": "jobCards",
+      "collectionGroup": "jobs",
       "queryScope": "COLLECTION",
       "fields": [
         {
@@ -85,11 +85,67 @@
       ]
     },
     {
-      "collectionGroup": "timeEntries",
+      "collectionGroup": "tasks",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "userId",
+          "fieldPath": "jobId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "assignedToId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "priority",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "dueDate",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "timeLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "projectId",
           "order": "ASCENDING"
         },
         {
@@ -99,11 +155,39 @@
       ]
     },
     {
-      "collectionGroup": "timeEntries",
+      "collectionGroup": "timeLogs",
       "queryScope": "COLLECTION",
       "fields": [
         {
-          "fieldPath": "projectId",
+          "fieldPath": "jobId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "timeLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "startTime",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "timeLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "loggedById",
           "order": "ASCENDING"
         },
         {

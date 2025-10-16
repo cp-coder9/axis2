@@ -67,8 +67,8 @@ interface SnapPoint {
 }
 
 interface BottomSheetContentProps
-  extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>,
-    VariantProps<typeof bottomSheetContentVariants> {
+  extends Omit<React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>, 'onDragEnd'>,
+  VariantProps<typeof bottomSheetContentVariants> {
   showHandle?: boolean
   showCloseButton?: boolean
   onDragEnd?: (velocity: number) => void
@@ -82,10 +82,10 @@ interface BottomSheetContentProps
 const BottomSheetContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
   BottomSheetContentProps
->(({ 
-  className, 
-  children, 
-  variant = "default", 
+>(({
+  className,
+  children,
+  variant = "default",
   height = "auto",
   snapBehavior = "spring",
   showHandle = true,
@@ -96,7 +96,7 @@ const BottomSheetContent = React.forwardRef<
   onSnapPointChange,
   dragThreshold = 100,
   velocityThreshold = 0.5,
-  ...props 
+  ...props
 }, ref) => {
   const [isDragging, setIsDragging] = React.useState(false)
   const [startY, setStartY] = React.useState(0)
@@ -160,7 +160,7 @@ const BottomSheetContent = React.forwardRef<
     const targetPosition = viewportHeight - targetHeight
 
     contentRef.current.style.transform = `translateY(${targetPosition - viewportHeight}px)`
-    
+
     // Update current snap point
     const newSnapPointIndex = snapPoints.findIndex(sp => sp.height === snapPoint.height)
     if (newSnapPointIndex !== -1) {
@@ -185,12 +185,12 @@ const BottomSheetContent = React.forwardRef<
 
   const handleTouchMove = React.useCallback((e: React.TouchEvent) => {
     if (!isDragging) return
-    
+
     const touchY = e.touches[0].clientY
     const deltaY = touchY - startY
-    
+
     setCurrentY(touchY)
-    
+
     if (contentRef.current) {
       // Allow both up and down dragging for snap points
       if (snapPoints.length > 0) {
@@ -206,7 +206,7 @@ const BottomSheetContent = React.forwardRef<
 
   const handleTouchEnd = React.useCallback(() => {
     if (!isDragging) return
-    
+
     setIsDragging(false)
     const deltaY = currentY - startY
     const deltaTime = Date.now() - startTime
@@ -254,14 +254,14 @@ const BottomSheetContent = React.forwardRef<
               <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full cursor-grab active:cursor-grabbing" />
             </div>
           )}
-          
+
           {showCloseButton && (
             <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-all duration-200 hover:opacity-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none">
               <X className="h-4 w-4" />
               <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
           )}
-          
+
           <div className="overflow-y-auto max-h-full">
             {children}
           </div>

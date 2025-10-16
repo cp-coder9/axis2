@@ -260,7 +260,7 @@ export const RoleBasedFileUpload = forwardRef<RoleBasedFileUploadHandle, RoleBas
 
     const handleUpload = useCallback(async (files?: File[]) => {
       const filesToUpload = files || selectedFiles;
-      
+
       if (filesToUpload.length === 0 || !isConfigured) return;
 
       if (!selectedCategory) {
@@ -287,8 +287,12 @@ export const RoleBasedFileUpload = forwardRef<RoleBasedFileUploadHandle, RoleBas
         // Set permissions based on role and selection
         const filesWithPermissions = uploadedFiles.map(file => ({
           ...file,
+          permissionLevel: permissionLevel,
+          uploadedBy: userId,
           permissions: {
             level: permissionLevel,
+            allowView: true,
+            allowEdit: userRole === UserRole.ADMIN,
             allowDownload: true,
             allowShare: userRole === UserRole.ADMIN,
             allowDelete: userRole === UserRole.ADMIN || file.uploaderId === userId,
@@ -299,7 +303,7 @@ export const RoleBasedFileUpload = forwardRef<RoleBasedFileUploadHandle, RoleBas
 
         onUploadComplete(filesWithPermissions);
         clearSelectedFiles();
-        
+
         // Update used quota (in real app, this would be fetched from backend)
         const uploadedSize = filesToUpload.reduce((sum, file) => sum + file.size, 0);
         setUsedQuota(prev => prev + uploadedSize);
@@ -331,7 +335,7 @@ export const RoleBasedFileUpload = forwardRef<RoleBasedFileUploadHandle, RoleBas
             <p className="text-sm text-muted-foreground">
               {roleConfig.description}
             </p>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <Upload className="h-4 w-4 text-muted-foreground" />
@@ -368,11 +372,10 @@ export const RoleBasedFileUpload = forwardRef<RoleBasedFileUploadHandle, RoleBas
         <Card>
           <CardContent className="p-6">
             <div
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-                dragActive
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${dragActive
                   ? 'border-primary bg-primary/5'
                   : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-              }`}
+                }`}
               role="button"
               tabIndex={0}
               onDragEnter={handleDrag}
@@ -545,7 +548,7 @@ export const RoleBasedFileUpload = forwardRef<RoleBasedFileUploadHandle, RoleBas
               </div>
 
               <Separator className="my-4" />
-              
+
               <div className="flex justify-end">
                 <Button
                   onClick={() => handleUpload()}
@@ -595,10 +598,10 @@ export const RoleBasedFileUpload = forwardRef<RoleBasedFileUploadHandle, RoleBas
                       <div className="flex items-center space-x-2">
                         <Badge variant={
                           upload.status === 'completed' ? 'default' :
-                          upload.status === 'error' ? 'destructive' : 'secondary'
+                            upload.status === 'error' ? 'destructive' : 'secondary'
                         }>
                           {upload.status === 'completed' ? 'Complete' :
-                           upload.status === 'error' ? 'Failed' : `${upload.progress}%`}
+                            upload.status === 'error' ? 'Failed' : `${upload.progress}%`}
                         </Badge>
                         <Button
                           variant="ghost"

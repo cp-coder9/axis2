@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  FolderOpen, 
-  MessageSquare, 
-  FileText, 
+import {
+  FolderOpen,
+  MessageSquare,
+  FileText,
   Calendar,
   TrendingUp,
   Clock,
@@ -34,7 +34,7 @@ export default function ClientDashboard() {
       await new Promise(resolve => setTimeout(resolve, 1000));
       setIsLoading(false);
     };
-    
+
     loadClientData();
   }, []);
 
@@ -289,7 +289,7 @@ export default function ClientDashboard() {
               <CardDescription>Complete list of your projects</CardDescription>
             </CardHeader>
             <CardContent>
-              <ClientProjectOverview 
+              <ClientProjectOverview
                 onViewProject={(projectId) => console.log('View project:', projectId)}
                 onMessageTeam={(projectId) => console.log('Message team for project:', projectId)}
               />
@@ -304,10 +304,10 @@ export default function ClientDashboard() {
               <CardDescription>Communication with your project team</CardDescription>
             </CardHeader>
             <CardContent>
-              <ClientMessagingInterface 
-                onSendMessage={(conversationId, content) => console.log('Send message:', { conversationId, content })}
-                onMarkAsRead={(messageId) => console.log('Mark as read:', messageId)}
-                onStartCall={(contactId, type) => console.log('Start call:', { contactId, type })}
+              <ClientMessagingInterface
+                onSendMessage={async (conversationId, content) => console.log('Send message:', { conversationId, content })}
+                onMarkAsRead={async (messageId) => console.log('Mark as read:', messageId)}
+                onStartCall={async (contactId, type) => console.log('Start call:', { contactId, type })}
               />
             </CardContent>
           </Card>
@@ -320,14 +320,14 @@ export default function ClientDashboard() {
               <CardDescription>All project documents and files</CardDescription>
             </CardHeader>
             <CardContent>
-              <ClientFileAccessSystem 
-                onDownloadFile={(fileId) => console.log('Download file:', fileId)}
+              <ClientFileAccessSystem
+                onDownloadFile={async (fileId) => console.log('Download file:', fileId)}
                 onPreviewFile={async (fileId) => {
                   console.log('Preview file:', fileId);
                   return `https://via.placeholder.com/800x600/0ea5e9/ffffff?text=File+Preview+${fileId}`;
                 }}
-                onStarFile={(fileId, starred) => console.log('Star file:', { fileId, starred })}
-                onShareFile={(fileId) => console.log('Share file:', fileId)}
+                onStarFile={async (fileId, starred) => console.log('Star file:', { fileId, starred })}
+                onShareFile={async (fileId) => console.log('Share file:', fileId)}
               />
             </CardContent>
           </Card>

@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
-import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, Notification } from '../types';
+import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, AuthState, RolePermissions, ProjectCostReport, FreelancerPerformanceReport } from '../types';
+import { Notification } from '../types/notifications';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { PresenceStatus, TypingIndicator } from '../types/messaging';
@@ -88,35 +89,8 @@ import {
 } from '../services/timeSlotService';
 import { MessagingService } from '../services/messaging/MessagingService';
 
-// Role-based permissions interface
-export interface RolePermissions {
-  canViewBilling: boolean;
-  canManageUsers: boolean;
-  canAccessAllProjects: boolean;
-  canModifyProjectSettings: boolean;
-  canDeleteProjects: boolean;
-  canCreateProjects: boolean;
-  canManageTeam: boolean;
-  canViewAnalytics: boolean;
-  canAccessAdminSettings: boolean;
-  canUploadFiles: boolean;
-  canDeleteFiles: boolean;
-  canViewAllFiles: boolean;
-  canManageFilePermissions: boolean;
-}
-
-// Authentication state interface
-export interface AuthState {
-  isAuthenticated: boolean;
-  user: User | null;
-  userRole: UserRole | null;
-  permissions: RolePermissions;
-  loading: boolean;
-  error: string | null;
-}
-
 // AppContext interface for shadcn migration with enhanced authentication
-export interface AppContextType {
+export interface AppContextType extends AuthState {
   // Authentication state
   authState: AuthState;
 
@@ -130,6 +104,16 @@ export interface AppContextType {
   // Project state
   projects: Project[];
   actionItems: ActionItem[];
+  clients: User[];
+  projectRequests: ProjectRequest[];
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+
+  // Notifications
+  notifications: Notification[];
+  isLoading: boolean;
+  markNotificationAsRead: (notificationId: string) => Promise<void>;
+  markAllNotificationsAsRead: () => Promise<void>;
 
   // Authentication methods
   login: (email: string, password: string, role: UserRole) => Promise<void>;
@@ -148,6 +132,11 @@ export interface AppContextType {
   updateProjectStatus?: (projectId: string, status: ProjectStatus) => Promise<void>;
   updateJobCard?: (projectId: string, jobCardId: string, jobCardData: Partial<JobCard>) => Promise<void>;
   updateJobCardStatus?: (projectId: string, jobCardId: string, status: JobCardStatus) => Promise<void>;
+  addActionItemToProject?: (projectId: string, actionItemData: ActionItemCreationData) => Promise<void>;
+  updateActionItem?: (projectId: string, actionItemId: string, updates: Partial<ActionItem>) => Promise<void>;
+  deleteActionItem?: (projectId: string, actionItemId: string) => Promise<void>;
+  addProject?: (projectData: ProjectCreationData) => Promise<string>;
+  addJobCardToProject?: (projectId: string, jobCardData: any) => Promise<void>;
 
   // Role and permission methods
   hasPermission: (permission: keyof RolePermissions) => boolean;
@@ -183,6 +172,21 @@ export interface AppContextType {
   setTypingStatus: (projectId: string, chatType: any, isTyping: boolean) => Promise<void>;
   getTypingUsers: (projectId: string, chatType: any) => string[];
 
+  // Messages
+  addMessageToProject: (projectId: string, content: string) => Promise<void>;
+  markMessageAsRead: (projectId: string, messageId: string) => Promise<void>;
+  deleteMessage: () => Promise<void>;
+  hideMessageFromUser: () => Promise<void>;
+
+  // Files
+  addFileToProject: (projectId: string, projectFile: any, onProgress?: (progress: number) => void) => Promise<ProjectFile>;
+  updateFilePermissions: (projectId: string, fileId: string, permissions: any) => Promise<void>;
+  deleteFileFromProject: (projectId: string, fileId: string) => Promise<void>;
+
+  // Time logs
+  addManualTimeLog: (projectId: string, jobCardId: string, logData: any, file?: File) => Promise<void>;
+  addAdminCommentToTimeLog: () => Promise<void>;
+
   // Time management methods
   allocateTimeToFreelancer: (allocationData: any) => Promise<string>;
   getTimeAllocations: (projectId?: string, freelancerId?: string) => Promise<any[]>;
@@ -198,6 +202,44 @@ export interface AppContextType {
   getTimeSlotUtilizationStats: (projectId?: string) => Promise<any>;
   getTimePurchases: () => Promise<any[]>;
   getTimeSlots: () => Promise<any[]>;
+
+  // Applications
+  applyToProject: (projectId: string, coverLetter?: string, proposedRate?: number) => Promise<void>;
+  getProjectApplications: () => any[];
+  acceptApplication: () => Promise<void>;
+  rejectApplication: () => Promise<void>;
+
+  // Reports
+  generateTimeTrackingReport: (filters: any) => TimeTrackingReport;
+  generateProjectCostReport: (projectId: string) => ProjectCostReport | null;
+  generateFreelancerPerformanceReport: (freelancerId: string) => FreelancerPerformanceReport | null;
+  exportReportToPDF: () => Promise<void>;
+  exportReportToCSV: () => Promise<void>;
+
+  // Project requests
+  createProjectRequest: () => Promise<string>;
+  updateProjectRequestStatus: () => Promise<void>;
+  convertProjectRequestToProject: () => Promise<string>;
+
+  // Additional methods
+  isClientOnboardingCompleted: () => Promise<boolean>;
+  fixUserRole: () => Promise<void>;
+  fixClientRelationships: () => Promise<void>;
+  checkAndUpdateProjectStatus: () => Promise<void>;
+  createClient: () => Promise<string>;
+  updateProjectTeam: () => Promise<void>;
+  loadAuditModule?: () => Promise<any>;
+
+  // Settings
+  settings?: any;
+  settingsLoading?: boolean;
+  settingsError?: any;
+  hasUnsavedChanges?: boolean;
+  updateSetting?: (key: string, value: any) => void;
+  saveSettings?: () => Promise<void>;
+  resetSettingsToDefaults?: () => Promise<void>;
+  exportSettings?: () => string;
+  importSettings?: (settingsJson: string) => Promise<void>;
 
   // Loading states
   loading: boolean;
@@ -952,8 +994,8 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     // Legacy timer properties for backward compatibility
     activeTimers: activeTimer ? { [activeTimer.id || 'current']: activeTimer } : {},
     currentTimerKey: activeTimer?.id || null,
-    pauseGlobalTimer: async () => { return; },
-    resumeGlobalTimer: async () => { return; },
+    pauseGlobalTimer: async () => { return true; },
+    resumeGlobalTimer: async () => { return true; },
 
     // Real-time chat and presence
     isRealtimeConnected,
@@ -1029,14 +1071,14 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     },
     addManualTimeLog: async (timeLogData) => {
       if (!authState.user) throw new Error("User not authenticated");
-      return await addManualTimeLogService({ ...timeLogData, userId: authState.user.id });
+      await addManualTimeLogService({ ...timeLogData, userId: authState.user.id });
     },
     addAdminCommentToTimeLog: async (timeLogId, adminComment) => {
       await addAdminCommentToTimeLogService(timeLogId, adminComment);
     },
     applyToProject: async (applicationData) => {
       if (!authState.user) throw new Error("User not authenticated");
-      return await applyToProjectService({ ...applicationData, userId: authState.user.id });
+      await applyToProjectService({ ...applicationData, userId: authState.user.id });
     },
     getProjectApplications: (projectId) => {
       // This is a placeholder. In a real app, you would fetch this from state
@@ -1049,20 +1091,20 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     rejectApplication: async (applicationId) => {
       await rejectApplicationService(applicationId);
     },
-    generateTimeTrackingReport: (projectId, startDate, endDate) => {
-      return generateTimeTrackingReportService(projectId, startDate, endDate);
+    generateTimeTrackingReport: async (projectId, startDate, endDate) => {
+      return await generateTimeTrackingReportService(projectId, startDate, endDate);
     },
-    generateProjectCostReport: async (projectId) => {
+    generateProjectCostReport: (projectId) => {
       try {
-        return await generateProjectCostReportService(projectId, projects);
+        return generateProjectCostReportService(projectId, projects);
       } catch (error) {
         console.error('Error generating project cost report:', error);
         return null;
       }
     },
-    generateFreelancerPerformanceReport: async (freelancerId) => {
+    generateFreelancerPerformanceReport: (freelancerId) => {
       try {
-        return await generateFreelancerPerformanceReportService(freelancerId, projects);
+        return generateFreelancerPerformanceReportService(freelancerId, projects);
       } catch (error) {
         console.error('Error generating freelancer performance report:', error);
         return null;

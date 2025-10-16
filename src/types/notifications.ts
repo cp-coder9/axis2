@@ -158,6 +158,7 @@ export interface NotificationStats {
 
 // Firebase Cloud Messaging types
 export interface FCMToken {
+    id: string;
     userId: string;
     token: string;
     deviceId: string;

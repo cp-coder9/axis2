@@ -78,9 +78,21 @@ export const TimeManagementAnalytics: React.FC = () => {
             ]);
 
             // Filter data by time range
-            const filteredAllocations = allocations.filter(a => new Date(a.createdAt) >= startDate);
-            const filteredPurchases = purchases.filter(p => new Date(p.purchasedAt) >= startDate);
-            const filteredSlots = slots.filter(s => new Date(s.createdAt) >= startDate);
+            // Firestore stores timestamps as Timestamp objects; convert to Date for comparisons
+            const filteredAllocations = allocations.filter(a => {
+                const createdAtDate = (a.createdAt && (a.createdAt as any).toDate) ? (a.createdAt as any).toDate() : new Date(a.createdAt as any);
+                return createdAtDate >= startDate;
+            });
+
+            const filteredPurchases = purchases.filter(p => {
+                const purchasedAtDate = (p.purchasedAt && (p.purchasedAt as any).toDate) ? (p.purchasedAt as any).toDate() : new Date(p.purchasedAt as any);
+                return purchasedAtDate >= startDate;
+            });
+
+            const filteredSlots = slots.filter(s => {
+                const createdAtDate = (s.createdAt && (s.createdAt as any).toDate) ? (s.createdAt as any).toDate() : new Date(s.createdAt as any);
+                return createdAtDate >= startDate;
+            });
 
             // Calculate analytics
             const data: AnalyticsData = {

@@ -101,8 +101,8 @@ export const ShadcnCountdownTimer: React.FC<ShadcnCountdownTimerProps> = ({
 
   const handleStop = async (details: { notes?: string; file?: File }) => {
     if (currentTimerKey) {
-      const [projectId, jobCardId] = currentTimerKey.split('-');
-      await stopGlobalTimerAndLog(projectId, jobCardId, details);
+      const [projectId, jobCardId, taskId] = currentTimerKey.split('-');
+      await stopGlobalTimerAndLog(projectId, jobCardId, taskId, details);
     }
     setIsStopModalOpen(false);
     setTimeExceeded(false);
@@ -110,14 +110,16 @@ export const ShadcnCountdownTimer: React.FC<ShadcnCountdownTimerProps> = ({
 
   const handlePause = () => {
     if (currentTimerKey) {
-      pauseGlobalTimer(currentTimerKey);
+      const [projectId, jobCardId, taskId] = currentTimerKey.split('-');
+      pauseGlobalTimer(projectId, jobCardId, taskId);
     }
     setShowPauseWarning(false);
   };
 
   const handleResume = () => {
     if (currentTimerKey) {
-      resumeGlobalTimer(currentTimerKey);
+      const [projectId, jobCardId, taskId] = currentTimerKey.split('-');
+      resumeGlobalTimer(projectId, jobCardId, taskId);
     }
     setShowPauseWarning(false);
   };

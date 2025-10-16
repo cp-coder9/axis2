@@ -15,9 +15,11 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { ProjectFile, TimeLog, UserRole } from '@/types';
+import { Timestamp } from 'firebase/firestore';
 import { TimerSubstantiationUpload } from '../file/FileUploadManager';
 import { useAppContext } from '@/contexts/AppContext';
 import { formatDuration } from '@/utils/formatters';
+import { canFreelancerStartTimer } from '@/utils/timerSlotValidation';
 
 interface TimerWithFileUploadProps {
   projectId: string;
@@ -44,13 +46,13 @@ export const TimerWithFileUpload: React.FC<TimerWithFileUploadProps> = ({
   // Timer interval
   React.useEffect(() => {
     let interval: NodeJS.Timeout;
-    
+
     if (isRunning && startTime) {
       interval = setInterval(() => {
         setElapsedTime(Date.now() - startTime.getTime());
       }, 1000);
     }
-    
+
     return () => {
       if (interval) {
         clearInterval(interval);
@@ -59,14 +61,26 @@ export const TimerWithFileUpload: React.FC<TimerWithFileUploadProps> = ({
   }, [isRunning, startTime]);
 
   const handleStart = useCallback(() => {
-    const now = new Date();
-    setStartTime(now);
-    setIsRunning(true);
-    setElapsedTime(0);
-    setShowFileUpload(false);
-    setSubstantiationFiles([]);
-    setSubstantiationDescription('');
-    setUploadError(null);
+    const start = async () => {
+      if (!currentUser) return;
+
+      const check = await canFreelancerStartTimer(currentUser.id, projectId, jobCardId);
+      if (!check.canStart) {
+        setUploadError(check.reason || 'No available time slots to start timer.');
+        return;
+      }
+
+      const now = new Date();
+      setStartTime(now);
+      setIsRunning(true);
+      setElapsedTime(0);
+      setShowFileUpload(false);
+      setSubstantiationFiles([]);
+      setSubstantiationDescription('');
+      setUploadError(null);
+    }
+
+    start();
   }, []);
 
   const handlePause = useCallback(() => {
@@ -105,6 +119,7 @@ export const TimerWithFileUpload: React.FC<TimerWithFileUploadProps> = ({
 
     const timeLog: TimeLog = {
       id: `timelog_${Date.now()}`,
+      userId: currentUser.id,
       startTime: startTime as any, // Convert to Timestamp in real implementation
       endTime: endTime as any, // Convert to Timestamp in real implementation
       durationMinutes,
@@ -117,13 +132,17 @@ export const TimerWithFileUpload: React.FC<TimerWithFileUploadProps> = ({
       hourlyRate: currentUser.hourlyRate,
       earnings: (durationMinutes / 60) * currentUser.hourlyRate,
       substantiationFile: substantiationFiles.length > 0 ? {
+        id: `sf-${Date.now()}`,
         name: substantiationFiles[0].name,
-        url: substantiationFiles[0].url
+        url: substantiationFiles[0].url,
+        projectId,
+        uploadedBy: currentUser.id,
+        uploadedAt: Timestamp.now()
       } : undefined
     };
 
     onTimeLogComplete(timeLog, substantiationFiles, substantiationDescription);
-    
+
     // Reset timer state
     setStartTime(null);
     setElapsedTime(0);
@@ -183,21 +202,21 @@ export const TimerWithFileUpload: React.FC<TimerWithFileUploadProps> = ({
                 Start Timer
               </Button>
             )}
-            
+
             {isRunning && (
               <Button onClick={handlePause} variant="outline" className="flex items-center gap-2">
                 <Pause className="h-4 w-4" />
                 Pause
               </Button>
             )}
-            
+
             {!isRunning && startTime && !showFileUpload && (
               <Button onClick={handleResume} className="flex items-center gap-2">
                 <Play className="h-4 w-4" />
                 Resume
               </Button>
             )}
-            
+
             {startTime && !showFileUpload && (
               <Button onClick={handleStop} variant="destructive" className="flex items-center gap-2">
                 <Square className="h-4 w-4" />

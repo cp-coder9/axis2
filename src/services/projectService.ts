@@ -17,9 +17,11 @@ import {
     DocumentData
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Project, ProjectStatus, JobCard, JobCardStatus, User, UserRole } from '../types';
+import { Project, ProjectStatus, User, UserRole, Job, JobStatus } from '../types';
 import { NotificationType, NotificationPriority, NotificationCategory } from '../types/notifications';
 import { createNotification } from './notificationService';
+import { MessagingService } from './messaging/MessagingService';
+import { ChannelType } from '../types/messaging';
 
 /**
  * Firebase Project Service
@@ -214,7 +216,7 @@ export const getProjectsByUser = async (userId: string, userRole: UserRole): Pro
  * Create a new project
  */
 export const createProject = async (
-    projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'jobCards' | 'projectNumber'>,
+    projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'jobs' | 'projectNumber'>,
     _createdBy: User
 ): Promise<string> => {
     try {
@@ -227,7 +229,7 @@ export const createProject = async (
             status: ProjectStatus.DRAFT,
             createdAt: now as Timestamp,
             updatedAt: now as Timestamp,
-            jobCards: [],
+            jobs: [],
             totalTimeSpentMinutes: 0,
             totalAllocatedHours: 0,
             totalEarnings: 0,
@@ -324,17 +326,16 @@ export const deleteProject = async (projectId: string): Promise<void> => {
  */
 export const addJobCardToProject = async (
     projectId: string,
-    jobCardData: Omit<JobCard, 'id' | 'createdAt' | 'updatedAt' | 'timeLogs'>
+    jobCardData: Omit<Job, 'id' | 'createdAt' | 'updatedAt' | 'timeLogs'>
 ): Promise<string> => {
     try {
         const now = serverTimestamp();
 
-        const newJobCard: Omit<JobCard, 'id'> = {
+        const newJobCard: Omit<Job, 'id'> = {
             ...jobCardData,
-            status: JobCardStatus.TODO,
+            status: JobStatus.TODO,
             createdAt: now as Timestamp,
             updatedAt: now as Timestamp,
-            timeLogs: [],
         };
 
         // Create job card document
@@ -347,13 +348,13 @@ export const addJobCardToProject = async (
         // Update project to include job card reference
         const project = await getProjectById(projectId);
         if (project) {
-            const updatedJobCards = [...(project.jobCards || []), {
+            const updatedJobCards = [...(project.jobs || []), {
                 id: jobCardRef.id,
                 ...newJobCard,
             }];
 
             await updateProject(projectId, {
-                jobCards: updatedJobCards,
+                jobs: updatedJobCards,
             });
         }
 
@@ -371,7 +372,7 @@ export const addJobCardToProject = async (
 export const updateJobCard = async (
     projectId: string,
     jobCardId: string,
-    updates: Partial<Omit<JobCard, 'id' | 'createdAt'>>
+    updates: Partial<Omit<Job, 'id' | 'createdAt'>>
 ): Promise<void> => {
     try {
         const updateData = {
@@ -384,15 +385,15 @@ export const updateJobCard = async (
 
         // Update job card in project document
         const project = await getProjectById(projectId);
-        if (project && project.jobCards) {
-            const updatedJobCards = project.jobCards.map(jobCard =>
+        if (project && project.jobs) {
+            const updatedJobCards = project.jobs.map(jobCard =>
                 jobCard.id === jobCardId
                     ? { ...jobCard, ...updates, updatedAt: new Date() as any }
                     : jobCard
             );
 
             await updateProject(projectId, {
-                jobCards: updatedJobCards,
+                jobs: updatedJobCards,
             });
         }
 
@@ -630,6 +631,40 @@ const notifyProjectUpdate = async (
                 createNotification(notification)
             );
             await Promise.all(notificationPromises);
+        }
+
+        // Send messaging notifications for status updates
+        if (updates.status) {
+            const statusMessage = getStatusChangeMessage(updates.status);
+            const messagingService = new MessagingService();
+
+            // Send to assigned team members
+            project.assignedTeamIds?.forEach(memberId => {
+                messagingService.sendMessage(
+                    projectId,
+                    `Project "${project.title}" status changed to ${updates.status}. ${statusMessage}`,
+                    'system',
+                    'System',
+                    UserRole.ADMIN,
+                    ChannelType.PROJECT_GENERAL
+                ).catch(error => {
+                    console.error('Error sending project status message to team member:', error);
+                });
+            });
+
+            // Send to client
+            if (project.clientId) {
+                messagingService.sendMessage(
+                    projectId,
+                    `Your project "${project.title}" status changed to ${updates.status}. ${statusMessage}`,
+                    'system',
+                    'System',
+                    UserRole.ADMIN,
+                    ChannelType.PROJECT_GENERAL
+                ).catch(error => {
+                    console.error('Error sending project status message to client:', error);
+                });
+            }
         }
     } catch (error) {
         console.error('Error notifying project update:', error);

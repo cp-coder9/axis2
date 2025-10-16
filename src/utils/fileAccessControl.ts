@@ -43,7 +43,7 @@ export const checkFileAccess = (
 
   // Check access level permissions
   const hasAccessLevel = checkAccessLevel(permissions.level, userRole, isProjectMember);
-  
+
   if (!hasAccessLevel.canAccess) {
     return {
       canView: false,
@@ -133,7 +133,7 @@ export const filterAccessibleFiles = (
   return files.filter(file => {
     const isProjectMember = projectMemberIds.includes(user.id);
     const isFileOwner = fileOwnerIds[file.id] === user.id || file.uploaderId === user.id;
-    
+
     const access = checkFileAccess(file, user, isProjectMember, isFileOwner);
     return access.canView;
   });
@@ -216,6 +216,8 @@ export const getDefaultPermissions = (
 ): FilePermissions => {
   const basePermissions: FilePermissions = {
     level: FilePermissionLevel.PROJECT_TEAM,
+    allowView: true,
+    allowEdit: false,
     allowDownload: true,
     allowShare: false,
     allowDelete: false,

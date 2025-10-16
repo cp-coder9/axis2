@@ -19,26 +19,27 @@ import { useTimerSync } from "@/contexts/modules/timerSync"
 import { cn } from "@/lib/utils"
 import { ShadcnEnhancedStopTimerModal } from "@/components/timer/ShadcnEnhancedStopTimerModal"
 import { useToast } from "@/components/ui/use-toast"
+import { canFreelancerStartTimer } from '@/utils/timerSlotValidation'
 
 interface FreelancerTimerWidgetProps {
   compact?: boolean
   className?: string
 }
 
-export function FreelancerTimerWidget({ 
-  compact = false, 
-  className 
+export function FreelancerTimerWidget({
+  compact = false,
+  className
 }: FreelancerTimerWidgetProps) {
   const { user } = useAppContext()
   const { toast } = useToast()
-  const { 
-    activeTimer, 
-    startTimer, 
-    pauseTimer, 
-    resumeTimer, 
-    stopTimer, 
+  const {
+    activeTimer,
+    startTimer,
+    pauseTimer,
+    resumeTimer,
+    stopTimer,
     isLoading,
-    syncStatus 
+    syncStatus
   } = useTimerSync()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showStopModal, setShowStopModal] = useState(false)
@@ -130,6 +131,35 @@ export function FreelancerTimerWidget({
     }
   }
 
+  // Handler for starting timer / navigating to timer page — validates slot availability first
+  const handleStartNavigation = async (e?: React.MouseEvent) => {
+    // Prevent default navigation for anchor if provided
+    if (e) e.preventDefault()
+
+    if (!user) {
+      toast({ title: 'Not Authenticated', description: 'Please sign in to start a timer.', variant: 'destructive' })
+      return
+    }
+
+    try {
+      const result = await canFreelancerStartTimer(user.id, undefined, undefined)
+      if (!result.canStart) {
+        toast({
+          title: 'Cannot Start Timer',
+          description: result.reason || 'No available time slots for you on this project.',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      // If allowed, navigate to freelancer timer page
+      window.location.href = '/freelancer/timer'
+    } catch (error) {
+      console.error('Error validating start:', error)
+      toast({ title: 'Error', description: 'Unable to verify time slot availability.', variant: 'destructive' })
+    }
+  }
+
   if (compact) {
     return (
       <div className={cn("px-2 group-data-[collapsible=icon]:hidden", className)}>
@@ -175,7 +205,7 @@ export function FreelancerTimerWidget({
                   </Button>
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <div className={cn(
                   "text-lg font-mono font-bold",
@@ -184,7 +214,7 @@ export function FreelancerTimerWidget({
                 )}>
                   {formatDuration(getElapsedTime())}
                 </div>
-                
+
                 <div className="text-xs text-muted-foreground truncate">
                   {activeTimer.jobCardTitle}
                 </div>
@@ -195,7 +225,7 @@ export function FreelancerTimerWidget({
                     ${getCurrentEarnings().toFixed(2)} earned
                   </div>
                 )}
-                
+
                 {activeTimer.allocatedHours && (
                   <div className="space-y-1">
                     <Progress value={getProgress()} className="h-1" />
@@ -216,12 +246,10 @@ export function FreelancerTimerWidget({
                 size="sm"
                 variant="outline"
                 className="mt-2 h-6 px-2 text-xs"
-                asChild
+                onClick={handleStartNavigation}
               >
-                <a href="/freelancer/timer">
-                  <Play className="h-3 w-3 mr-1" />
-                  Start Timer
-                </a>
+                <Play className="h-3 w-3 mr-1" />
+                Start Timer
               </Button>
             </CardContent>
           </Card>
@@ -233,7 +261,7 @@ export function FreelancerTimerWidget({
   // Full widget version (for dashboard)
   return (
     <>
-      <ShadcnEnhancedStopTimerModal 
+      <ShadcnEnhancedStopTimerModal
         isOpen={showStopModal}
         onClose={() => setShowStopModal(false)}
         onSubmit={handleStopTimerSubmit}
@@ -241,113 +269,111 @@ export function FreelancerTimerWidget({
         allocatedHours={activeTimer?.allocatedHours}
         actualHours={activeTimer ? getElapsedTime() / (1000 * 60 * 60) : 0}
       />
-      
+
       <Card className={cn(
-        activeTimer 
-          ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950" 
+        activeTimer
+          ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950"
           : "border-dashed",
         className
       )}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Timer className={cn(
-            "h-5 w-5",
-            activeTimer ? "text-green-600" : "text-muted-foreground"
-          )} />
-          {activeTimer ? "Active Timer" : "Timer"}
-        </CardTitle>
-      </CardHeader>
-      
-      <CardContent className="space-y-4">
-        {activeTimer ? (
-          <>
-            <div className="flex items-center justify-between">
-              <div className="space-y-1">
-                <div className={cn(
-                  "text-2xl font-mono font-bold",
-                  getTimerStatus() === 'running' && "text-green-800 dark:text-green-200",
-                  getTimerStatus() === 'paused' && "text-yellow-800 dark:text-yellow-200"
-                )}>
-                  {formatDuration(getElapsedTime())}
-                </div>
-                {user?.hourlyRate && (
-                  <div className="text-sm font-medium text-green-600 dark:text-green-400">
-                    ${getCurrentEarnings().toFixed(2)} earned
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={handlePauseTimer}
-                  disabled={isLoading}
-                >
-                  {activeTimer.isPaused ? (
-                    <>
-                      <Play className="h-4 w-4 mr-1" />
-                      Resume
-                    </>
-                  ) : (
-                    <>
-                      <Pause className="h-4 w-4 mr-1" />
-                      Pause
-                    </>
-                  )}
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="destructive"
-                  onClick={handleStopTimer}
-                  disabled={isLoading}
-                >
-                  <Square className="h-4 w-4 mr-1" />
-                  Stop & Log
-                </Button>
-              </div>
-            </div>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Timer className={cn(
+              "h-5 w-5",
+              activeTimer ? "text-green-600" : "text-muted-foreground"
+            )} />
+            {activeTimer ? "Active Timer" : "Timer"}
+          </CardTitle>
+        </CardHeader>
 
-            <div className="space-y-2">
-              <div className="text-sm font-medium text-green-800 dark:text-green-200">
-                {activeTimer.jobCardTitle}
-              </div>
-              
-              {activeTimer.allocatedHours && (
-                <>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Progress</span>
-                    <span>
-                      {(getElapsedTime() / (1000 * 60 * 60)).toFixed(1)} / {activeTimer.allocatedHours} hours
-                    </span>
+        <CardContent className="space-y-4">
+          {activeTimer ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <div className={cn(
+                    "text-2xl font-mono font-bold",
+                    getTimerStatus() === 'running' && "text-green-800 dark:text-green-200",
+                    getTimerStatus() === 'paused' && "text-yellow-800 dark:text-yellow-200"
+                  )}>
+                    {formatDuration(getElapsedTime())}
                   </div>
-                  <Progress value={getProgress()} className="h-2" />
-                  
-                  {getProgress() > 90 && (
-                    <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
-                      <AlertCircle className="h-3 w-3" />
-                      <span>Approaching allocated time limit</span>
+                  {user?.hourlyRate && (
+                    <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                      ${getCurrentEarnings().toFixed(2)} earned
                     </div>
                   )}
-                </>
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-4">
-            <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground mb-4">
-              No active timer. Start tracking time on a project.
-            </p>
-            <Button asChild>
-              <a href="/freelancer/projects">
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handlePauseTimer}
+                    disabled={isLoading}
+                  >
+                    {activeTimer.isPaused ? (
+                      <>
+                        <Play className="h-4 w-4 mr-1" />
+                        Resume
+                      </>
+                    ) : (
+                      <>
+                        <Pause className="h-4 w-4 mr-1" />
+                        Pause
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={handleStopTimer}
+                    disabled={isLoading}
+                  >
+                    <Square className="h-4 w-4 mr-1" />
+                    Stop & Log
+                  </Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="text-sm font-medium text-green-800 dark:text-green-200">
+                  {activeTimer.jobCardTitle}
+                </div>
+
+                {activeTimer.allocatedHours && (
+                  <>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Progress</span>
+                      <span>
+                        {(getElapsedTime() / (1000 * 60 * 60)).toFixed(1)} / {activeTimer.allocatedHours} hours
+                      </span>
+                    </div>
+                    <Progress value={getProgress()} className="h-2" />
+
+                    {getProgress() > 90 && (
+                      <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400">
+                        <AlertCircle className="h-3 w-3" />
+                        <span>Approaching allocated time limit</span>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <Clock className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground mb-4">
+                No active timer. Start tracking time on a project.
+              </p>
+              <Button onClick={handleStartNavigation}>
                 <Play className="h-4 w-4 mr-2" />
                 Start Timer
-              </a>
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </>
   )
 }
