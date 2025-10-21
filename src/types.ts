@@ -15,6 +15,59 @@ export type Task = {
   estimatedTime?: number;
   allocatedHours?: number;
   priority?: string;
+  // Project Management Module extensions
+  startDate?: Timestamp;
+  endDate?: Timestamp;
+  duration?: number; // in days
+  dependencies?: TaskDependency[];
+  isMilestone?: boolean;
+  baselineStartDate?: Timestamp;
+  baselineEndDate?: Timestamp;
+  actualStartDate?: Timestamp;
+  actualEndDate?: Timestamp;
+  float?: number; // slack time
+  isCritical?: boolean;
+  resourceAssignments?: ResourceAssignment[];
+  progress?: number; // 0-100 percentage of completion
+};
+export type TaskDependency = {
+  id: string;
+  predecessorId: string;
+  successorId: string;
+  type: 'FS' | 'SS' | 'FF' | 'SF';
+  lag?: number; // lag time in days
+  projectId?: string; // project this dependency belongs to
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+  isActive?: boolean; // soft delete flag
+};
+export type ProjectBaseline = {
+  id: string;
+  projectId: string;
+  name: string;
+  createdAt: Timestamp;
+  taskBaselines: TaskBaseline[];
+  budget?: number;
+  isActive?: boolean; // soft delete flag
+};
+export type TaskBaseline = {
+  taskId: string;
+  startDate?: Timestamp;
+  endDate?: Timestamp;
+  duration?: number;
+  estimatedCost?: number;
+};
+export type ResourceAssignment = {
+  id: string;
+  taskId: string;
+  resourceId: string;
+  resourceType: 'user' | 'equipment';
+  allocationPercentage: number; // 0-100
+  startDate: Timestamp;
+  endDate: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+  isActive?: boolean; // soft delete flag
 };
 export type TimeLog = {
   id: string;
@@ -392,11 +445,52 @@ export interface TimeAllocation {
   notes?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  // Approval workflow fields
+  requiresApproval?: boolean;
+  approvalStatus?: AllocationApprovalStatus;
+  approvalRequestId?: string;
 }
 export enum TimeAllocationStatus {
   ACTIVE = 'ACTIVE',
   COMPLETED = 'COMPLETED',
-  CANCELLED = 'CANCELLED'
+  CANCELLED = 'CANCELLED',
+  PENDING_APPROVAL = 'PENDING_APPROVAL'
+}
+
+export enum AllocationApprovalStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  ESCALATED = 'ESCALATED'
+}
+
+export interface AllocationApprovalRequest {
+  id: string;
+  allocationId: string;
+  projectId: string;
+  projectTitle: string;
+  freelancerId: string;
+  freelancerName: string;
+  requestedById: string; // Admin who requested approval
+  requestedByName: string;
+  allocatedHours: number;
+  hourlyRate: number;
+  totalValue: number;
+  reason: string;
+  status: AllocationApprovalStatus;
+  approvals: ApprovalVote[];
+  requiredApprovals: number; // Number of admin approvals needed
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  expiresAt?: Timestamp; // Optional expiration date
+}
+
+export interface ApprovalVote {
+  adminId: string;
+  adminName: string;
+  decision: 'APPROVE' | 'REJECT' | 'ESCALATE';
+  comments?: string;
+  votedAt: Timestamp;
 }
 
 export interface TimeSlot {
@@ -724,6 +818,12 @@ export enum AuditAction {
   TIMER_AUTO_STOPPED = 'TIMER_AUTO_STOPPED',
   TIMER_START_DENIED_ROLE = 'TIMER_START_DENIED_ROLE',
   TIMER_START_DENIED_ASSIGNMENT = 'TIMER_START_DENIED_ASSIGNMENT',
+  ADMIN_OVERRIDE_USED = 'ADMIN_OVERRIDE_USED',
+  TIME_ALLOCATION_CREATED = 'TIME_ALLOCATION_CREATED',
+  TIME_ALLOCATION_UPDATED = 'TIME_ALLOCATION_UPDATED',
+  TIME_ALLOCATION_DELETED = 'TIME_ALLOCATION_DELETED',
+  TIME_SLOT_PURCHASED = 'TIME_SLOT_PURCHASED',
+  TIME_SLOT_HANDOVER = 'TIME_SLOT_HANDOVER',
   PROJECT_CREATED = 'PROJECT_CREATED',
   PROJECT_UPDATED = 'PROJECT_UPDATED',
   PROJECT_DELETED = 'PROJECT_DELETED',
@@ -796,7 +896,56 @@ export interface AllocationTrend {
   allocationEfficiency: number;
 }
 
-// AppContext interface
+// Scheduling types
+export interface BaselineComparison {
+  baseline: ProjectBaseline;
+  variances: {
+    scheduleVariance: number; // Days difference in project duration
+    costVariance: number; // Budget variance
+    taskVariances: Array<{
+      taskId: string;
+      startVariance: number; // Days difference from baseline start
+      durationVariance: number; // Days difference in duration
+      costVariance: number; // Cost difference
+    }>;
+  };
+}
+
+export interface ResourceConflict {
+  date: Date;
+  totalAllocation: number;
+  assignments: ResourceAssignment[];
+}
+
+export interface ResourceLevelingResult {
+  leveledAssignments: ResourceAssignment[];
+  adjustments: Array<{
+    originalAssignment: ResourceAssignment;
+    newAllocation: number;
+    reason: string;
+  }>;
+}
+
+export interface SchedulingCalculation {
+  criticalPath: string[];
+  scheduleEfficiency: number;
+  totalFloat: number;
+  projectDuration: number;
+}
+
+export interface CriticalPathResult {
+  tasks: string[];
+  duration: number;
+  efficiency: number;
+}
+
+export interface ScheduleEfficiency {
+  efficiency: number;
+  totalTasks: number;
+  criticalTasks: number;
+  bottlenecks: string[];
+}
+
 export interface AppContextType {
   // Auth
   user: User | null;

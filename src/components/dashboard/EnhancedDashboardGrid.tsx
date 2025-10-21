@@ -5,30 +5,30 @@ import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { 
-  Grid, 
-  Settings, 
-  Move, 
-  Maximize2, 
-  Minimize2, 
+import {
+  Grid,
+  Settings,
+  Move,
+  Maximize2,
+  Minimize2,
   MoreHorizontal,
   Layout,
   Monitor
 } from 'lucide-react';
 
 // Import unused grid layout utilities
-import { 
-  GridLayoutSystem, 
-  GridItem, 
-  compactLayout 
+import {
+  GridLayoutSystem,
+  GridItem,
+  compactLayout
 } from '@/components/dashboard/GridLayoutSystem';
-import { 
+import {
   usePerformanceMonitor,
   useThrottledValue,
   PERFORMANCE_CONFIG
@@ -71,7 +71,7 @@ export function EnhancedDashboardGrid({
 
   // Filter widgets based on user role
   const filteredWidgets = useMemo(() => {
-    return widgets.filter(widget => 
+    return widgets.filter(widget =>
       !widget.permissions || widget.permissions.includes(userRole as any)
     );
   }, [widgets, userRole]);
@@ -86,15 +86,15 @@ export function EnhancedDashboardGrid({
   // Handle widget move with performance tracking
   const handleWidgetMove = useCallback((itemId: string, newPosition: { x: number; y: number }) => {
     const startTime = performance.now();
-    
-    const newLayout = layout.map(l => 
-      l.id === itemId 
+
+    const newLayout = layout.map(l =>
+      l.id === itemId
         ? { ...l, x: newPosition.x, y: newPosition.y }
         : l
     );
-    
+
     handleLayoutChange(newLayout);
-    
+
     const endTime = performance.now();
     if (PERFORMANCE_CONFIG.ENABLE_PERFORMANCE_MONITORING) {
       console.log(`Widget move took ${endTime - startTime} milliseconds`);
@@ -110,12 +110,12 @@ export function EnhancedDashboardGrid({
     const clampedW = Math.max(widget.minW || 2, Math.min(widget.maxW || 12, newSize.w));
     const clampedH = Math.max(widget.minH || 2, Math.min(widget.maxH || 8, newSize.h));
 
-    const newLayout = layout.map(l => 
-      l.id === itemId 
+    const newLayout = layout.map(l =>
+      l.id === itemId
         ? { ...l, w: clampedW, h: clampedH }
         : l
     );
-    
+
     handleLayoutChange(newLayout);
   }, [widgets, layout, handleLayoutChange]);
 
@@ -128,6 +128,7 @@ export function EnhancedDashboardGrid({
   // Reset layout to default
   const resetLayout = () => {
     const defaultLayout = widgets.map((widget, index) => ({
+      i: widget.id,
       id: widget.id,
       x: (index % 3) * 4,
       y: Math.floor(index / 3) * 3,
@@ -140,7 +141,7 @@ export function EnhancedDashboardGrid({
       isDraggable: true,
       isResizable: true
     }));
-    
+
     handleLayoutChange(defaultLayout);
   };
 
@@ -153,12 +154,11 @@ export function EnhancedDashboardGrid({
   // Render widget content
   const renderWidgetContent = (widget: DashboardWidget, gridItem: GridItem) => {
     const isSelected = selectedWidget === widget.id;
-    
+
     return (
-      <Card 
-        className={`h-full transition-all duration-200 ${
-          isSelected ? 'ring-2 ring-primary' : ''
-        } ${editMode ? 'cursor-move' : ''}`}
+      <Card
+        className={`h-full transition-all duration-200 ${isSelected ? 'ring-2 ring-primary' : ''
+          } ${editMode ? 'cursor-move' : ''}`}
         onClick={() => editMode && setSelectedWidget(widget.id)}
       >
         <CardHeader className="pb-2">
@@ -193,7 +193,7 @@ export function EnhancedDashboardGrid({
           <div className="flex items-center justify-center h-20 bg-muted rounded text-muted-foreground text-sm">
             {widget.type} Widget
           </div>
-          
+
           {editMode && (
             <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
               <span>{gridItem.layout.w}×{gridItem.layout.h}</span>
@@ -220,7 +220,7 @@ export function EnhancedDashboardGrid({
             />
             <Label htmlFor="edit-mode">Edit Mode</Label>
           </div>
-          
+
           {editMode && (
             <div className="flex items-center gap-2">
               <Button onClick={handleCompactLayout} variant="outline" size="sm">
@@ -260,7 +260,7 @@ export function EnhancedDashboardGrid({
                 <TabsTrigger value="layout">Layout</TabsTrigger>
                 <TabsTrigger value="performance">Performance</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="layout" className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
@@ -271,9 +271,9 @@ export function EnhancedDashboardGrid({
                       min="6"
                       max="24"
                       value={gridSettings.cols}
-                      onChange={(e) => setGridSettings(prev => ({ 
-                        ...prev, 
-                        cols: parseInt(e.target.value) 
+                      onChange={(e) => setGridSettings(prev => ({
+                        ...prev,
+                        cols: parseInt(e.target.value)
                       }))}
                       className="w-full px-2 py-1 border rounded text-sm"
                     />
@@ -286,9 +286,9 @@ export function EnhancedDashboardGrid({
                       min="50"
                       max="200"
                       value={gridSettings.rowHeight}
-                      onChange={(e) => setGridSettings(prev => ({ 
-                        ...prev, 
-                        rowHeight: parseInt(e.target.value) 
+                      onChange={(e) => setGridSettings(prev => ({
+                        ...prev,
+                        rowHeight: parseInt(e.target.value)
                       }))}
                       className="w-full px-2 py-1 border rounded text-sm"
                     />
@@ -303,8 +303,8 @@ export function EnhancedDashboardGrid({
                       value={gridSettings.margin[0]}
                       onChange={(e) => {
                         const value = parseInt(e.target.value);
-                        setGridSettings(prev => ({ 
-                          ...prev, 
+                        setGridSettings(prev => ({
+                          ...prev,
                           margin: [value, value] as [number, number]
                         }));
                       }}
@@ -321,8 +321,8 @@ export function EnhancedDashboardGrid({
                       value={gridSettings.containerPadding[0]}
                       onChange={(e) => {
                         const value = parseInt(e.target.value);
-                        setGridSettings(prev => ({ 
-                          ...prev, 
+                        setGridSettings(prev => ({
+                          ...prev,
                           containerPadding: [value, value] as [number, number]
                         }));
                       }}
@@ -331,7 +331,7 @@ export function EnhancedDashboardGrid({
                   </div>
                 </div>
               </TabsContent>
-              
+
               <TabsContent value="performance" className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <Card>
@@ -342,7 +342,7 @@ export function EnhancedDashboardGrid({
                       <div className="text-2xl font-bold">{getStats().renderCount}</div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm">Throttle Delay</CardTitle>
@@ -353,7 +353,7 @@ export function EnhancedDashboardGrid({
                       </div>
                     </CardContent>
                   </Card>
-                  
+
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm">Grid Items</CardTitle>
@@ -390,9 +390,8 @@ export function EnhancedDashboardGrid({
                 <div
                   key={gridItem.id}
                   style={getItemStyle(gridItem)}
-                  className={`transition-all duration-200 ${
-                    editMode ? 'hover:z-10' : ''
-                  }`}
+                  className={`transition-all duration-200 ${editMode ? 'hover:z-10' : ''
+                    }`}
                   role={editMode ? "button" : undefined}
                   tabIndex={editMode ? 0 : undefined}
                   aria-label={editMode ? `Drag ${widget.name} widget` : undefined}
@@ -411,7 +410,7 @@ export function EnhancedDashboardGrid({
                       const handleMouseMove = (moveEvent: MouseEvent) => {
                         const deltaX = Math.round((moveEvent.clientX - startX) / (gridSettings.rowHeight + gridSettings.margin[0]));
                         const deltaY = Math.round((moveEvent.clientY - startY) / (gridSettings.rowHeight + gridSettings.margin[1]));
-                        
+
                         handleItemMove(gridItem.id, {
                           x: Math.max(0, startPos.x + deltaX),
                           y: Math.max(0, startPos.y + deltaY)
@@ -429,7 +428,7 @@ export function EnhancedDashboardGrid({
                   }}
                 >
                   {renderWidgetContent(widget, gridItem)}
-                  
+
                   {/* Resize Handle */}
                   {editMode && (
                     <div
@@ -452,7 +451,7 @@ export function EnhancedDashboardGrid({
                         const handleMouseMove = (moveEvent: MouseEvent) => {
                           const deltaX = Math.round((moveEvent.clientX - startX) / (gridSettings.rowHeight + gridSettings.margin[0]));
                           const deltaY = Math.round((moveEvent.clientY - startY) / (gridSettings.rowHeight + gridSettings.margin[1]));
-                          
+
                           handleItemResize(gridItem.id, {
                             w: Math.max(widget.minW || 2, startSize.w + deltaX),
                             h: Math.max(widget.minH || 2, startSize.h + deltaY)

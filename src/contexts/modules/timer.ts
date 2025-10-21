@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { addDoc, collection, doc, getDoc, updateDoc, Timestamp, getDocs, query, where, orderBy, limit } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { db, storage } from '../../firebase';
-import { TimeLog, SubstantiationFile, Project, User, UserRole } from '../../types';
+import { TimeLog, SubstantiationFile, Project, User, UserRole, TimeSlotStatus } from '../../types';
 import { NotificationType, NotificationPriority, NotificationCategory } from '../../types/notifications';
 import type { Notification } from '../../types/notifications';
 import { offlineSync } from '../../utils/offlineSync';
@@ -10,7 +10,7 @@ import { logAuditEvent, AuditAction } from '../../utils/auditLogger';
 import { sanitizeForFirestore } from '../../utils/firebaseHelpers';
 import { canFreelancerUseTimer } from './auth';
 import { canUserStartTimerOnTask, getTaskHoursForTask } from './projects';
-import { canFreelancerStartTimer } from '../../utils/timerSlotValidation';
+import { canFreelancerStartTimer, getAvailableSlotsForFreelancer } from '../../utils/timerSlotValidation';
 import { createNotification } from '../../services/notificationService';
 
 export interface ActiveTimerInfo {
@@ -27,6 +27,9 @@ export interface ActiveTimerInfo {
   autoResumeTimeout?: NodeJS.Timeout;
   warningTimer?: NodeJS.Timeout;
   idempotencyKey: string; // Added for concurrency control
+  slotId?: string; // Reference to time slot for allocated time tracking
+  jobCardId?: string; // Reference to job card for project organization
+  jobCardTitle?: string; // Title of the job card for display purposes
 }
 
 export interface TimerState {
@@ -39,6 +42,7 @@ export interface TimerState {
   stopGlobalTimerAndLog: (...args: any[]) => Promise<void>;
   syncTimerState: () => Promise<void>; // Added for multi-tab/device synchronization
   hasActiveTimer: boolean; // Added for quick status check
+  slotMonitoringActive: boolean; // Track if slot monitoring is active
 }
 
 // Storage keys for timer data
@@ -49,6 +53,8 @@ export const useTimer = (): TimerState => {
   const [activeTimers, setActiveTimers] = useState<Record<string, ActiveTimerInfo>>({});
   const [currentTimerKey, setCurrentTimerKey] = useState<string | null>(null);
   const [hasActiveTimer, setHasActiveTimer] = useState<boolean>(false);
+  const [slotMonitoringActive, setSlotMonitoringActive] = useState<boolean>(false); // Track slot monitoring status
+  const [slotMonitoringInterval, setSlotMonitoringInterval] = useState<NodeJS.Timeout | null>(null); // Track slot monitoring timer
 
   // Generate a unique idempotency key
   const generateIdempotencyKey = () => {
@@ -127,6 +133,11 @@ export const useTimer = (): TimerState => {
 
     return () => {
       clearInterval(heartbeatInterval);
+
+      // Clear slot monitoring on unmount
+      if (slotMonitoringInterval) {
+        clearInterval(slotMonitoringInterval);
+      }
     };
   }, [currentTimerKey]);
 
@@ -197,6 +208,7 @@ export const useTimer = (): TimerState => {
               allocatedHours: serverTimer.allocatedHours,
               pauseWarningShown: serverTimer.pauseWarningShown || false,
               pausedAt: serverTimer.pausedAt,
+              slotId: serverTimer.slotId,
               idempotencyKey: serverTimer.idempotencyKey || generateIdempotencyKey()
             }
           }));
@@ -232,15 +244,17 @@ export const useTimer = (): TimerState => {
   };
 
   const startGlobalTimer = useCallback(async (...args: any[]): Promise<boolean> => {
-    // Support both signatures: (timerKey) or (projectId, jobId, taskId, taskTitle?, allocatedHours?)
-    let projectId: string, jobId: string, taskId: string, taskTitle: string | undefined, allocatedHours: number | undefined;
+    // Support both signatures: (timerKey) or (projectId, jobId, taskId, taskTitle?, allocatedHours?, slotId?, adminOverride?)
+    let projectId: string, jobId: string, taskId: string, taskTitle: string | undefined, allocatedHours: number | undefined, slotId: string | undefined, adminOverride: boolean = false;
     if (args.length === 1 && typeof args[0] === 'string') {
       const key = args[0] as string;
       const parts = key.split('-');
       projectId = parts[0]; jobId = parts[1]; taskId = parts[2];
       allocatedHours = undefined;
+      slotId = undefined;
+      adminOverride = false;
     } else {
-      [projectId, jobId, taskId, taskTitle, allocatedHours] = args;
+      [projectId, jobId, taskId, taskTitle, allocatedHours, slotId, adminOverride] = args;
     }
 
     const user = JSON.parse(localStorage.getItem('architex_user') || '{}') as User;
@@ -253,26 +267,43 @@ export const useTimer = (): TimerState => {
     }
 
     try {
-      // RBAC: role must be allowed
-      if (!canFreelancerUseTimer(user)) {
+      // RBAC: role must be allowed (skip for admin override)
+      if (!adminOverride && !canFreelancerUseTimer(user)) {
         await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ROLE, { projectId, jobId, taskId, role: user.role as UserRole });
         return false;
       }
 
-      // Assignment check: ensure the user is assigned to this task
+      // Assignment check: ensure the user is assigned to this task (skip for admin override)
       const projectSnap = await getDoc(doc(db, 'projects', projectId));
       const projectData = projectSnap.exists() ? (projectSnap.data() as Project) : null;
-      if (!canUserStartTimerOnTask(projectData, jobId, taskId, user as any)) {
+      if (!adminOverride && !canUserStartTimerOnTask(projectData, jobId, taskId, user as any)) {
         await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ASSIGNMENT, { projectId, jobId, taskId });
         return false;
       }
 
-      // Slot-based allocation check (freelancer only)
-      if (user.role === UserRole.FREELANCER) {
+      // Slot-based allocation check (freelancer only, skip for admin override)
+      if (!adminOverride && user.role === UserRole.FREELANCER) {
         try {
           const slotCheck = await canFreelancerStartTimer(user.id, projectId, jobId);
           if (!slotCheck.canStart) {
             await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ASSIGNMENT, { projectId, jobId, taskId, reason: slotCheck.reason });
+            return false;
+          }
+
+          // Additional strict validation: ensure there's actually an available slot with remaining time
+          const availableSlots = await getAvailableSlotsForFreelancer(user.id, projectId);
+          const hasValidSlot = availableSlots.some(slot => {
+            const remainingHours = slot.durationHours - (slot.hoursUtilized || 0);
+            return remainingHours > 0.083; // At least 5 minutes remaining (0.083 hours)
+          });
+
+          if (!hasValidSlot) {
+            await logAuditEvent(user as any, AuditAction.TIMER_START_DENIED_ASSIGNMENT, {
+              projectId,
+              jobId,
+              taskId,
+              reason: 'No time slots with sufficient remaining time available'
+            });
             return false;
           }
         } catch (error) {
@@ -281,8 +312,17 @@ export const useTimer = (): TimerState => {
         }
       }
 
-      // Check for existing timers on server first
-      await syncTimerState();
+      // Log admin override usage
+      if (adminOverride) {
+        await logAuditEvent(user, AuditAction.ADMIN_OVERRIDE_USED, {
+          projectId,
+          jobId,
+          taskId,
+          overrideType: 'timer_start_bypass_restrictions',
+          originalRole: user.role,
+          bypassedChecks: ['role_check', 'assignment_check', 'slot_check']
+        });
+      }
 
       // Generate a unique idempotency key for this timer start operation
       const idempotencyKey = generateIdempotencyKey();
@@ -340,7 +380,8 @@ export const useTimer = (): TimerState => {
         totalPausedTime: 0,
         allocatedHours: allocated,
         pauseWarningShown: false,
-        idempotencyKey
+        idempotencyKey,
+        slotId
       };
 
       setActiveTimers(prev => ({
@@ -362,6 +403,7 @@ export const useTimer = (): TimerState => {
         totalPausedTime: 0,
         allocatedHours: newTimer.allocatedHours,
         idempotencyKey,
+        slotId: newTimer.slotId,
         lastUpdated: Timestamp.now()
       });
 
@@ -385,12 +427,36 @@ export const useTimer = (): TimerState => {
         userId: user.id
       });
 
+      // Update time slot status to IN_PROGRESS if slotId provided
+      if (slotId) {
+        try {
+          const { updateTimeSlotStatus } = await import('../../services/timeSlotService');
+          await updateTimeSlotStatus(slotId, TimeSlotStatus.IN_PROGRESS);
+          console.log('Time slot status updated to IN_PROGRESS:', slotId);
+        } catch (slotError) {
+          console.error('Error updating time slot status:', slotError);
+          // Don't fail timer start if slot update fails
+        }
+      }
+
       // Notify project team members about timer start
       try {
         await notifyTimerStarted(projectId, jobId, taskId, taskTitle, user.name, projectData);
       } catch (error) {
         console.error('Error sending timer start notification:', error);
         // Don't fail timer start if notification fails
+      }
+
+      // Start slot monitoring if timer is associated with a slot (for freelancers)
+      if (slotId && user.role === UserRole.FREELANCER) {
+        // Clear any existing monitoring
+        if (slotMonitoringInterval) {
+          clearInterval(slotMonitoringInterval);
+        }
+
+        // Start monitoring every 30 seconds
+        const monitoringInterval = setInterval(monitorSlotUtilization, 30000);
+        setSlotMonitoringInterval(monitoringInterval);
       }
 
       return true;
@@ -489,6 +555,23 @@ export const useTimer = (): TimerState => {
         return prev;
       });
       setCurrentTimerKey(timerKey);
+
+      // Restart slot monitoring if timer is associated with a slot
+      const resumedTimer = activeTimers[timerKey];
+      if (resumedTimer && resumedTimer.slotId) {
+        const user = JSON.parse(localStorage.getItem('architex_user') || '{}');
+        if (user.role === UserRole.FREELANCER) {
+          // Clear any existing monitoring
+          if (slotMonitoringInterval) {
+            clearInterval(slotMonitoringInterval);
+          }
+
+          // Restart monitoring
+          const monitoringInterval = setInterval(monitorSlotUtilization, 30000);
+          setSlotMonitoringInterval(monitoringInterval);
+        }
+      }
+
       return true;
     } catch (error) {
       console.error('Error resuming timer:', error);
@@ -615,6 +698,13 @@ export const useTimer = (): TimerState => {
 
       // When pausing, we don't have an active timer key
       setCurrentTimerKey(null);
+
+      // Stop slot monitoring when timer is paused
+      if (slotMonitoringInterval) {
+        clearInterval(slotMonitoringInterval);
+        setSlotMonitoringInterval(null);
+      }
+
       return true;
     } catch (error) {
       console.error('Error pausing timer:', error);
@@ -755,6 +845,33 @@ export const useTimer = (): TimerState => {
 
       await updateDoc(projectDocRef, sanitizedUpdateData);
 
+      // Update time slot utilization if timer was associated with a slot
+      if (timer.slotId) {
+        try {
+          const slotDocRef = doc(db, 'timeSlots', timer.slotId);
+          const slotSnap = await getDoc(slotDocRef);
+
+          if (slotSnap.exists()) {
+            const slotData = slotSnap.data();
+            const currentUtilized = slotData.hoursUtilized || 0;
+            const newUtilized = currentUtilized + durationHours;
+            const slotDuration = slotData.durationHours || 4; // Default to 4 hours if not set
+
+            // Update slot utilization
+            await updateDoc(slotDocRef, {
+              hoursUtilized: newUtilized,
+              status: newUtilized >= slotDuration ? TimeSlotStatus.COMPLETED : TimeSlotStatus.IN_PROGRESS,
+              updatedAt: Timestamp.now()
+            });
+
+            console.log(`Updated time slot ${timer.slotId} utilization: ${currentUtilized}h -> ${newUtilized}h`);
+          }
+        } catch (slotError) {
+          console.error('Error updating time slot utilization:', slotError);
+          // Don't fail timer stop if slot update fails
+        }
+      }
+
       // Create notification for admin and client
       const notification: Notification = {
         id: `ntf-${Date.now()}`,
@@ -857,6 +974,12 @@ export const useTimer = (): TimerState => {
         timestamp: Date.now()
       };
       localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timerData));
+
+      // Stop slot monitoring if it was active
+      if (slotMonitoringInterval) {
+        clearInterval(slotMonitoringInterval);
+        setSlotMonitoringInterval(null);
+      }
     }
   };
 
@@ -926,6 +1049,67 @@ export const useTimer = (): TimerState => {
     await Promise.all(notifications);
   };
 
+  // Slot utilization monitoring for automatic timer stopping
+  const monitorSlotUtilization = useCallback(async () => {
+    if (!currentTimerKey) return;
+
+    const timer = activeTimers[currentTimerKey];
+    if (!timer || !timer.slotId) return;
+
+    try {
+      const user = JSON.parse(localStorage.getItem('architex_user') || '{}');
+      if (!user.id || user.role !== UserRole.FREELANCER) return;
+
+      // Check current slot utilization
+      const slotDocRef = doc(db, 'timeSlots', timer.slotId);
+      const slotSnap = await getDoc(slotDocRef);
+
+      if (slotSnap.exists()) {
+        const slotData = slotSnap.data();
+        const currentUtilized = slotData.hoursUtilized || 0;
+        const slotDuration = slotData.durationHours || 4; // Default to 4 hours
+
+        // Calculate elapsed time since timer started
+        const elapsedMs = Date.now() - new Date(timer.startTime).getTime();
+        const elapsedHours = elapsedMs / (1000 * 60 * 60);
+
+        // If slot would be exhausted within 1 minute of current session, stop the timer
+        const projectedUtilization = currentUtilized + elapsedHours;
+        const remainingTime = slotDuration - projectedUtilization;
+
+        if (remainingTime <= 1 / 60) { // Less than 1 minute remaining
+          console.log('Slot time exhausted, automatically stopping timer');
+
+          // Stop the timer automatically
+          await stopGlobalTimerAndLog(
+            timer.projectId,
+            timer.jobId,
+            timer.taskId,
+            {
+              notes: 'Timer automatically stopped - allocated time slot exhausted',
+              file: null
+            },
+            user,
+            () => { } // Empty setNotifications function
+          );
+
+          // Log this action for audit
+          await logAuditEvent(user, AuditAction.TIMER_AUTO_STOPPED, {
+            projectId: timer.projectId,
+            jobId: timer.taskId,
+            taskId: timer.taskId,
+            reason: 'slot_time_exhausted',
+            slotId: timer.slotId,
+            slotDuration,
+            utilizedHours: projectedUtilization
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error monitoring slot utilization:', error);
+    }
+  }, [currentTimerKey, activeTimers, stopGlobalTimerAndLog]);
+
   return {
     activeTimers,
     currentTimerKey,
@@ -934,6 +1118,7 @@ export const useTimer = (): TimerState => {
     pauseGlobalTimer,
     stopGlobalTimerAndLog,
     syncTimerState,
-    hasActiveTimer
+    hasActiveTimer,
+    slotMonitoringActive: slotMonitoringInterval !== null
   };
 };

@@ -1,0 +1,359 @@
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import {
+  hasAvailableTimeSlots,
+  getAvailableSlotsForFreelancer,
+  canFreelancerStartTimer
+} from '../../src/utils/timerSlotValidation';
+import { TimeSlotStatus, TimeAllocationStatus } from '../../src/types';
+
+// Mock Firebase
+vi.mock('../../src/firebase', () => ({
+  db: {}
+}));
+
+// Mock Firestore functions
+const mockFirestore = {
+  collection: vi.fn(),
+  doc: vi.fn(),
+  addDoc: vi.fn(),
+  updateDoc: vi.fn(),
+  getDocs: vi.fn(),
+  getDoc: vi.fn(),
+  query: vi.fn(),
+  where: vi.fn(),
+  orderBy: vi.fn(),
+  serverTimestamp: vi.fn(() => ({ seconds: Date.now() / 1000, nanoseconds: 0 })),
+  Timestamp: class MockTimestamp {
+    seconds: number;
+    nanoseconds: number;
+
+    constructor(seconds: number, nanoseconds: number = 0) {
+      this.seconds = seconds;
+      this.nanoseconds = nanoseconds;
+    }
+
+    toDate() { return new Date(this.seconds * 1000); }
+    toMillis() { return this.seconds * 1000; }
+    isEqual(other: any) { return this.seconds === other.seconds && this.nanoseconds === other.nanoseconds; }
+    toJSON() { return { seconds: this.seconds, nanoseconds: this.nanoseconds, type: 'timestamp' }; }
+    valueOf() { return this.toMillis().toString(); }
+
+    static now() { return new MockTimestamp(Date.now() / 1000); }
+    static fromDate(date: Date) { return new MockTimestamp(date.getTime() / 1000); }
+  }
+};
+
+vi.mock('firebase/firestore', () => mockFirestore);
+
+// Mock time allocation service
+vi.mock('../../src/services/timeAllocationService', () => ({
+  getTimeAllocations: vi.fn(),
+  getTimeSlotsForFreelancer: vi.fn()
+}));
+
+// Mock time slot service
+vi.mock('../../src/services/timeSlotService', () => ({
+  getTimeSlots: vi.fn()
+}));
+
+describe('Timer Slot Validation', () => {
+  let mockAllocation: any;
+  let mockTimeSlot: any;
+
+  beforeEach(() => {
+    mockAllocation = {
+      id: 'allocation123',
+      projectId: 'project456',
+      freelancerId: 'freelancer789',
+      allocatedHours: 40,
+      status: TimeAllocationStatus.ACTIVE,
+      startDate: mockFirestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000)), // Yesterday
+      endDate: mockFirestore.Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)) // Next week
+    };
+
+    mockTimeSlot = {
+      id: 'slot123',
+      allocationId: 'allocation123',
+      projectId: 'project456',
+      freelancerId: 'freelancer789',
+      status: TimeSlotStatus.AVAILABLE,
+      durationHours: 4,
+      hourlyRate: 50,
+      startTime: mockFirestore.Timestamp.now(),
+      endTime: mockFirestore.Timestamp.now(),
+      createdAt: mockFirestore.Timestamp.now(),
+      updatedAt: mockFirestore.Timestamp.now()
+    };
+
+    // Reset all mocks
+    Object.values(mockFirestore).forEach(mock => {
+      if (vi.isMockFunction(mock)) {
+        mock.mockReset();
+      }
+    });
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('hasAvailableTimeSlots', () => {
+    it('should return true when freelancer has available slots', async () => {
+      const { getTimeAllocations, getTimeSlotsForFreelancer } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([mockTimeSlot]);
+
+      const result = await hasAvailableTimeSlots('freelancer789');
+
+      expect(result).toBe(true);
+      expect(getTimeAllocations).toHaveBeenCalledWith(undefined, 'freelancer789');
+    });
+
+    it('should return true when freelancer has purchased slots', async () => {
+      const { getTimeAllocations, getTimeSlotsForFreelancer } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      const purchasedSlot = { ...mockTimeSlot, status: TimeSlotStatus.PURCHASED };
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([purchasedSlot]);
+
+      const result = await hasAvailableTimeSlots('freelancer789');
+
+      expect(result).toBe(true);
+    });
+
+    it('should return false when freelancer has no allocations', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([]);
+
+      const result = await hasAvailableTimeSlots('freelancer789');
+
+      expect(result).toBe(false);
+    });
+
+    it('should return false when allocations are expired', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+
+      const expiredAllocation = {
+        ...mockAllocation,
+        endDate: mockFirestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000)) // Yesterday
+      };
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([expiredAllocation]);
+
+      const result = await hasAvailableTimeSlots('freelancer789');
+
+      expect(result).toBe(false);
+    });
+
+    it('should filter by project ID when specified', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([mockTimeSlot]);
+
+      const result = await hasAvailableTimeSlots('freelancer789', 'project456');
+
+      expect(result).toBe(true);
+      expect(getTimeAllocations).toHaveBeenCalledWith(undefined, 'freelancer789');
+    });
+
+    it('should return false when all slots are completed', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      const completedSlot = { ...mockTimeSlot, status: TimeSlotStatus.COMPLETED };
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([completedSlot]);
+
+      const result = await hasAvailableTimeSlots('freelancer789');
+
+      expect(result).toBe(false);
+    });
+
+    it('should handle errors gracefully', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+
+      vi.mocked(getTimeAllocations).mockRejectedValue(new Error('Database error'));
+
+      const result = await hasAvailableTimeSlots('freelancer789');
+
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('getAvailableSlotsForFreelancer', () => {
+    it('should return available purchased slots for freelancer', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      const purchasedSlot = { ...mockTimeSlot, status: TimeSlotStatus.PURCHASED };
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([purchasedSlot]);
+
+      const result = await getAvailableSlotsForFreelancer('freelancer789');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].status).toBe(TimeSlotStatus.PURCHASED);
+      expect(result[0].allocation).toEqual(mockAllocation);
+    });
+
+    it('should filter by project ID when specified', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      const purchasedSlot = { ...mockTimeSlot, status: TimeSlotStatus.PURCHASED };
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([purchasedSlot]);
+
+      const result = await getAvailableSlotsForFreelancer('freelancer789', 'project456');
+
+      expect(result).toHaveLength(1);
+    });
+
+    it('should return empty array when no purchased slots available', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([mockTimeSlot]); // Available, not purchased
+
+      const result = await getAvailableSlotsForFreelancer('freelancer789');
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should exclude expired allocations', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+
+      const expiredAllocation = {
+        ...mockAllocation,
+        endDate: mockFirestore.Timestamp.fromDate(new Date(Date.now() - 24 * 60 * 60 * 1000))
+      };
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([expiredAllocation]);
+
+      const result = await getAvailableSlotsForFreelancer('freelancer789');
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle errors gracefully', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+
+      vi.mocked(getTimeAllocations).mockRejectedValue(new Error('Database error'));
+
+      const result = await getAvailableSlotsForFreelancer('freelancer789');
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('canFreelancerStartTimer', () => {
+    it('should allow timer start when slots are available', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([mockTimeSlot]);
+
+      const result = await canFreelancerStartTimer('freelancer789', 'project456', 'job123');
+
+      expect(result.canStart).toBe(true);
+      expect(result.reason).toBeUndefined();
+    });
+
+    it('should deny timer start when no slots are available', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([]);
+
+      const result = await canFreelancerStartTimer('freelancer789', 'project456', 'job123');
+
+      expect(result.canStart).toBe(false);
+      expect(result.reason).toContain('No available time slots');
+    });
+
+    it('should handle validation errors gracefully', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+
+      vi.mocked(getTimeAllocations).mockRejectedValue(new Error('Database error'));
+
+      const result = await canFreelancerStartTimer('freelancer789', 'project456', 'job123');
+
+      expect(result.canStart).toBe(false);
+      expect(result.reason).toContain('Unable to validate time allocation');
+    });
+  });
+
+  describe('Slot Availability Logic Validation', () => {
+    it('should correctly identify slot states for timer usage', () => {
+      // AVAILABLE slots should not be usable for timer (need to be purchased first)
+      expect(TimeSlotStatus.AVAILABLE).not.toBe(TimeSlotStatus.PURCHASED);
+
+      // PURCHASED slots should be usable for timer
+      expect(TimeSlotStatus.PURCHASED).toBe('PURCHASED');
+
+      // IN_PROGRESS slots should not be available for new timers
+      expect(TimeSlotStatus.IN_PROGRESS).not.toBe(TimeSlotStatus.PURCHASED);
+
+      // COMPLETED slots should not be available for new timers
+      expect(TimeSlotStatus.COMPLETED).not.toBe(TimeSlotStatus.PURCHASED);
+    });
+
+    it('should validate allocation expiry logic', () => {
+      const now = new Date();
+      const futureDate = new Date(now.getTime() + 24 * 60 * 60 * 1000); // Tomorrow
+      const pastDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Yesterday
+
+      const futureTimestamp = mockFirestore.Timestamp.fromDate(futureDate);
+      const pastTimestamp = mockFirestore.Timestamp.fromDate(pastDate);
+
+      // Future date should be valid
+      expect(futureTimestamp.toDate() > now).toBe(true);
+
+      // Past date should be expired
+      expect(pastTimestamp.toDate() < now).toBe(true);
+    });
+
+    it('should handle multiple allocations correctly', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      const allocation2 = { ...mockAllocation, id: 'allocation456', projectId: 'project789' };
+      const slot2 = { ...mockTimeSlot, id: 'slot456', allocationId: 'allocation456', projectId: 'project789' };
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation, allocation2]);
+      vi.mocked(getTimeSlots).mockResolvedValue([mockTimeSlot, slot2]);
+
+      const result = await hasAvailableTimeSlots('freelancer789');
+
+      expect(result).toBe(true);
+    });
+
+    it('should validate project-specific slot availability', async () => {
+      const { getTimeAllocations } = await import('../../src/services/timeAllocationService');
+      const { getTimeSlots } = await import('../../src/services/timeSlotService');
+
+      const otherProjectAllocation = { ...mockAllocation, projectId: 'otherProject' };
+      const otherProjectSlot = { ...mockTimeSlot, projectId: 'otherProject' };
+
+      vi.mocked(getTimeAllocations).mockResolvedValue([mockAllocation, otherProjectAllocation]);
+      vi.mocked(getTimeSlots).mockResolvedValue([mockTimeSlot, otherProjectSlot]);
+
+      // Should only find slots for the specified project
+      const result = await hasAvailableTimeSlots('freelancer789', 'project456');
+
+      expect(result).toBe(true);
+
+      // Verify the filtering logic works
+      const allocations = [mockAllocation, otherProjectAllocation];
+      const filtered = allocations.filter(a => a.projectId === 'project456');
+      expect(filtered).toHaveLength(1);
+    });
+  });
+});

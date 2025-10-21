@@ -13,7 +13,48 @@ import {
     deleteDoc
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { User, UserRole, JobStatus, TaskStatus } from '../types';
+import { User, UserRole, JobStatus, TaskStatus, TaskDependency } from '../types';
+
+/**
+ * Schedule Template Types - Extended for scheduling features
+ */
+export interface ScheduleTemplate {
+    id: string;
+    name: string;
+    description: string;
+    category: string; // e.g., 'Construction', 'Software Development', 'Marketing'
+    createdById: string;
+    createdByName: string;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+    isPublic: boolean;
+    estimatedDuration: number; // in days
+    jobTemplates: ScheduleJobTemplate[];
+}
+
+export interface ScheduleJobTemplate {
+    id: string;
+    name: string;
+    description: string;
+    duration: number; // in days
+    taskTemplates: ScheduleTaskTemplate[];
+}
+
+export interface ScheduleTaskTemplate {
+    id: string;
+    name: string;
+    description: string;
+    duration: number; // in days
+    priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+    dependencies: ScheduleDependencyTemplate[];
+    resourceRequirements?: string[]; // e.g., ['Architect', 'Engineer']
+}
+
+export interface ScheduleDependencyTemplate {
+    predecessorTaskId: string;
+    type: 'FS' | 'SS' | 'FF' | 'SF';
+    lag?: number; // lag time in days
+}
 
 /**
  * Project Template Types
@@ -278,5 +319,112 @@ export const applyProjectTemplate = async (
     } catch (error) {
         console.error('Error applying project template:', error);
         throw new Error('Failed to apply project template');
+    }
+};
+
+/**
+ * Schedule Template Service Functions
+ */
+export const scheduleTemplateService = {
+    /**
+     * Create a new schedule template
+     */
+    async createScheduleTemplate(template: Omit<ScheduleTemplate, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> {
+        const templateRef = doc(collection(db, 'scheduleTemplates'));
+        const templateData = {
+            ...template,
+            id: templateRef.id,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp()
+        };
+
+        await setDoc(templateRef, templateData);
+        return templateRef.id;
+    },
+
+    /**
+     * Get schedule template by ID
+     */
+    async getScheduleTemplate(templateId: string): Promise<ScheduleTemplate | null> {
+        const templateDoc = await getDoc(doc(db, 'scheduleTemplates', templateId));
+        if (!templateDoc.exists()) return null;
+
+        return {
+            id: templateDoc.id,
+            ...templateDoc.data()
+        } as ScheduleTemplate;
+    },
+
+    /**
+     * Get all schedule templates for a user (including public ones)
+     */
+    async getScheduleTemplates(userId: string): Promise<ScheduleTemplate[]> {
+        const q = query(
+            collection(db, 'scheduleTemplates'),
+            where('createdById', '==', userId),
+            orderBy('updatedAt', 'desc')
+        );
+
+        const publicQ = query(
+            collection(db, 'scheduleTemplates'),
+            where('isPublic', '==', true),
+            orderBy('updatedAt', 'desc')
+        );
+
+        const [userTemplates, publicTemplates] = await Promise.all([
+            getDocs(q),
+            getDocs(publicQ)
+        ]);
+
+        const templates: ScheduleTemplate[] = [];
+
+        userTemplates.forEach(doc => {
+            templates.push({
+                id: doc.id,
+                ...doc.data()
+            } as ScheduleTemplate);
+        });
+
+        publicTemplates.forEach(doc => {
+            // Avoid duplicates if user has their own public template
+            if (!templates.find(t => t.id === doc.id)) {
+                templates.push({
+                    id: doc.id,
+                    ...doc.data()
+                } as ScheduleTemplate);
+            }
+        });
+
+        return templates;
+    },
+
+    /**
+     * Update schedule template
+     */
+    async updateScheduleTemplate(templateId: string, updates: Partial<ScheduleTemplate>): Promise<void> {
+        const templateRef = doc(db, 'scheduleTemplates', templateId);
+        await updateDoc(templateRef, {
+            ...updates,
+            updatedAt: serverTimestamp()
+        });
+    },
+
+    /**
+     * Delete schedule template
+     */
+    async deleteScheduleTemplate(templateId: string): Promise<void> {
+        await deleteDoc(doc(db, 'scheduleTemplates', templateId));
+    },
+
+    /**
+     * Apply schedule template to create a new project schedule
+     */
+    async applyScheduleTemplate(templateId: string, projectId: string, startDate: Date): Promise<void> {
+        const template = await this.getScheduleTemplate(templateId);
+        if (!template) throw new Error('Schedule template not found');
+
+        // This would integrate with the project service to create jobs and tasks
+        // For now, we'll just validate the template structure
+        console.log('Applying schedule template:', template.name, 'to project:', projectId, 'starting:', startDate);
     }
 };

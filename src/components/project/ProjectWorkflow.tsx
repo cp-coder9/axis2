@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ProjectStatus as ProjectStatusEnum } from '@/types'
+import { useProjects } from '@/contexts/ProjectsContext'
 
 // Import our enhanced components
 import { ProjectCreationDialog } from './ProjectCreationDialog'
@@ -24,6 +25,9 @@ import { ProjectDetailsView } from './ProjectDetailsView'
 import { TaskManagementBoard } from './TaskManagementBoard'
 import { TimerIntegrationPanel } from './TimerIntegrationPanel'
 import { ProjectCard } from './ProjectCard'
+import { GanttChart } from './GanttChart'
+import ResourceCalendarView from './ResourceCalendarView'
+import ProjectTimelineView from './ProjectTimelineView'
 
 // Types for the workflow
 export interface WorkflowProject {
@@ -82,141 +86,45 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
   onProjectSelect,
   defaultView = 'overview'
 }) => {
-  const [activeView, setActiveView] = useState<'overview' | 'timeline' | 'kanban' | 'reports'>(defaultView as 'overview' | 'timeline' | 'kanban' | 'reports')
+  const { state, loadProjects, loadProjectHierarchy, createDependency } = useProjects();
+  const [activeView, setActiveView] = useState<'overview' | 'timeline' | 'kanban' | 'resources' | 'reports'>(defaultView as 'overview' | 'timeline' | 'kanban' | 'resources' | 'reports')
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
-  const [projects, setProjects] = useState<WorkflowProject[]>([])
-  const [activeTimers] = useState<Record<string, any>>({})
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // Mock data for demonstration - replace with real data hooks
+  // Load projects on mount
   useEffect(() => {
-    // Simulate loading projects from context/API
-    const mockProjects: WorkflowProject[] = [
-      {
-        id: '1',
-        title: 'Modern Office Building Design',
-        description: 'Complete architectural design for a 15-story office complex in downtown area',
-        status: ProjectStatusEnum.IN_PROGRESS,
-        priority: 'high',
-        clientName: 'Metro Development Corp',
-        teamMembers: ['John Doe', 'Jane Smith', 'Mike Wilson'],
-        dueDate: new Date('2025-12-31'),
-        progress: 65,
-        budget: 250000,
-        timeSpent: 340,
-        timeAllocated: 520,
-        tasks: [
-          {
-            id: 't1',
-            title: 'Site Analysis',
-            status: 'completed',
-            priority: 'high',
-            assignedTo: 'John Doe',
-            estimatedHours: 40,
-            actualHours: 38,
-            projectId: '1'
-          },
-          {
-            id: 't2',
-            title: 'Conceptual Design',
-            status: 'in-progress',
-            priority: 'high',
-            assignedTo: 'Jane Smith',
-            estimatedHours: 80,
-            actualHours: 45,
-            projectId: '1'
-          },
-          {
-            id: 't3',
-            title: 'Structural Planning',
-            status: 'todo',
-            priority: 'medium',
-            assignedTo: 'Mike Wilson',
-            estimatedHours: 60,
-            actualHours: 0,
-            projectId: '1'
-          }
-        ],
-        recentActivity: [
-          {
-            id: 'a1',
-            type: 'timer_started',
-            description: 'Started timer for Conceptual Design',
-            user: 'Jane Smith',
-            timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000)
-          }
-        ]
-      },
-      {
-        id: '2',
-        title: 'Residential Complex Layout',
-        description: 'Master plan for 200-unit residential development',
-        status: ProjectStatusEnum.PENDING_APPROVAL,
-        priority: 'medium',
-        clientName: 'Sunrise Properties',
-        teamMembers: ['Sarah Connor', 'Tom Anderson'],
-        dueDate: new Date('2026-03-15'),
-        progress: 15,
-        budget: 180000,
-        timeSpent: 45,
-        timeAllocated: 400,
-        tasks: [],
-        recentActivity: []
-      }
-    ]
-    setProjects(mockProjects)
-  }, [])
+    loadProjects();
+  }, [loadProjects]);
+
+  // Use real projects from context
+  const projects = state.projects;
 
   // Filter projects based on status and search
   const filteredProjects = projects.filter(project => {
     const statusMatch = filterStatus === 'all' || project.status === filterStatus
     const searchMatch = searchQuery === '' ||
       project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+      (project.clientName && project.clientName.toLowerCase().includes(searchQuery.toLowerCase()))
     return statusMatch && searchMatch
   })
 
   // Calculate dashboard stats
   const dashboardStats = {
     totalProjects: projects.length,
-    activeProjects: projects.filter(p => p.status === ProjectStatusEnum.ACTIVE).length,
+    activeProjects: projects.filter(p => p.status === ProjectStatusEnum.ACTIVE || p.status === ProjectStatusEnum.IN_PROGRESS).length,
     completedProjects: projects.filter(p => p.status === ProjectStatusEnum.COMPLETED).length,
-    totalHoursSpent: projects.reduce((sum, p) => sum + p.timeSpent, 0),
-    averageProgress: projects.reduce((sum, p) => sum + p.progress, 0) / projects.length || 0
+    totalHoursSpent: projects.reduce((sum, p) => sum + (p.totalTimeSpentMinutes || 0) / 60, 0),
+    averageProgress: projects.reduce((sum, p) => sum + (p.completionPercentage || 0), 0) / projects.length || 0
   }
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId)
     onProjectSelect?.(projectId)
+    // Load project hierarchy when selected
+    loadProjectHierarchy(projectId)
   }
-
-  // Convert WorkflowProject to Project interface for ProjectCard
-  const convertToProject = (workflowProject: WorkflowProject) => ({
-    id: workflowProject.id,
-    title: workflowProject.title,
-    description: workflowProject.description,
-    clientId: 'client-' + workflowProject.id,
-    clientName: workflowProject.clientName,
-    leadArchitectId: 'architect-' + workflowProject.id,
-    leadArchitectName: workflowProject.teamMembers[0] || 'Unassigned',
-    assignedTeamIds: workflowProject.teamMembers.map((_, index) => `member-${index}`),
-    status: workflowProject.status,
-    budget: workflowProject.budget,
-    deadline: workflowProject.dueDate,
-    priority: workflowProject.priority.toUpperCase() as 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT',
-    tags: [],
-    purchasedHours: workflowProject.timeAllocated,
-    remainingHours: workflowProject.timeAllocated - workflowProject.timeSpent,
-    totalTimeSpentMinutes: workflowProject.timeSpent * 60,
-    totalAllocatedHours: workflowProject.timeAllocated,
-    completionPercentage: workflowProject.progress,
-    activeJobCards: workflowProject.tasks.filter(t => t.status === 'in-progress').length,
-    totalJobCards: workflowProject.tasks.length,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  })
 
   return (
     <div className={cn('project-workflow w-full space-y-6', className)}>
@@ -295,12 +203,13 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'timeline' | 'kanban' | 'reports')} className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'overview' | 'timeline' | 'kanban' | 'resources' | 'reports')} className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="kanban">Task Board</TabsTrigger>
           <TabsTrigger value="timeline">Timeline</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="summary">Project Summary</TabsTrigger>
+          <TabsTrigger value="resources">Resources</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab - Projects Grid */}
@@ -339,14 +248,14 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
             {filteredProjects.map((project) => (
               <ProjectCard
                 key={project.id}
-                project={convertToProject(project)}
+                project={project}
                 actions={{
                   onView: () => handleProjectSelect(project.id),
                   onEdit: () => console.log('Edit project:', project.id),
                 }}
                 showTimerControls={true}
-                isTimerActive={activeTimers[project.id]?.isActive || false}
-                isTimerPaused={activeTimers[project.id]?.isPaused || false}
+                isTimerActive={false} // TODO: Get from timer context
+                isTimerPaused={false}
               />
             ))}
           </div>
@@ -356,6 +265,7 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
         <TabsContent value="kanban" className="space-y-4">
           <TaskManagementBoard
             projects={filteredProjects}
+            tasks={state.tasks}
             selectedProject={selectedProject}
             onProjectSelect={handleProjectSelect}
           />
@@ -365,18 +275,66 @@ export const ProjectWorkflow: React.FC<ProjectWorkflowProps> = ({
         <TabsContent value="timeline" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Project Timeline</CardTitle>
+              <CardTitle>Project Timeline & Scheduling</CardTitle>
               <CardDescription>
-                View project schedules and milestones
+                View and manage project schedules, dependencies, and critical paths
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {/* Timeline component would go here */}
-              <div className="h-96 flex items-center justify-center text-muted-foreground">
-                Timeline view coming soon...
-              </div>
+              {selectedProject ? (
+                <GanttChart
+                  projectId={selectedProject}
+                  tasks={state.tasks.filter(t => state.jobs.some(j => j.id === t.jobId && j.projectId === selectedProject))}
+                  jobs={state.jobs.filter(j => j.projectId === selectedProject)}
+                  dependencies={state.dependencies[selectedProject] || []}
+                  onTaskUpdate={(taskId, updates) => {
+                    // TODO: Implement task update through context
+                    console.log('Update task:', taskId, updates);
+                  }}
+                  onTaskSelect={(task) => {
+                    console.log('Selected task:', task);
+                  }}
+                  onDependencyCreate={async (dependency) => {
+                    try {
+                      await createDependency(dependency);
+                    } catch (error) {
+                      console.error('Failed to create dependency:', error);
+                    }
+                  }}
+                  dependencyCreationMode={false}
+                />
+              ) : (
+                <div className="h-96 flex items-center justify-center text-muted-foreground">
+                  Select a project to view its timeline
+                </div>
+              )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Resources Tab */}
+        <TabsContent value="resources" className="space-y-4">
+          <ResourceCalendarView
+            projectId={selectedProject || ''}
+            className="h-full"
+          />
+        </TabsContent>
+
+        {/* Project Summary Tab */}
+        <TabsContent value="summary" className="space-y-4">
+          {selectedProject ? (
+            <ProjectTimelineView
+              project={projects.find(p => p.id === selectedProject)!}
+              jobs={state.jobs.filter(j => j.projectId === selectedProject)}
+              tasks={state.tasks.filter(t => state.jobs.some(j => j.id === t.jobId && j.projectId === selectedProject))}
+            />
+          ) : (
+            <Card>
+              <CardContent className="h-96 flex items-center justify-center text-muted-foreground">
+                Select a project to view its timeline summary
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         {/* Reports Tab */}

@@ -8,12 +8,12 @@
  */
 
 import { db } from '../lib/firebase';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
+import {
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
   query,
   where,
   getDocs,
@@ -60,7 +60,7 @@ export const saveDashboardLayout = async (
 ): Promise<void> => {
   try {
     const layoutRef = doc(db, 'dashboardLayouts', userId);
-    
+
     const layoutData: Partial<DashboardLayout> = {
       userId,
       name: name || 'My Dashboard',
@@ -70,7 +70,7 @@ export const saveDashboardLayout = async (
     };
 
     const existingLayout = await getDoc(layoutRef);
-    
+
     if (existingLayout.exists()) {
       await updateDoc(layoutRef, layoutData);
     } else {
@@ -260,11 +260,11 @@ export const getDefaultTemplateForRole = (role: UserRole): DashboardTemplate | n
       role: UserRole.ADMIN,
       category: 'comprehensive',
       widgets: [
-        { id: 'analytics-overview', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-        { id: 'user-management', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-        { id: 'project-timeline', x: 0, y: 4, w: 12, h: 4, minW: 6, minH: 3, maxW: 12, maxH: 8, isDraggable: true, isResizable: true },
-        { id: 'system-health', x: 0, y: 8, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 4, isDraggable: true, isResizable: true },
-        { id: 'billing-summary', x: 6, y: 8, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 4, isDraggable: true, isResizable: true }
+        { i: 'analytics-overview', id: 'analytics-overview', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+        { i: 'user-management', id: 'user-management', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+        { i: 'project-timeline', id: 'project-timeline', x: 0, y: 4, w: 12, h: 4, minW: 6, minH: 3, maxW: 12, maxH: 8, isDraggable: true, isResizable: true },
+        { i: 'system-health', id: 'system-health', x: 0, y: 8, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 4, isDraggable: true, isResizable: true },
+        { i: 'billing-summary', id: 'billing-summary', x: 6, y: 8, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 4, isDraggable: true, isResizable: true }
       ],
       settings: {
         autoRefresh: true,
@@ -278,10 +278,10 @@ export const getDefaultTemplateForRole = (role: UserRole): DashboardTemplate | n
       role: UserRole.FREELANCER,
       category: 'productivity',
       widgets: [
-        { id: 'time-tracker', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-        { id: 'my-projects', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-        { id: 'task-list', x: 0, y: 4, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-        { id: 'earnings-summary', x: 6, y: 4, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true }
+        { i: 'time-tracker', id: 'time-tracker', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+        { i: 'my-projects', id: 'my-projects', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+        { i: 'task-list', id: 'task-list', x: 0, y: 4, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+        { i: 'earnings-summary', id: 'earnings-summary', x: 6, y: 4, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true }
       ],
       settings: {
         autoRefresh: true,
@@ -295,10 +295,10 @@ export const getDefaultTemplateForRole = (role: UserRole): DashboardTemplate | n
       role: UserRole.CLIENT,
       category: 'minimal',
       widgets: [
-        { id: 'project-overview', x: 0, y: 0, w: 8, h: 4, minW: 6, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-        { id: 'messages', x: 8, y: 0, w: 4, h: 4, minW: 3, minH: 3, maxW: 6, maxH: 8, isDraggable: true, isResizable: true },
-        { id: 'files', x: 0, y: 4, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-        { id: 'billing-info', x: 6, y: 4, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 6, isDraggable: true, isResizable: true }
+        { i: 'project-overview', id: 'project-overview', x: 0, y: 0, w: 8, h: 4, minW: 6, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+        { i: 'messages', id: 'messages', x: 8, y: 0, w: 4, h: 4, minW: 3, minH: 3, maxW: 6, maxH: 8, isDraggable: true, isResizable: true },
+        { i: 'files', id: 'files', x: 0, y: 4, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+        { i: 'billing-info', id: 'billing-info', x: 6, y: 4, w: 6, h: 3, minW: 4, minH: 2, maxW: 12, maxH: 6, isDraggable: true, isResizable: true }
       ],
       settings: {
         autoRefresh: true,
@@ -327,7 +327,7 @@ export const applyTemplate = async (
   try {
     const templates = getAllTemplates();
     const template = templates.find(t => t.id === templateId);
-    
+
     if (!template) {
       throw new Error('Template not found');
     }
@@ -437,7 +437,7 @@ export const importDashboardLayout = async (
 ): Promise<void> => {
   try {
     const importData = JSON.parse(layoutJson);
-    
+
     if (!importData.widgets || !Array.isArray(importData.widgets)) {
       throw new Error('Invalid layout format: missing widgets array');
     }
@@ -472,7 +472,7 @@ export const optimizeLayout = (widgets: WidgetLayout[]): WidgetLayout[] => {
 
   // Compact layout by moving widgets up
   const optimized: WidgetLayout[] = [];
-  
+
   for (const widget of sorted) {
     let newY = 0;
     let collision = true;

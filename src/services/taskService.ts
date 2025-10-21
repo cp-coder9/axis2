@@ -445,3 +445,15 @@ const getTaskStatusChangeMessage = (newStatus: TaskStatus): string => {
             return `Task status changed to ${newStatus}.`;
     }
 };
+
+// Re-export dependency management functions
+export {
+    createTaskDependency,
+    getTaskDependencies,
+    getProjectDependencies,
+    updateTaskDependency,
+    deleteTaskDependency,
+    createBulkDependencies,
+    getCriticalDependencies,
+    recalculateTaskDates
+} from './taskDependencyService';

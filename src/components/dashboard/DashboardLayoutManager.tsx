@@ -3,12 +3,12 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Settings, 
-  Grid3X3, 
-  RotateCcw, 
-  Save, 
-  Eye, 
+import {
+  Settings,
+  Grid3X3,
+  RotateCcw,
+  Save,
+  Eye,
   EyeOff,
   GripVertical,
   Maximize2,
@@ -16,9 +16,9 @@ import {
   Move,
   Layers
 } from 'lucide-react';
-import { 
-  WidgetLayout, 
-  DashboardWidget, 
+import {
+  WidgetLayout,
+  DashboardWidget,
   DashboardSettings
 } from '@/types/dashboard';
 import { ResizableWidgetContainer } from './ResizableWidgetContainer';
@@ -58,6 +58,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
     widgets.forEach((widget, index) => {
       if (!existingIds.has(widget.id)) {
         newLayouts.push({
+          i: widget.id,
           id: widget.id,
           x: (index % 3) * 4,
           y: Math.floor(index / 3) * 3,
@@ -85,8 +86,8 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
 
   // Handle widget move
   const handleWidgetMove = useCallback((widgetId: string, newPosition: { x: number; y: number }) => {
-    const newLayout = completeLayout.map(l => 
-      l.id === widgetId 
+    const newLayout = completeLayout.map(l =>
+      l.id === widgetId
         ? { ...l, x: newPosition.x, y: newPosition.y }
         : l
     );
@@ -96,8 +97,8 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
 
   // Handle widget resize
   const handleWidgetResize = useCallback((widgetId: string, newSize: { w: number; h: number }) => {
-    const newLayout = completeLayout.map(l => 
-      l.id === widgetId 
+    const newLayout = completeLayout.map(l =>
+      l.id === widgetId
         ? { ...l, w: newSize.w, h: newSize.h }
         : l
     );
@@ -124,18 +125,19 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
       newHiddenWidgets.add(widgetId);
     }
     setHiddenWidgets(newHiddenWidgets);
-    
+
     // Update settings
     const enabledWidgets = widgets
       .filter(w => !newHiddenWidgets.has(w.id))
       .map(w => w.id);
-    
+
     onSettingsChange?.({ enabledWidgets });
   }, [hiddenWidgets, widgets, onSettingsChange]);
 
   // Reset layout to default
   const resetLayout = useCallback(() => {
     const defaultLayout: WidgetLayout[] = widgets.map((widget, index) => ({
+      i: widget.id,
       id: widget.id,
       x: (index % 3) * 4,
       y: Math.floor(index / 3) * 3,
@@ -148,7 +150,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
       isDraggable: true,
       isResizable: true
     }));
-    
+
     setLayout(defaultLayout);
     setHiddenWidgets(new Set());
     onLayoutChange?.(defaultLayout);
@@ -171,7 +173,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
       compactMode: isCompactMode,
       lastUpdated: new Date()
     };
-    
+
     onSettingsChange?.(newSettings);
     onEditModeChange?.(false);
   }, [layout, hiddenWidgets, isCompactMode, widgets, onSettingsChange, onEditModeChange]);
@@ -206,7 +208,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
           </div>
         </div>
       </CardHeader>
-      
+
       {isEditMode && (
         <CardContent className="pt-0">
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -219,7 +221,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
               <RotateCcw className="w-4 h-4" />
               Reset Layout
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -229,7 +231,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
               <Layers className="w-4 h-4" />
               Compact Layout
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -239,7 +241,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
               {isCompactMode ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
               {isCompactMode ? "Expand View" : "Compact View"}
             </Button>
-            
+
             <Button
               variant="outline"
               size="sm"
@@ -250,9 +252,9 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
               Save Layout
             </Button>
           </div>
-          
+
           <Separator className="mb-4" />
-          
+
           <div className="space-y-2">
             <h4 className="text-sm font-medium">Widget Visibility</h4>
             <div className="flex flex-wrap gap-2">
@@ -292,11 +294,11 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
   return (
     <div className="space-y-4">
       {renderWidgetControls()}
-      
+
       <GridLayoutSystem
         widgets={visibleWidgets}
         layout={visibleLayout}
-        onLayoutChange={onLayoutChange || (() => {})}
+        onLayoutChange={onLayoutChange || (() => { })}
         gridCols={gridCols}
         gridRowHeight={rowHeight}
         margin={margin}
@@ -354,7 +356,7 @@ export const DashboardLayoutManager: React.FC<DashboardLayoutManagerProps> = ({
           </div>
         )}
       </GridLayoutSystem>
-      
+
       {visibleWidgets.length === 0 && (
         <Card className="p-8 text-center">
           <div className="flex flex-col items-center gap-4">

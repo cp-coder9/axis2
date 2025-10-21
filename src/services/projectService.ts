@@ -17,7 +17,7 @@ import {
     DocumentData
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Project, ProjectStatus, User, UserRole, Job, JobStatus } from '../types';
+import { Project, ProjectStatus, User, UserRole, Job, JobStatus, ProjectBaseline, Task } from '../types';
 import { NotificationType, NotificationPriority, NotificationCategory } from '../types/notifications';
 import { createNotification } from './notificationService';
 import { MessagingService } from './messaging/MessagingService';
@@ -689,3 +689,14 @@ const getStatusChangeMessage = (newStatus: ProjectStatus): string => {
             return `Project status changed to ${newStatus}.`;
     }
 };
+
+// Re-export baseline management functions
+export {
+    createProjectBaseline,
+    getProjectBaselines,
+    getProjectBaselineById,
+    updateProjectBaseline,
+    deleteProjectBaseline,
+    compareProjectWithBaseline,
+    getProjectBaselineSummary
+} from './projectBaselineService';

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../../contexts/AppContext';
 import { UserRole } from '../../types';
 import { format, addHours, differenceInMinutes } from 'date-fns';
+import { doc, updateDoc, Timestamp } from 'firebase/firestore';
+import { db } from '../../firebase';
+import { useToast } from '../../hooks/use-toast';
 import {
     Card,
     CardContent,
@@ -19,7 +22,14 @@ import {
     SelectTrigger,
     SelectValue,
     Label,
-    cn
+    cn,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    Textarea
 } from '../../lib/shadcn';
 import {
     Play,
@@ -32,6 +42,7 @@ import {
     Calendar,
     User
 } from 'lucide-react';
+import { logAuditEvent, AuditAction } from '../../lib/audit';
 
 interface SlotBasedTimerProps {
     projectId: string;
@@ -60,21 +71,29 @@ export const SlotBasedTimer: React.FC<SlotBasedTimerProps> = ({
     jobCardTitle,
     className = ''
 }) => {
+    const { toast } = useToast();
     const {
         user,
         startGlobalTimer,
         stopGlobalTimerAndLog,
         getTimeAllocationsByFreelancer,
-        getTimeSlots
+        getTimeSlots,
+        addMessageToProject
     } = useAppContext();
 
     const [selectedSlotId, setSelectedSlotId] = useState<string>('');
     const [isStarting, setIsStarting] = useState(false);
     const [isStopping, setIsStopping] = useState(false);
+    const [isHandingOver, setIsHandingOver] = useState(false);
     const [allocations, setAllocations] = useState<any[]>([]);
     const [timeSlots, setTimeSlots] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentTime, setCurrentTime] = useState(0);
+    const [adminOverride, setAdminOverride] = useState(false);
+    const [showAdminControls, setShowAdminControls] = useState(false);
+    const [handoverType, setHandoverType] = useState<'full' | 'partial' | 'quality_check'>('full');
+    const [handoverNotes, setHandoverNotes] = useState('');
+    const [showHandoverDialog, setShowHandoverDialog] = useState(false);
 
     // Load allocations and time slots
     useEffect(() => {
@@ -175,13 +194,13 @@ export const SlotBasedTimer: React.FC<SlotBasedTimerProps> = ({
     const selectedSlot = allocatedSlots.find(slot => slot.id === selectedSlotId);
 
     const handleStartTimer = async () => {
-        if (!selectedSlot || selectedSlot.status !== 'available') return;
+        if (!selectedSlot && !adminOverride) return;
 
         setIsStarting(true);
         try {
-            const success = await startGlobalTimer(jobCardId, jobCardTitle, projectId, selectedSlot.hoursAllocated);
+            const success = await startGlobalTimer(projectId, jobCardId, jobCardId, jobCardTitle, selectedSlot?.hoursAllocated, selectedSlot?.id, adminOverride);
             if (success) {
-                console.log('Timer started for allocated slot:', selectedSlot.id);
+                console.log('Timer started for slot:', selectedSlot?.id || 'admin override');
             }
         } catch (error) {
             console.error('Error starting timer:', error);
@@ -202,6 +221,77 @@ export const SlotBasedTimer: React.FC<SlotBasedTimerProps> = ({
             console.error('Error stopping timer:', error);
         } finally {
             setIsStopping(false);
+        }
+    };
+
+    const handleHandover = async () => {
+        if (!selectedSlot || !user) return;
+
+        setIsHandingOver(true);
+        try {
+            // Create handover message based on type
+            let handoverMessage = '';
+            let handoverStatus = '';
+
+            switch (handoverType) {
+                case 'full':
+                    handoverMessage = `✅ **Work Fully Completed & Ready for Review**\n\n${user.name} has completed all work on "${jobCardTitle}" and marked it as ready for final review.\n\n**Time Slot Details:**\n- Allocated: ${selectedSlot.hoursAllocated}h\n- Utilized: ${selectedSlot.hoursUtilized.toFixed(1)}h\n- Status: Fully completed\n\n**Completion Notes:**\n${handoverNotes || 'No additional notes provided.'}\n\nPlease review the work and provide final approval.`;
+                    handoverStatus = 'ready_for_review';
+                    break;
+                case 'partial':
+                    handoverMessage = `🔄 **Partial Work Completion - Ready for Review**\n\n${user.name} has completed a portion of work on "${jobCardTitle}" and submitted it for review.\n\n**Time Slot Details:**\n- Allocated: ${selectedSlot.hoursAllocated}h\n- Utilized: ${selectedSlot.hoursUtilized.toFixed(1)}h\n- Remaining: ${selectedSlot.remainingHours.toFixed(1)}h\n\n**Progress Notes:**\n${handoverNotes || 'No additional notes provided.'}\n\nPlease review the completed portion and provide feedback for remaining work.`;
+                    handoverStatus = 'partial_completion';
+                    break;
+                case 'quality_check':
+                    handoverMessage = `🔍 **Work Submitted for Quality Check**\n\n${user.name} has completed work on "${jobCardTitle}" but requests a quality review before final submission.\n\n**Time Slot Details:**\n- Allocated: ${selectedSlot.hoursAllocated}h\n- Utilized: ${selectedSlot.hoursUtilized.toFixed(1)}h\n\n**Quality Check Request:**\n${handoverNotes || 'No specific quality concerns noted.'}\n\nPlease perform a quality check and provide detailed feedback.`;
+                    handoverStatus = 'quality_check_requested';
+                    break;
+            }
+
+            // Send handover message to project
+            await addMessageToProject(projectId, handoverMessage);
+
+            // Update slot with handover details
+            await updateDoc(doc(db, 'timeSlots', selectedSlot.id), {
+                handedOverAt: Timestamp.now(),
+                handoverType: handoverType,
+                handoverNotes: handoverNotes,
+                handoverStatus: handoverStatus,
+                handoverBy: user.id,
+                handoverByName: user.name,
+                updatedAt: Timestamp.now()
+            });
+
+            // Log handover event
+            await logAuditEvent(user, AuditAction.TIME_SLOT_HANDOVER, {
+                slotId: selectedSlot.id,
+                projectId: projectId,
+                jobCardId: jobCardId,
+                handoverType: handoverType,
+                handoverStatus: handoverStatus,
+                hoursUtilized: selectedSlot.hoursUtilized,
+                hoursAllocated: selectedSlot.hoursAllocated
+            });
+
+            toast({
+                title: "Work Handed Over",
+                description: `Your work has been marked as ${handoverType === 'full' ? 'ready for review' : handoverType === 'partial' ? 'partially complete' : 'requiring quality check'} and the team has been notified.`,
+            });
+
+            // Reset handover form
+            setHandoverType('full');
+            setHandoverNotes('');
+            setShowHandoverDialog(false);
+
+        } catch (error) {
+            console.error('Error during handover:', error);
+            toast({
+                title: "Handover Failed",
+                description: "Failed to mark work as ready for review. Please try again.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsHandingOver(false);
         }
     };
 
@@ -347,12 +437,68 @@ export const SlotBasedTimer: React.FC<SlotBasedTimerProps> = ({
                                 {selectedSlot.status === 'completed' && (
                                     <Alert>
                                         <CheckCircle className="h-4 w-4" />
-                                        <AlertDescription>
-                                            This time slot has been fully utilized. Great work!
+                                        <AlertDescription className="space-y-2">
+                                            <p>This time slot has been fully utilized. Great work!</p>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => setShowHandoverDialog(true)}
+                                                className="w-full"
+                                            >
+                                                <CheckCircle className="h-4 w-4 mr-2" />
+                                                Hand Over Work
+                                            </Button>
                                         </AlertDescription>
                                     </Alert>
                                 )}
                             </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Admin Override Controls */}
+                {user && user.role === UserRole.ADMIN && (
+                    <Card className="border-amber-200 bg-amber-50">
+                        <CardContent className="pt-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                    <span className="text-sm font-medium text-amber-900">Admin Controls</span>
+                                </div>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setShowAdminControls(!showAdminControls)}
+                                    className="text-amber-700 hover:text-amber-900"
+                                >
+                                    {showAdminControls ? 'Hide' : 'Show'} Controls
+                                </Button>
+                            </div>
+
+                            {showAdminControls && (
+                                <div className="mt-3 space-y-3">
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="admin-override"
+                                            checked={adminOverride}
+                                            onChange={(e) => setAdminOverride(e.target.checked)}
+                                            className="rounded border-gray-300"
+                                        />
+                                        <Label htmlFor="admin-override" className="text-sm text-amber-800">
+                                            Enable Admin Override
+                                        </Label>
+                                    </div>
+
+                                    <Alert className="border-amber-200 bg-amber-50">
+                                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                                        <AlertDescription className="text-xs text-amber-700">
+                                            Admin override bypasses slot allocation, assignment, and role restrictions.
+                                            This action will be logged for audit purposes.
+                                        </AlertDescription>
+                                    </Alert>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 )}
@@ -362,7 +508,7 @@ export const SlotBasedTimer: React.FC<SlotBasedTimerProps> = ({
                     {!isTimerActive ? (
                         <Button
                             onClick={handleStartTimer}
-                            disabled={!selectedSlot || selectedSlot.status !== 'available' || isStarting || !hasAvailableSlots}
+                            disabled={(!selectedSlot && !adminOverride) || (selectedSlot && selectedSlot.status !== 'available' && !adminOverride) || isStarting || (!hasAvailableSlots && !adminOverride)}
                             className="flex items-center gap-2"
                         >
                             {isStarting ? (
@@ -445,6 +591,89 @@ export const SlotBasedTimer: React.FC<SlotBasedTimerProps> = ({
                         <div className="text-xs text-muted-foreground">Total Remaining</div>
                     </div>
                 </div>
+
+                {/* Handover Dialog */}
+                <Dialog open={showHandoverDialog} onOpenChange={setShowHandoverDialog}>
+                    <DialogContent className="sm:max-w-[500px]">
+                        <DialogHeader>
+                            <DialogTitle>Hand Over Work for Review</DialogTitle>
+                            <DialogDescription>
+                                Submit your completed work for review. Choose the appropriate handover type and provide any relevant notes.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="handover-type">Handover Type</Label>
+                                <Select value={handoverType} onValueChange={(value: 'full' | 'partial' | 'quality_check') => setHandoverType(value)}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="full">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Full Completion</span>
+                                                <span className="text-xs text-muted-foreground">Work is fully complete and ready for final review</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="partial">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Partial Completion</span>
+                                                <span className="text-xs text-muted-foreground">Work is partially complete, submit for feedback</span>
+                                            </div>
+                                        </SelectItem>
+                                        <SelectItem value="quality_check">
+                                            <div className="flex flex-col">
+                                                <span className="font-medium">Quality Check Request</span>
+                                                <span className="text-xs text-muted-foreground">Request quality review before final submission</span>
+                                            </div>
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="handover-notes">Notes (Optional)</Label>
+                                <Textarea
+                                    id="handover-notes"
+                                    placeholder={
+                                        handoverType === 'full'
+                                            ? "Describe what was completed and any final notes..."
+                                            : handoverType === 'partial'
+                                                ? "Describe what was completed and what remains to be done..."
+                                                : "Describe any specific quality concerns or areas needing review..."
+                                    }
+                                    value={handoverNotes}
+                                    onChange={(e) => setHandoverNotes(e.target.value)}
+                                    rows={3}
+                                />
+                            </div>
+
+                            {selectedSlot && (
+                                <div className="bg-muted p-3 rounded-lg">
+                                    <h4 className="font-medium text-sm mb-2">Time Slot Summary</h4>
+                                    <div className="text-xs space-y-1">
+                                        <div>Allocated: {selectedSlot.hoursAllocated}h</div>
+                                        <div>Utilized: {selectedSlot.hoursUtilized.toFixed(1)}h</div>
+                                        <div>Remaining: {selectedSlot.remainingHours.toFixed(1)}h</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="outline" onClick={() => setShowHandoverDialog(false)}>
+                                Cancel
+                            </Button>
+                            <Button onClick={handleHandover} disabled={isHandingOver}>
+                                {isHandingOver ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                ) : null}
+                                Hand Over Work
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </CardContent>
         </Card>
     );

@@ -98,16 +98,22 @@ export const TimeManagementAnalyticsDashboard: React.FC<TimeManagementAnalyticsD
                     break;
             }
 
-            const report = TimerAnalytics.generateTimeManagementAnalyticsReport(
+            const analyticsReport = TimerAnalytics.generateTimeManagementAnalyticsReport(
                 allocations,
-                timeSlots,
+                timeSlots.map(slot => ({
+                    ...slot,
+                    startTime: slot.startTime.toDate(),
+                    endTime: slot.endTime.toDate(),
+                    createdAt: slot.createdAt.toDate(),
+                    updatedAt: slot.updatedAt.toDate()
+                })),
                 purchases,
                 timeLogs,
                 projects,
                 period
             );
 
-            setAnalyticsReport(report);
+            setAnalyticsReport(analyticsReport);
         } catch (error) {
             console.error('Error loading analytics report:', error);
         } finally {

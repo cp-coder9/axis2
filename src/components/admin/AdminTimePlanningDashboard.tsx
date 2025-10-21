@@ -257,7 +257,7 @@ export const AdminTimePlanningDashboard: React.FC<AdminTimePlanningDashboardProp
                     notes: allocationData.notes
                 });
             } else {
-                await createTimeAllocation(allocationData);
+                await createTimeAllocation(allocationData, user);
             }
 
             // Reset form and reload data
@@ -367,7 +367,7 @@ export const AdminTimePlanningDashboard: React.FC<AdminTimePlanningDashboardProp
                     notes: `Applied from template: ${template.name}`
                 };
 
-                await createTimeAllocation(allocationData);
+                await createTimeAllocation(allocationData, user);
             }
 
             // Reload data

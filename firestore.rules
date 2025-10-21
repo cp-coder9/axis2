@@ -280,5 +280,116 @@ service cloud.firestore {
          request.resource.data.clientId == request.auth.uid)
       );
     }
+
+    // Project Management Module Collections
+
+    // Task dependencies - project-based access
+    match /taskDependencies/{dependencyId} {
+      allow read: if request.auth != null && (
+        // Admin can read all dependencies
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can read dependencies for projects they're involved in
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (
+           // Client can read dependencies in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can read dependencies in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds)
+         ))
+      );
+
+      allow write: if request.auth != null && (
+        // Admin can write all dependencies
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can write dependencies for projects they're involved in
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (
+           // Client can write dependencies in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can write dependencies in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds)
+         ))
+      );
+    }
+
+    // Project baselines - project-based access
+    match /projectBaselines/{baselineId} {
+      allow read: if request.auth != null && (
+        // Admin can read all baselines
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can read baselines for projects they're involved in
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (
+           // Client can read baselines in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can read baselines in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds)
+         ))
+      );
+
+      allow write: if request.auth != null && (
+        // Admin can write all baselines
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can write baselines for projects they're involved in
+        (exists(/databases/$(database)/documents/projects/$(resource.data.projectId)) &&
+         (
+           // Client can write baselines in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can write baselines in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(resource.data.projectId)).data.assignedTeamIds)
+         ))
+      );
+    }
+
+    // Resource assignments - project-based access
+    match /resourceAssignments/{assignmentId} {
+      allow read: if request.auth != null && (
+        // Admin can read all assignments
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can read assignments for projects they're involved in
+        (exists(/databases/$(database)/documents/tasks/$(resource.data.taskId)) &&
+         exists(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)) &&
+         exists(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)).data.projectId)) &&
+         (
+           // Client can read assignments in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)).data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can read assignments in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)).data.projectId)).data.assignedTeamIds)
+         ))
+      );
+
+      allow write: if request.auth != null && (
+        // Admin can write all assignments
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN') ||
+        // Users can write assignments for projects they're involved in
+        (exists(/databases/$(database)/documents/tasks/$(resource.data.taskId)) &&
+         exists(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)) &&
+         exists(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)).data.projectId)) &&
+         (
+           // Client can write assignments in their projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'CLIENT' &&
+            get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)).data.projectId)).data.clientId == request.auth.uid) ||
+           // Freelancer can write assignments in assigned projects
+           (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'FREELANCER' &&
+            request.auth.uid in get(/databases/$(database)/documents/projects/$(get(/databases/$(database)/documents/jobs/$(get(/databases/$(database)/documents/tasks/$(resource.data.taskId)).data.jobId)).data.projectId)).data.assignedTeamIds)
+         ))
+      );
+    }
   }
 }

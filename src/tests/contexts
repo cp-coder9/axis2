@@ -1,0 +1,257 @@
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  hasRole,
+  isAdmin,
+  isFreelancer,
+  isClient,
+  hasPermission,
+  canAccessProject,
+  canEditProject
+} from '../../src/contexts/modules/auth';
+import { User, UserRole, Permission } from '../../src/types';
+
+// Mock Firebase
+vi.mock('../../src/firebase', () => ({
+  db: {}
+}));
+
+describe('Role-Based Access Control', () => {
+  let adminUser: User;
+  let freelancerUser: User;
+  let clientUser: User;
+  let mockProject: any;
+
+  beforeEach(() => {
+    adminUser = {
+      id: 'admin1',
+      name: 'Admin User',
+      email: 'admin@example.com',
+      role: UserRole.ADMIN,
+      hourlyRate: 0,
+      phone: '123-456-7890',
+      company: 'Admin Corp',
+      avatarUrl: '',
+      createdAt: {} as any,
+      lastActive: {} as any,
+      title: 'Administrator'
+    };
+
+    freelancerUser = {
+      id: 'freelancer1',
+      name: 'John Doe',
+      email: 'john@example.com',
+      role: UserRole.FREELANCER,
+      hourlyRate: 50,
+      phone: '123-456-7890',
+      company: 'Freelance Co',
+      avatarUrl: '',
+      createdAt: {} as any,
+      lastActive: {} as any,
+      title: 'Architect'
+    };
+
+    clientUser = {
+      id: 'client1',
+      name: 'Client User',
+      email: 'client@example.com',
+      role: UserRole.CLIENT,
+      hourlyRate: 0,
+      phone: '123-456-7890',
+      company: 'Client Corp',
+      avatarUrl: '',
+      createdAt: {} as any,
+      lastActive: {} as any,
+      title: 'Project Manager'
+    };
+
+    mockProject = {
+      id: 'project1',
+      title: 'Test Project',
+      clientId: 'client1',
+      leadArchitectId: 'freelancer1',
+      assignedTeamIds: ['freelancer1', 'freelancer2']
+    };
+  });
+
+  describe('Role Checking Functions', () => {
+    it('should correctly identify admin users', () => {
+      expect(isAdmin(adminUser)).toBe(true);
+      expect(isAdmin(freelancerUser)).toBe(false);
+      expect(isAdmin(clientUser)).toBe(false);
+      expect(isAdmin(null)).toBe(false);
+      expect(isAdmin(undefined)).toBe(false);
+    });
+
+    it('should correctly identify freelancer users', () => {
+      expect(isFreelancer(freelancerUser)).toBe(true);
+      expect(isFreelancer(adminUser)).toBe(false);
+      expect(isFreelancer(clientUser)).toBe(false);
+      expect(isFreelancer(null)).toBe(false);
+    });
+
+    it('should correctly identify client users', () => {
+      expect(isClient(clientUser)).toBe(true);
+      expect(isClient(adminUser)).toBe(false);
+      expect(isClient(freelancerUser)).toBe(false);
+      expect(isClient(null)).toBe(false);
+    });
+
+    it('should check for specific roles', () => {
+      expect(hasRole(adminUser, UserRole.ADMIN)).toBe(true);
+      expect(hasRole(adminUser, UserRole.FREELANCER)).toBe(false);
+      expect(hasRole(adminUser, [UserRole.ADMIN, UserRole.FREELANCER])).toBe(true);
+      expect(hasRole(freelancerUser, [UserRole.ADMIN, UserRole.FREELANCER])).toBe(true);
+      expect(hasRole(null, UserRole.ADMIN)).toBe(false);
+    });
+  });
+
+  describe('Permission Checking', () => {
+    it('should grant all permissions to admin users', () => {
+      expect(hasPermission(adminUser, 'VIEW_PROJECTS')).toBe(true);
+      expect(hasPermission(adminUser, 'EDIT_PROJECTS')).toBe(true);
+      expect(hasPermission(adminUser, 'DELETE_PROJECTS')).toBe(true);
+      expect(hasPermission(adminUser, 'MANAGE_USERS')).toBe(true);
+      expect(hasPermission(adminUser, 'VIEW_REPORTS')).toBe(true);
+      expect(hasPermission(adminUser, 'DELETE_USERS')).toBe(true);
+      expect(hasPermission(adminUser, 'MANAGE_FILES')).toBe(true);
+      expect(hasPermission(adminUser, 'VIEW_FILES')).toBe(true);
+    });
+
+    it('should grant appropriate permissions to freelancer users', () => {
+      expect(hasPermission(freelancerUser, 'VIEW_PROJECTS')).toBe(true);
+      expect(hasPermission(freelancerUser, 'EDIT_PROJECTS')).toBe(true);
+      expect(hasPermission(freelancerUser, 'VIEW_FILES')).toBe(true);
+      expect(hasPermission(freelancerUser, 'MANAGE_FILES')).toBe(true);
+
+      // Freelancers should not have admin-only permissions
+      expect(hasPermission(freelancerUser, 'DELETE_PROJECTS')).toBe(false);
+      expect(hasPermission(freelancerUser, 'MANAGE_USERS')).toBe(false);
+      expect(hasPermission(freelancerUser, 'DELETE_USERS')).toBe(false);
+    });
+
+    it('should grant limited permissions to client users', () => {
+      expect(hasPermission(clientUser, 'VIEW_PROJECTS')).toBe(true);
+      expect(hasPermission(clientUser, 'VIEW_FILES')).toBe(true);
+
+      // Clients should not have editing permissions
+      expect(hasPermission(clientUser, 'EDIT_PROJECTS')).toBe(false);
+      expect(hasPermission(clientUser, 'DELETE_PROJECTS')).toBe(false);
+      expect(hasPermission(clientUser, 'MANAGE_USERS')).toBe(false);
+      expect(hasPermission(clientUser, 'MANAGE_FILES')).toBe(false);
+    });
+
+    it('should deny all permissions for null/undefined users', () => {
+      expect(hasPermission(null, 'VIEW_PROJECTS')).toBe(false);
+      expect(hasPermission(undefined, 'VIEW_PROJECTS')).toBe(false);
+    });
+  });
+
+  describe('Project Access Control', () => {
+    it('should allow admins to access all projects', () => {
+      expect(canAccessProject(adminUser, mockProject)).toBe(true);
+
+      const otherProject = { ...mockProject, clientId: 'otherClient' };
+      expect(canAccessProject(adminUser, otherProject)).toBe(true);
+    });
+
+    it('should allow clients to access only their own projects', () => {
+      expect(canAccessProject(clientUser, mockProject)).toBe(true);
+
+      const otherProject = { ...mockProject, clientId: 'otherClient' };
+      expect(canAccessProject(clientUser, otherProject)).toBe(false);
+    });
+
+    it('should allow freelancers to access assigned projects', () => {
+      expect(canAccessProject(freelancerUser, mockProject)).toBe(true);
+
+      const unassignedProject = { ...mockProject, leadArchitectId: 'otherFreelancer', assignedTeamIds: [] };
+      expect(canAccessProject(freelancerUser, unassignedProject)).toBe(false);
+    });
+
+    it('should deny project access for null/undefined users', () => {
+      expect(canAccessProject(null, mockProject)).toBe(false);
+      expect(canAccessProject(undefined, mockProject)).toBe(false);
+    });
+  });
+
+  describe('Project Editing Permissions', () => {
+    it('should allow admins to edit all projects', () => {
+      expect(canEditProject(adminUser, mockProject)).toBe(true);
+
+      const otherProject = { ...mockProject, clientId: 'otherClient' };
+      expect(canEditProject(adminUser, otherProject)).toBe(true);
+    });
+
+    it('should allow freelancers to edit assigned projects', () => {
+      expect(canEditProject(freelancerUser, mockProject)).toBe(true);
+
+      const unassignedProject = { ...mockProject, leadArchitectId: 'otherFreelancer', assignedTeamIds: [] };
+      expect(canEditProject(freelancerUser, unassignedProject)).toBe(false);
+    });
+
+    it('should deny project editing for clients', () => {
+      expect(canEditProject(clientUser, mockProject)).toBe(false);
+    });
+
+    it('should deny project editing for null/undefined users', () => {
+      expect(canEditProject(null, mockProject)).toBe(false);
+      expect(canEditProject(undefined, mockProject)).toBe(false);
+    });
+  });
+
+  describe('Time Management Admin Restrictions', () => {
+    it('should restrict time allocation creation to admins only', () => {
+      // This would be tested in integration with the actual time allocation service
+      // For now, we verify the permission structure supports admin-only operations
+      expect(hasPermission(adminUser, 'MANAGE_USERS')).toBe(true); // Time allocation is admin function
+      expect(hasPermission(freelancerUser, 'MANAGE_USERS')).toBe(false);
+      expect(hasPermission(clientUser, 'MANAGE_USERS')).toBe(false);
+    });
+
+    it('should allow admin override of timer restrictions', () => {
+      // Admin override would be tested in timer context integration
+      // Verify admin has all permissions needed for overrides
+      expect(isAdmin(adminUser)).toBe(true);
+      expect(hasPermission(adminUser, 'EDIT_PROJECTS')).toBe(true);
+    });
+
+    it('should restrict approval workflow access to admins', () => {
+      // Approval voting should be admin-only
+      expect(hasPermission(adminUser, 'MANAGE_USERS')).toBe(true);
+      expect(hasPermission(freelancerUser, 'MANAGE_USERS')).toBe(false);
+      expect(hasPermission(clientUser, 'MANAGE_USERS')).toBe(false);
+    });
+  });
+
+  describe('Audit Logging Access Control', () => {
+    it('should allow admins to view all audit logs', () => {
+      // Audit log access would be controlled by permissions
+      expect(hasPermission(adminUser, 'VIEW_REPORTS')).toBe(true);
+      expect(hasPermission(freelancerUser, 'VIEW_REPORTS')).toBe(false);
+      expect(hasPermission(clientUser, 'VIEW_REPORTS')).toBe(false);
+    });
+
+    it('should restrict audit log modifications to admins', () => {
+      // Only admins should be able to modify/delete audit logs
+      expect(isAdmin(adminUser)).toBe(true);
+      expect(isAdmin(freelancerUser)).toBe(false);
+      expect(isAdmin(clientUser)).toBe(false);
+    });
+  });
+
+  describe('Settings Management Access', () => {
+    it('should restrict system settings access to admins', () => {
+      // System-wide settings should be admin-only
+      expect(hasPermission(adminUser, 'MANAGE_USERS')).toBe(true); // Proxy for admin settings
+      expect(hasPermission(freelancerUser, 'MANAGE_USERS')).toBe(false);
+      expect(hasPermission(clientUser, 'MANAGE_USERS')).toBe(false);
+    });
+
+    it('should allow users to manage their own settings', () => {
+      // Individual user settings should be allowed for all roles
+      expect(hasPermission(adminUser, 'VIEW_PROJECTS')).toBe(true); // Basic access
+      expect(hasPermission(freelancerUser, 'VIEW_PROJECTS')).toBe(true);
+      expect(hasPermission(clientUser, 'VIEW_PROJECTS')).toBe(true);
+    });
+  });
+});

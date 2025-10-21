@@ -2,11 +2,12 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { onAuthStateChanged, User as FirebaseUser, signOut } from 'firebase/auth';
 import { Timestamp } from 'firebase/firestore';
 import { auth } from '../firebase';
-import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, AuthState, RolePermissions, ProjectCostReport, FreelancerPerformanceReport, TimeLog, TimeAllocation, TimeSlot, TimePurchase, TimeSlotStatus } from '../types';
+import { User, Project, UserRole, UserCreationData, ActionItem, ProjectFile, TimeTrackingReport, ProjectStatus, JobCard, JobCardStatus, ActionItemCreationData, ProjectCreationData, ProjectRequest, ProjectRequestStatus, AuthState, RolePermissions, ProjectCostReport, FreelancerPerformanceReport, TimeLog, TimeAllocation, TimeSlot, TimePurchase, TimeSlotStatus, Application } from '../types';
 import { Notification } from '../types/notifications';
 import { TimerSyncProvider, useTimerSync } from './modules/timerSync';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { PresenceStatus, TypingIndicator } from '../types/messaging';
+import { logAuditEvent, AuditAction } from '../utils/auditLogger';
 import {
   getUserById,
   createUserFromFirebaseAuth,
@@ -87,6 +88,19 @@ import {
   getTimePurchases,
   getTimeSlots,
 } from '../services/timeSlotService';
+import {
+  createApprovalRequest,
+  getApprovalRequests,
+  submitApprovalVote,
+  getApprovalRequestById,
+  updateApprovalRequestStatus,
+  deleteApprovalRequest,
+} from '../services/allocationApprovalService';
+import {
+  getTimeManagementSettings,
+  updateTimeManagementSettings,
+  resetTimeManagementSettingsToDefaults,
+} from '../services/timeManagementSettingsService';
 import { MessagingService } from '../services/messaging/MessagingService';
 
 // AppContext interface for shadcn migration with enhanced authentication
@@ -150,7 +164,7 @@ export interface AppContextType extends AuthState {
   getRoleBasedRedirectPath: () => string;
 
   // Timer methods (integrated with TimerSyncContext)
-  startGlobalTimer: (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours: number, slotId?: string) => Promise<boolean>;
+  startGlobalTimer: (projectId: string, jobId: string, taskId: string, taskTitle: string, allocatedHours?: number, slotId?: string, adminOverride?: boolean) => Promise<boolean>;
   stopGlobalTimerAndLog: (projectId: string, jobCardId: string, data: any) => Promise<void>;
 
   // Timer sync state (exposed from TimerSyncContext)
@@ -190,11 +204,11 @@ export interface AppContextType extends AuthState {
   deleteFileFromProject: (projectId: string, fileId: string) => Promise<void>;
 
   // Time logs
-  addManualTimeLog: (projectId: string, jobCardId: string, logData: any, file?: File) => Promise<void>;
-  addAdminCommentToTimeLog: () => Promise<void>;
+  addManualTimeLog: (timeLogData: Omit<TimeLog, 'id' | 'createdAt'>) => Promise<void>;
+  addAdminCommentToTimeLog: (timeLogId: any, adminComment: any) => Promise<void>;
 
   // Time management methods
-  allocateTimeToFreelancer: (allocationData: any) => Promise<string>;
+  allocateTimeToFreelancer: (allocationData: any) => Promise<{ allocationId: string; requiresApproval: boolean; approvalRequestId?: string }>;
   getTimeAllocations: (projectId?: string, freelancerId?: string) => Promise<any[]>;
   getTimeAllocationsByFreelancer: (freelancerId: string) => Promise<any[]>;
   getTimeAllocationsByProject: (projectId: string) => Promise<any[]>;
@@ -209,31 +223,38 @@ export interface AppContextType extends AuthState {
   getTimePurchases: () => Promise<any[]>;
   getTimeSlots: () => Promise<any[]>;
 
+  // Allocation approval methods
+  getApprovalRequests: (status?: any, adminId?: string) => Promise<any[]>;
+  submitApprovalVote: (requestId: string, decision: 'APPROVE' | 'REJECT' | 'ESCALATE', comments?: string) => Promise<void>;
+  getApprovalRequestById: (requestId: string) => Promise<any>;
+  updateApprovalRequestStatus: (requestId: string, status: any) => Promise<void>;
+  deleteApprovalRequest: (requestId: string) => Promise<void>;
+
   // Applications
-  applyToProject: (projectId: string, coverLetter?: string, proposedRate?: number) => Promise<void>;
-  getProjectApplications: () => any[];
-  acceptApplication: () => Promise<void>;
-  rejectApplication: () => Promise<void>;
+  applyToProject: (applicationData: { projectId: string; coverLetter?: string; proposedRate?: number }) => Promise<void>;
+  getProjectApplications: (projectId: any) => any[];
+  acceptApplication: (applicationId: any) => Promise<void>;
+  rejectApplication: (applicationId: any) => Promise<void>;
 
   // Reports
-  generateTimeTrackingReport: (filters: any) => TimeTrackingReport;
-  generateProjectCostReport: (projectId: string) => ProjectCostReport | null;
-  generateFreelancerPerformanceReport: (freelancerId: string) => FreelancerPerformanceReport | null;
+  generateTimeTrackingReport: (projectId: any, startDate: any, endDate: any) => Promise<TimeTrackingReport>;
+  generateProjectCostReport: (projectId: string) => Promise<ProjectCostReport | null>;
+  generateFreelancerPerformanceReport: (freelancerId: string) => Promise<FreelancerPerformanceReport | null>;
   exportReportToPDF: () => Promise<void>;
   exportReportToCSV: () => Promise<void>;
 
   // Project requests
-  createProjectRequest: () => Promise<string>;
-  updateProjectRequestStatus: () => Promise<void>;
-  convertProjectRequestToProject: () => Promise<string>;
+  createProjectRequest: (projectRequestData: any) => Promise<string>;
+  updateProjectRequestStatus: (projectRequestId: any, status: any) => Promise<void>;
+  convertProjectRequestToProject: (projectRequestId: any) => Promise<string>;
 
   // Additional methods
-  isClientOnboardingCompleted: () => Promise<boolean>;
+  isClientOnboardingCompleted: (clientId: any) => Promise<boolean>;
   fixUserRole: () => Promise<void>;
   fixClientRelationships: () => Promise<void>;
   checkAndUpdateProjectStatus: () => Promise<void>;
-  createClient: () => Promise<string>;
-  updateProjectTeam: () => Promise<void>;
+  createClient: (clientData: Omit<User, 'id' | 'role' | 'createdAt' | 'updatedAt'>) => Promise<string>;
+  updateProjectTeam: (projectId: any, teamMemberIds: any, action: any) => Promise<void>;
   loadAuditModule?: () => Promise<any>;
 
   // Settings
@@ -350,6 +371,12 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Settings state
+  const [settings, setSettings] = useState<any>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsError, setSettingsError] = useState<any>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   // Initialize messaging service
   const [messagingService] = useState(() => new MessagingService());
@@ -554,6 +581,28 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     }
   }, [authState.user]);
 
+  // Load time management settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      if (authState.user?.role === UserRole.ADMIN) {
+        try {
+          setSettingsLoading(true);
+          setSettingsError(null);
+          const loadedSettings = await getTimeManagementSettings();
+          setSettings(loadedSettings);
+          setHasUnsavedChanges(false);
+        } catch (error) {
+          console.error('Error loading time management settings:', error);
+          setSettingsError(error);
+        } finally {
+          setSettingsLoading(false);
+        }
+      }
+    };
+
+    loadSettings();
+  }, [authState.user?.role]);
+
   // Authentication methods
   const login = async (email: string, password: string, role?: UserRole) => {
     try {
@@ -645,11 +694,11 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
   };
 
   // Timer methods (integrated with TimerSyncContext)
-  const startGlobalTimer = async (jobCardId: string, jobCardTitle: string, projectId: string, allocatedHours: number, slotId?: string): Promise<boolean> => {
+  const startGlobalTimer = async (projectId: string, jobId: string, taskId: string, taskTitle: string, allocatedHours?: number, slotId?: string, adminOverride?: boolean): Promise<boolean> => {
     try {
-      const success = await timerSyncStartTimer(projectId, jobCardId, jobCardTitle, allocatedHours, slotId);
+      const success = await timerSyncStartTimer(projectId, jobId, taskId, taskTitle, allocatedHours, slotId, adminOverride);
       if (success) {
-        console.log('Timer started via TimerSync:', { jobCardId, jobCardTitle, projectId, allocatedHours, slotId });
+        console.log('Timer started via TimerSync:', { projectId, jobId, taskId, taskTitle, allocatedHours, slotId, adminOverride });
       }
       return success;
     } catch (error) {
@@ -1016,8 +1065,16 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     // Legacy timer properties for backward compatibility
     activeTimers: activeTimer ? { [activeTimer.id || 'current']: activeTimer } : {},
     currentTimerKey: activeTimer?.id || null,
-    pauseGlobalTimer: async () => { return true; },
-    resumeGlobalTimer: async () => { return true; },
+    pauseGlobalTimer: async (timerKey: string) => {
+      // Placeholder implementation - would integrate with timer sync
+      console.log('Pausing timer:', timerKey);
+      return Promise.resolve();
+    },
+    resumeGlobalTimer: async (timerKey: string) => {
+      // Placeholder implementation - would integrate with timer sync
+      console.log('Resuming timer:', timerKey);
+      return Promise.resolve();
+    },
 
     // Real-time chat and presence
     isRealtimeConnected,
@@ -1093,30 +1150,30 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
     },
     addManualTimeLog: async (timeLogData) => {
       if (!authState.user) throw new Error("User not authenticated");
-      await addManualTimeLogService({ ...timeLogData, userId: authState.user.id });
+      await addManualTimeLogService(timeLogData);
     },
-    addAdminCommentToTimeLog: async (timeLogId, adminComment) => {
+    addAdminCommentToTimeLog: async (timeLogId: any, adminComment: any) => {
       await addAdminCommentToTimeLogService(timeLogId, adminComment);
     },
     applyToProject: async (applicationData) => {
       if (!authState.user) throw new Error("User not authenticated");
-      await applyToProjectService({ ...applicationData, userId: authState.user.id });
+      await applyToProjectService({ ...applicationData, freelancerId: authState.user.id, freelancerName: authState.user.name, freelancerEmail: authState.user.email });
     },
-    getProjectApplications: (projectId) => {
+    getProjectApplications: (projectId: any) => {
       // This is a placeholder. In a real app, you would fetch this from state
       // which is updated by a subscription.
       return [];
     },
-    acceptApplication: async (applicationId) => {
+    acceptApplication: async (applicationId: any) => {
       await acceptApplicationService(applicationId);
     },
-    rejectApplication: async (applicationId) => {
+    rejectApplication: async (applicationId: any) => {
       await rejectApplicationService(applicationId);
     },
-    generateTimeTrackingReport: async (projectId, startDate, endDate) => {
+    generateTimeTrackingReport: async (projectId: any, startDate: any, endDate: any) => {
       return await generateTimeTrackingReportService(projectId, startDate, endDate);
     },
-    generateProjectCostReport: (projectId) => {
+    generateProjectCostReport: (projectId: string) => {
       try {
         return generateProjectCostReportService(projectId, projects);
       } catch (error) {
@@ -1124,7 +1181,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         return null;
       }
     },
-    generateFreelancerPerformanceReport: (freelancerId) => {
+    generateFreelancerPerformanceReport: (freelancerId: string) => {
       try {
         return generateFreelancerPerformanceReportService(freelancerId, projects);
       } catch (error) {
@@ -1148,14 +1205,14 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         throw error;
       }
     },
-    createProjectRequest: async (projectRequestData) => {
+    createProjectRequest: async (projectRequestData: any) => {
       if (!authState.user) throw new Error("User not authenticated");
       return await createProjectRequestService({ ...projectRequestData, clientId: authState.user.id });
     },
-    updateProjectRequestStatus: async (projectRequestId, status) => {
+    updateProjectRequestStatus: async (projectRequestId: any, status: any) => {
       await updateProjectRequest(projectRequestId, { status });
     },
-    convertProjectRequestToProject: async (projectRequestId) => {
+    convertProjectRequestToProject: async (projectRequestId: any) => {
       const request = projectRequests.find(pr => pr.id === projectRequestId);
       if (!request) throw new Error("Project request not found");
       const projectId = await addProject({
@@ -1169,7 +1226,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
       await updateProjectRequest(projectRequestId, { status: ProjectRequestStatus.APPROVED });
       return projectId;
     },
-    isClientOnboardingCompleted: async (clientId) => {
+    isClientOnboardingCompleted: async (clientId: any) => {
       const client = await getUserById(clientId);
       return client?.onboardingCompleted || false;
     },
@@ -1225,20 +1282,84 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         throw error;
       }
     },
-    updateProjectTeam: async (projectId, teamMemberIds, action) => {
+    updateProjectTeam: async (projectId: any, teamMemberIds: any, action: any) => {
       await updateProjectTeamService(projectId, teamMemberIds, action);
     },
     loadAuditModule: async () => {
       return await loadAuditModuleService();
     },
 
+    // Settings methods
+    settings,
+    settingsLoading,
+    settingsError,
+    hasUnsavedChanges,
+    updateSetting: (key: string, value: any) => {
+      setSettings(prev => ({ ...prev, [key]: value }));
+      setHasUnsavedChanges(true);
+    },
+    saveSettings: async () => {
+      try {
+        setSettingsLoading(true);
+        setSettingsError(null);
+        await updateTimeManagementSettings(settings);
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        setSettingsError(error);
+        throw error;
+      } finally {
+        setSettingsLoading(false);
+      }
+    },
+    resetSettingsToDefaults: async () => {
+      try {
+        setSettingsLoading(true);
+        setSettingsError(null);
+        const defaultSettings = await resetTimeManagementSettingsToDefaults();
+        setSettings(defaultSettings);
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        setSettingsError(error);
+        throw error;
+      } finally {
+        setSettingsLoading(false);
+      }
+    },
+    exportSettings: () => {
+      return JSON.stringify(settings, null, 2);
+    },
+    importSettings: async (settingsJson: string) => {
+      try {
+        setSettingsLoading(true);
+        setSettingsError(null);
+        const importedSettings = JSON.parse(settingsJson);
+        // Validate settings structure here if needed
+        await updateTimeManagementSettings(importedSettings);
+        setSettings(importedSettings);
+        setHasUnsavedChanges(false);
+      } catch (error) {
+        setSettingsError(error);
+        throw error;
+      } finally {
+        setSettingsLoading(false);
+      }
+    },
+
     // Time management methods
-    allocateTimeToFreelancer: async (allocationData: any): Promise<string> => {
+    allocateTimeToFreelancer: async (allocationData: any): Promise<{ allocationId: string; requiresApproval: boolean; approvalRequestId?: string }> => {
       try {
         if (!authState.user || authState.user.role !== UserRole.ADMIN) {
           throw new Error('Only administrators can allocate time');
         }
-        return await createTimeAllocation(allocationData);
+
+        // Use default threshold of 50 hours (can be made configurable later)
+        const result = await createTimeAllocation({
+          ...allocationData,
+          allocatedById: authState.user.id,
+          allocatedByName: authState.user.name
+        }, authState.user, 50);
+
+        return result;
       } catch (error) {
         console.error('Error allocating time to freelancer:', error);
         throw error;
@@ -1273,7 +1394,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         if (!authState.user || authState.user.role !== UserRole.ADMIN) {
           throw new Error('Only administrators can update time allocations');
         }
-        await updateTimeAllocation(allocationId, updates);
+        await updateTimeAllocation(allocationId, updates, authState.user);
       } catch (error) {
         console.error('Error updating time allocation:', error);
         throw error;
@@ -1284,7 +1405,7 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         if (!authState.user || authState.user.role !== UserRole.ADMIN) {
           throw new Error('Only administrators can delete time allocations');
         }
-        await deleteTimeAllocation(allocationId);
+        await deleteTimeAllocation(allocationId, authState.user);
       } catch (error) {
         console.error('Error deleting time allocation:', error);
         throw error;
@@ -1295,7 +1416,17 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         if (!authState.user || (authState.user.id !== clientId && authState.user.role !== UserRole.ADMIN)) {
           throw new Error('Only the client or administrators can purchase time slots');
         }
-        return await purchaseTimeSlot(slotId, clientId, clientName);
+        const purchaseId = await purchaseTimeSlot(slotId, clientId, clientName);
+
+        // Log time slot purchase
+        await logAuditEvent(authState.user, AuditAction.TIME_SLOT_PURCHASED, {
+          slotId,
+          clientId,
+          clientName,
+          purchaseId
+        });
+
+        return purchaseId;
       } catch (error) {
         console.error('Error purchasing time slot:', error);
         throw error;
@@ -1359,6 +1490,57 @@ const AppProviderInner: React.FC<{ children: ReactNode }> = ({ children }) => {
         return await getTimeSlots();
       } catch (error) {
         console.error('Error getting time slots:', error);
+        throw error;
+      }
+    },
+
+    // Allocation approval methods
+    getApprovalRequests: async (status?: any, adminId?: string): Promise<any[]> => {
+      try {
+        return await getApprovalRequests(status, adminId);
+      } catch (error) {
+        console.error('Error getting approval requests:', error);
+        throw error;
+      }
+    },
+    submitApprovalVote: async (requestId: string, decision: 'APPROVE' | 'REJECT' | 'ESCALATE', comments?: string): Promise<void> => {
+      try {
+        if (!authState.user || authState.user.role !== UserRole.ADMIN) {
+          throw new Error('Only administrators can submit approval votes');
+        }
+        await submitApprovalVote(requestId, authState.user.id, authState.user.name, decision, comments);
+      } catch (error) {
+        console.error('Error submitting approval vote:', error);
+        throw error;
+      }
+    },
+    getApprovalRequestById: async (requestId: string): Promise<any> => {
+      try {
+        return await getApprovalRequestById(requestId);
+      } catch (error) {
+        console.error('Error getting approval request:', error);
+        throw error;
+      }
+    },
+    updateApprovalRequestStatus: async (requestId: string, status: any): Promise<void> => {
+      try {
+        if (!authState.user || authState.user.role !== UserRole.ADMIN) {
+          throw new Error('Only administrators can update approval request status');
+        }
+        await updateApprovalRequestStatus(requestId, status);
+      } catch (error) {
+        console.error('Error updating approval request status:', error);
+        throw error;
+      }
+    },
+    deleteApprovalRequest: async (requestId: string): Promise<void> => {
+      try {
+        if (!authState.user || authState.user.role !== UserRole.ADMIN) {
+          throw new Error('Only administrators can delete approval requests');
+        }
+        await deleteApprovalRequest(requestId);
+      } catch (error) {
+        console.error('Error deleting approval request:', error);
         throw error;
       }
     },

@@ -10,7 +10,8 @@ import {
     serverTimestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { TimeSlot, TimeSlotStatus, TimePurchase, TimePurchaseStatus } from '../types';
+import { TimeSlotStatus, TimePurchase, TimePurchaseStatus } from '../types';
+import { TimeSlot } from '../types/timeManagement';
 
 const TIME_SLOTS_COLLECTION = 'timeSlots';
 const TIME_PURCHASES_COLLECTION = 'timePurchases';
@@ -44,52 +45,47 @@ export const purchaseTimeSlot = async (
     clientId: string,
     clientName: string
 ): Promise<string> => {
-    try {
-        // Get the slot details
-        const slotDocRef = doc(db, TIME_SLOTS_COLLECTION, slotId);
-        const slotDoc = await getDocs(query(collection(db, TIME_SLOTS_COLLECTION), where('__name__', '==', slotDocRef)));
-        const slotData = slotDoc.docs[0]?.data() as TimeSlot;
+    // Get the slot details
+    const slotDocRef = doc(db, TIME_SLOTS_COLLECTION, slotId);
+    const slotDoc = await getDocs(query(collection(db, TIME_SLOTS_COLLECTION), where('__name__', '==', slotDocRef)));
+    const slotData = slotDoc.docs[0]?.data() as TimeSlot;
 
-        if (!slotData) {
-            throw new Error('Time slot not found');
-        }
-
-        if (slotData.status !== TimeSlotStatus.AVAILABLE) {
-            throw new Error('Time slot is not available for purchase');
-        }
-
-        // Calculate purchase amount
-        const amount = slotData.durationHours * slotData.hourlyRate;
-
-        // Create purchase record
-        const purchasesCollectionRef = collection(db, TIME_PURCHASES_COLLECTION);
-        const purchaseData = {
-            slotId,
-            clientId,
-            clientName,
-            projectId: slotData.projectId,
-            freelancerId: slotData.freelancerId,
-            freelancerName: slotData.freelancerName,
-            amount,
-            currency: 'USD', // Default currency
-            status: TimePurchaseStatus.COMPLETED,
-            purchasedAt: serverTimestamp(),
-        };
-
-        const purchaseDocRef = await addDoc(purchasesCollectionRef, purchaseData);
-
-        // Update slot status
-        await updateTimeSlotStatus(slotId, TimeSlotStatus.PURCHASED, {
-            purchasedById: clientId,
-            purchasedByName: clientName,
-            purchaseId: purchaseDocRef.id,
-        });
-
-        return purchaseDocRef.id;
-    } catch (error) {
-        console.error('Error purchasing time slot:', error);
-        throw new Error('Failed to purchase time slot');
+    if (!slotData) {
+        throw new Error('Time slot not found');
     }
+
+    if (slotData.status !== TimeSlotStatus.AVAILABLE) {
+        throw new Error('Time slot is not available for purchase');
+    }
+
+    // Calculate purchase amount
+    const amount = slotData.durationHours * slotData.hourlyRate;
+
+    // Create purchase record
+    const purchasesCollectionRef = collection(db, TIME_PURCHASES_COLLECTION);
+    const purchaseData = {
+        slotId,
+        clientId,
+        clientName,
+        projectId: slotData.projectId,
+        freelancerId: slotData.freelancerId,
+        freelancerName: slotData.freelancerName,
+        amount,
+        currency: 'USD', // Default currency
+        status: TimePurchaseStatus.COMPLETED,
+        purchasedAt: serverTimestamp(),
+    };
+
+    const purchaseDocRef = await addDoc(purchasesCollectionRef, purchaseData);
+
+    // Update slot status
+    await updateTimeSlotStatus(slotId, TimeSlotStatus.PURCHASED, {
+        purchasedById: clientId,
+        purchasedByName: clientName,
+        purchaseId: purchaseDocRef.id,
+    });
+
+    return purchaseDocRef.id;
 };
 
 /**

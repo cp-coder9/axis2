@@ -111,7 +111,13 @@ export const AdminUtilizationDashboard: React.FC<AdminUtilizationDashboardProps>
 
             const analyticsReport = TimerAnalytics.generateTimeManagementAnalyticsReport(
                 allocations,
-                timeSlots,
+                timeSlots.map(slot => ({
+                    ...slot,
+                    startTime: slot.startTime.toDate(),
+                    endTime: slot.endTime.toDate(),
+                    createdAt: slot.createdAt.toDate(),
+                    updatedAt: slot.updatedAt.toDate()
+                })),
                 purchases,
                 timeLogs,
                 projects,

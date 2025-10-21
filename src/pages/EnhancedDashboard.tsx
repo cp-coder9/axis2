@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { 
-  BarChart3, 
-  Files, 
-  Grid3X3, 
-  Palette, 
+import {
+  BarChart3,
+  Files,
+  Grid3X3,
+  Palette,
   Activity,
   TrendingUp
 } from 'lucide-react';
@@ -132,12 +132,12 @@ export function EnhancedDashboard() {
 
   // Default widget layout
   const [widgetLayout, setWidgetLayout] = useState<WidgetLayout[]>([
-    { id: 'analytics-overview', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
-    { id: 'project-timeline', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 8, isDraggable: true, isResizable: true },
-    { id: 'team-performance', x: 0, y: 4, w: 4, h: 3, minW: 3, minH: 2, maxW: 8, maxH: 6, isDraggable: true, isResizable: true },
-    { id: 'recent-files', x: 4, y: 4, w: 4, h: 3, minW: 3, minH: 2, maxW: 8, maxH: 6, isDraggable: true, isResizable: true },
-    { id: 'notifications', x: 8, y: 4, w: 4, h: 3, minW: 3, minH: 2, maxW: 6, maxH: 4, isDraggable: true, isResizable: true },
-    { id: 'quick-actions', x: 0, y: 7, w: 4, h: 2, minW: 3, minH: 2, maxW: 6, maxH: 3, isDraggable: true, isResizable: true }
+    { i: 'analytics-overview', id: 'analytics-overview', x: 0, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 6, isDraggable: true, isResizable: true },
+    { i: 'project-timeline', id: 'project-timeline', x: 6, y: 0, w: 6, h: 4, minW: 4, minH: 3, maxW: 12, maxH: 8, isDraggable: true, isResizable: true },
+    { i: 'team-performance', id: 'team-performance', x: 0, y: 4, w: 4, h: 3, minW: 3, minH: 2, maxW: 8, maxH: 6, isDraggable: true, isResizable: true },
+    { i: 'recent-files', id: 'recent-files', x: 4, y: 4, w: 4, h: 3, minW: 3, minH: 2, maxW: 8, maxH: 6, isDraggable: true, isResizable: true },
+    { i: 'notifications', id: 'notifications', x: 8, y: 4, w: 4, h: 3, minW: 3, minH: 2, maxW: 6, maxH: 4, isDraggable: true, isResizable: true },
+    { i: 'quick-actions', id: 'quick-actions', x: 0, y: 7, w: 4, h: 2, minW: 3, minH: 2, maxW: 6, maxH: 3, isDraggable: true, isResizable: true }
   ]);
 
   // Update dashboard stats

@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { 
-  onSnapshot, 
-  collection, 
-  query, 
-  where, 
-  orderBy, 
-  doc, 
+import {
+  onSnapshot,
+  collection,
+  query,
+  where,
+  orderBy,
+  doc,
   updateDoc,
   deleteDoc,
   Timestamp,
@@ -88,18 +88,18 @@ export const useRealtimeTimerSync = (
     changes.forEach((change) => {
       const data = change.doc.data()
       const timerId = `${data.projectId}-${data.jobCardId}`
-      
+
       switch (change.type) {
         case 'added':
         case 'modified':
           // Check for conflicts with local state
           const hasOptimisticUpdate = optimisticUpdatesRef.current.has(timerId)
-          
+
           if (hasOptimisticUpdate && enableOptimisticUpdates) {
             // Compare with optimistic update to detect conflicts
             const optimisticData = optimisticUpdatesRef.current.get(timerId)!
             const conflict = detectConflict(optimisticData, data, maxTimeDriftMs)
-            
+
             if (conflict) {
               setSyncState(prev => ({
                 ...prev,
@@ -109,7 +109,7 @@ export const useRealtimeTimerSync = (
               return
             }
           }
-          
+
           // Apply remote changes to local state
           window.dispatchEvent(new CustomEvent('timerRemoteUpdate', {
             detail: {
@@ -119,7 +119,7 @@ export const useRealtimeTimerSync = (
             }
           }))
           break
-          
+
         case 'removed':
           window.dispatchEvent(new CustomEvent('timerRemoteUpdate', {
             detail: {
@@ -131,7 +131,7 @@ export const useRealtimeTimerSync = (
           break
       }
     })
-    
+
     setSyncState(prev => ({
       ...prev,
       lastSyncTime: Date.now(),
@@ -184,7 +184,7 @@ export const useRealtimeTimerSync = (
             if (change.type === 'modified' && change.doc.data().active === false) {
               const data = change.doc.data()
               const timerId = `${data.projectId}-${data.jobCardId}`
-              
+
               window.dispatchEvent(new CustomEvent('timerRemoteUpdate', {
                 detail: {
                   type: 'removed',
@@ -239,7 +239,7 @@ export const useRealtimeTimerSync = (
 
   const rollbackOptimisticUpdate = useCallback((timerId: string) => {
     optimisticUpdatesRef.current.delete(timerId)
-    
+
     window.dispatchEvent(new CustomEvent('timerOptimisticRollback', {
       detail: { timerId }
     }))
@@ -322,7 +322,7 @@ function detectConflict(
   maxTimeDriftMs: number
 ): TimerConflict | null {
   const remoteTimer = convertFirestoreToTimerInfo(remote)
-  
+
   // Check for different timer conflict
   if (local.projectId !== remoteTimer.projectId || local.jobCardId !== remoteTimer.jobCardId) {
     return {
@@ -332,7 +332,7 @@ function detectConflict(
       detectedAt: Date.now()
     }
   }
-  
+
   // Check for state mismatch
   if (local.isPaused !== remoteTimer.isPaused) {
     return {
@@ -342,11 +342,11 @@ function detectConflict(
       detectedAt: Date.now()
     }
   }
-  
+
   // Check for time drift
   const localTime = new Date(local.startTime).getTime()
   const remoteTime = new Date(remoteTimer.startTime).getTime()
-  
+
   if (Math.abs(localTime - remoteTime) > maxTimeDriftMs) {
     return {
       local,
@@ -355,7 +355,7 @@ function detectConflict(
       detectedAt: Date.now()
     }
   }
-  
+
   return null
 }
 
@@ -364,6 +364,9 @@ function convertFirestoreToTimerInfo(data: any): ActiveTimerInfo {
     jobCardId: data.jobCardId,
     jobCardTitle: data.jobCardTitle,
     projectId: data.projectId,
+    jobId: data.jobId || data.jobCardId, // Fallback to jobCardId if jobId not available
+    taskId: data.taskId || 'default-task', // Provide default if not available
+    taskTitle: data.taskTitle || data.jobCardTitle || 'Timer Task', // Fallback to jobCardTitle
     startTime: data.startTime,
     isPaused: data.isPaused || false,
     totalPausedTime: data.totalPausedTime || 0,
@@ -377,7 +380,7 @@ function convertFirestoreToTimerInfo(data: any): ActiveTimerInfo {
 function mergeTimerData(local: ActiveTimerInfo, remote: ActiveTimerInfo): ActiveTimerInfo {
   // Merge strategy: prefer the most recent state changes
   // This is a simplified merge - in production, you might want more sophisticated logic
-  
+
   return {
     ...local,
     ...remote,

@@ -10,31 +10,31 @@ export interface DashboardWidget {
   name: string;
   title: string;
   category: 'analytics' | 'projects' | 'time' | 'files' | 'team' | 'reports' | 'system';
-  
+
   // Task 7.1: Enhanced widget properties
   description?: string; // Widget documentation and purpose
-  
+
   // Size constraints for responsive layout
   minW?: number; // Minimum width in grid units
   maxW?: number; // Maximum width in grid units
   minH?: number; // Minimum height in grid units
   maxH?: number; // Maximum height in grid units
-  
+
   // Default dimensions
   defaultW?: number;
   defaultH?: number;
-  
+
   // Widget configuration
   config?: WidgetConfig;
-  
+
   // Permission system
   permissions?: UserRole[];
-  
+
   // Visibility and behavior
   isVisible?: boolean;
   refreshInterval?: number; // Auto-refresh interval in milliseconds
   dataSource?: string; // Data source identifier
-  
+
   // Metadata
   icon?: string;
   color?: string;
@@ -51,19 +51,19 @@ export interface WidgetConfig {
   showFooter?: boolean;
   showBorder?: boolean;
   backgroundColor?: string;
-  
+
   // Data settings
   dataLimit?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   filterBy?: Record<string, any>;
-  
+
   // Chart settings (for chart widgets)
   chartType?: 'line' | 'bar' | 'pie' | 'area' | 'scatter';
   showLegend?: boolean;
   showGrid?: boolean;
   showTooltip?: boolean;
-  
+
   // Custom settings
   customSettings?: Record<string, any>;
 }
@@ -73,6 +73,7 @@ export interface WidgetConfig {
  * Defines the position and size of a widget in the grid
  */
 export interface WidgetLayout {
+  i: string; // Unique identifier for the widget (used by react-grid-layout)
   id: string;
   x: number; // Grid column position
   y: number; // Grid row position

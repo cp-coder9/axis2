@@ -1,6 +1,7 @@
 import { getTimeAllocations, getTimeSlotsForFreelancer } from '../services/timeAllocationService';
 import { getTimeSlots } from '../services/timeSlotService';
 import { TimeSlotStatus } from '../types';
+import { TimeSlot } from '../types/timeManagement';
 
 /**
  * Check if a freelancer has available time slots for timer usage
@@ -78,7 +79,7 @@ export const getAvailableSlotsForFreelancer = async (freelancerId: string, proje
                     availableSlots.push({
                         ...slot,
                         allocation: allocation,
-                        remainingHours: allocation.allocatedHours // Simplified - in real implementation, calculate from time logs
+                        remainingHours: Math.max(0, allocation.allocatedHours - (slot.hoursUtilized || 0))
                     });
                 }
             }

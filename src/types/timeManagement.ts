@@ -33,6 +33,7 @@ export interface TimeSlot {
     durationHours: number; // Fixed 4-hour blocks
     hourlyRate: number;
     status: TimeSlotStatus;
+    hoursUtilized?: number; // Hours actually worked/utilized
     purchasedById?: string; // Client who purchased
     purchasedByName?: string;
     purchaseId?: string; // Reference to purchase record

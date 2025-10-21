@@ -42,7 +42,7 @@ function calculateItemStyle(
   containerWidth: number
 ): React.CSSProperties {
   const colWidth = (containerWidth - margin[0] * (gridCols - 1)) / gridCols;
-  
+
   return {
     position: 'absolute',
     left: `${layout.x * (colWidth + margin[0])}px`,
@@ -62,13 +62,13 @@ export function compactLayout(layout: WidgetLayout[]): WidgetLayout[] {
     if (a.y === b.y) return a.x - b.x;
     return a.y - b.y;
   });
-  
+
   const compacted: WidgetLayout[] = [];
-  
+
   for (const item of sorted) {
     let newY = 0;
     let collision = true;
-    
+
     // Find the lowest Y position without collision
     while (collision) {
       collision = false;
@@ -85,10 +85,10 @@ export function compactLayout(layout: WidgetLayout[]): WidgetLayout[] {
         }
       }
     }
-    
+
     compacted.push({ ...item, y: newY });
   }
-  
+
   return compacted;
 }
 
@@ -114,15 +114,15 @@ function resolveCollisions(
   layout: WidgetLayout[],
   movedItem: WidgetLayout
 ): WidgetLayout[] {
-  const result = layout.map(item => 
+  const result = layout.map(item =>
     item.id === movedItem.id ? movedItem : item
   );
-  
+
   // Check for collisions and move items down
   for (let i = 0; i < result.length; i++) {
     const item = result[i];
     if (item.id === movedItem.id) continue;
-    
+
     if (checkCollision(movedItem, item)) {
       // Move the colliding item down
       result[i] = {
@@ -131,7 +131,7 @@ function resolveCollisions(
       };
     }
   }
-  
+
   return result;
 }
 
@@ -152,17 +152,17 @@ export function GridLayoutSystem({
   // Calculate container height
   const containerHeight = useMemo(() => {
     if (layout.length === 0) return gridRowHeight;
-    
+
     const maxY = Math.max(...layout.map(l => l.y + l.h));
     return maxY * gridRowHeight + (maxY - 1) * margin[1] + containerPadding[1] * 2;
   }, [layout, gridRowHeight, margin, containerPadding]);
-  
+
   // Create grid items
   const gridItems: GridItem[] = useMemo(() => {
     return layout.map(l => {
       const widget = widgets.find(w => w.id === l.id);
       if (!widget) return null;
-      
+
       return {
         id: l.id,
         layout: l,
@@ -170,7 +170,7 @@ export function GridLayoutSystem({
       };
     }).filter(Boolean) as GridItem[];
   }, [widgets, layout]);
-  
+
   // Grid container style
   const gridStyle: React.CSSProperties = useMemo(() => ({
     position: 'relative',
@@ -178,7 +178,7 @@ export function GridLayoutSystem({
     minHeight: `${containerHeight}px`,
     padding: `${containerPadding[1]}px ${containerPadding[0]}px`
   }), [containerHeight, containerPadding]);
-  
+
   // Get item style
   const getItemStyle = useCallback((item: GridItem): React.CSSProperties => {
     // Assume container width is 100% - we'll use a fixed width for calculation
@@ -191,57 +191,57 @@ export function GridLayoutSystem({
       containerWidth
     );
   }, [gridCols, gridRowHeight, margin]);
-  
+
   // Handle item move
   const handleItemMove = useCallback((itemId: string, position: { x: number; y: number }) => {
     if (!isEditMode) return;
-    
+
     const item = layout.find(l => l.id === itemId);
     if (!item) return;
-    
+
     // Clamp position to grid bounds
     const clampedX = Math.max(0, Math.min(gridCols - item.w, position.x));
     const clampedY = Math.max(0, position.y);
-    
+
     const movedItem: WidgetLayout = {
       ...item,
       x: clampedX,
       y: clampedY
     };
-    
+
     // Resolve collisions
     const newLayout = resolveCollisions(layout, movedItem);
     onLayoutChange(newLayout);
   }, [layout, gridCols, isEditMode, onLayoutChange]);
-  
+
   // Handle item resize
   const handleItemResize = useCallback((itemId: string, size: { w: number; h: number }) => {
     if (!isEditMode) return;
-    
+
     const item = layout.find(l => l.id === itemId);
     const widget = widgets.find(w => w.id === itemId);
     if (!item || !widget) return;
-    
+
     // Apply size constraints
     const minW = widget.minW || item.minW || 1;
     const maxW = widget.maxW || item.maxW || gridCols;
     const minH = widget.minH || item.minH || 1;
     const maxH = widget.maxH || item.maxH || 8;
-    
+
     const clampedW = Math.max(minW, Math.min(maxW, Math.min(gridCols - item.x, size.w)));
     const clampedH = Math.max(minH, Math.min(maxH, size.h));
-    
+
     const resizedItem: WidgetLayout = {
       ...item,
       w: clampedW,
       h: clampedH
     };
-    
+
     // Resolve collisions
     const newLayout = resolveCollisions(layout, resizedItem);
     onLayoutChange(newLayout);
   }, [layout, widgets, gridCols, isEditMode, onLayoutChange]);
-  
+
   return (
     <>
       {children({
@@ -270,19 +270,20 @@ export function generateDefaultLayout(
   let currentX = 0;
   let currentY = 0;
   let maxHeightInRow = 0;
-  
+
   for (const widget of widgets) {
     const w = widget.defaultW || 4;
     const h = widget.defaultH || 3;
-    
+
     // Check if widget fits in current row
     if (currentX + w > gridCols) {
       currentX = 0;
       currentY += maxHeightInRow;
       maxHeightInRow = 0;
     }
-    
+
     layout.push({
+      i: widget.id,
       id: widget.id,
       x: currentX,
       y: currentY,
@@ -295,11 +296,11 @@ export function generateDefaultLayout(
       isDraggable: true,
       isResizable: true
     });
-    
+
     currentX += w;
     maxHeightInRow = Math.max(maxHeightInRow, h);
   }
-  
+
   return layout;
 }
 
@@ -312,7 +313,7 @@ export function validateLayout(
   gridCols: number
 ): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   // Check bounds
   for (const item of layout) {
     if (item.x < 0 || item.y < 0) {
@@ -325,7 +326,7 @@ export function validateLayout(
       errors.push(`Item ${item.id} has invalid dimensions`);
     }
   }
-  
+
   // Check overlaps
   for (let i = 0; i < layout.length; i++) {
     for (let j = i + 1; j < layout.length; j++) {
@@ -334,7 +335,7 @@ export function validateLayout(
       }
     }
   }
-  
+
   return {
     valid: errors.length === 0,
     errors

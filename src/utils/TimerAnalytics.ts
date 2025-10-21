@@ -4,7 +4,8 @@
  */
 
 import { Timestamp } from 'firebase/firestore';
-import { TimeLog, Project, User, TimeAllocation, TimeSlot, TimePurchase } from '../types';
+import { TimeLog, Project, User, TimeAllocation, TimePurchase } from '../types';
+import { TimeSlot } from '../types/timeManagement';
 
 export interface TimerUsageStatistics {
   totalSessions: number;
@@ -966,7 +967,7 @@ export class TimerAnalytics {
     );
 
     const filteredSlots = slots.filter(s =>
-      s.createdAt.toDate() >= period.startDate && s.createdAt.toDate() <= period.endDate
+      s.createdAt >= period.startDate && s.createdAt <= period.endDate
     );
 
     const totalAllocatedHours = filteredAllocations.reduce((sum, a) => sum + a.allocatedHours, 0);

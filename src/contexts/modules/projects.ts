@@ -1,4 +1,6 @@
-import { Project, User, JobCard } from '../../types';
+import { Project, User, JobCard, ActionItem, ActionItemCreationData, Job } from '../../types';
+import { updateProject as updateProjectService, deleteProject as deleteProjectService, updateJobCard as updateJobCardService, getProjectById } from '../../services/projectService';
+import { serverTimestamp, Timestamp } from 'firebase/firestore';
 
 /**
  * Project access control functions for timer assignment validation
@@ -134,36 +136,197 @@ export const getUserAccessibleProjects = (projects: Project[], user: User): Proj
 export const useProjectOperations = () => {
   return {
     updateProject: async (projectId: string, updateData: Partial<Project>, user: User) => {
-      // Implementation would go here
-      console.log('updateProject called', { projectId, updateData, user });
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to update project');
+        }
+
+        // Update project
+        await updateProjectService(projectId, updateData);
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating project:', error);
+        throw error;
+      }
     },
     deleteProject: async (projectId: string, user: User) => {
-      // Implementation would go here
-      console.log('deleteProject called', { projectId, user });
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to delete project');
+        }
+
+        // Delete project
+        await deleteProjectService(projectId);
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        throw error;
+      }
     },
     updateProjectStatus: async (projectId: string, status: string, user: User) => {
-      // Implementation would go here
-      console.log('updateProjectStatus called', { projectId, status, user });
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to update project status');
+        }
+
+        // Update project status
+        await updateProjectService(projectId, { status: status as any });
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating project status:', error);
+        throw error;
+      }
     },
     updateJobCardStatus: async (projectId: string, jobCardId: string, status: string, user: User) => {
-      // Implementation would go here
-      console.log('updateJobCardStatus called', { projectId, jobCardId, status, user });
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to update job card status');
+        }
+
+        // Update job card status
+        await updateJobCardService(projectId, jobCardId, { status: status as any });
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating job card status:', error);
+        throw error;
+      }
     },
     updateJobCard: async (projectId: string, jobCardId: string, jobCardData: Partial<JobCard>, user: User) => {
-      // Implementation would go here
-      console.log('updateJobCard called', { projectId, jobCardId, jobCardData, user });
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to update job card');
+        }
+
+        // Update job card - cast to Job type as service expects Job
+        await updateJobCardService(projectId, jobCardId, jobCardData as any);
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating job card:', error);
+        throw error;
+      }
     },
-    addActionItemToProject: async (projectId: string, actionItemData: any, user: User) => {
-      // Implementation would go here
-      console.log('addActionItemToProject called', { projectId, actionItemData, user });
+    addActionItemToProject: async (projectId: string, actionItemData: ActionItemCreationData, user: User) => {
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to add action item');
+        }
+
+        // Create new action item
+        const newActionItem: ActionItem = {
+          id: `action_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          title: actionItemData.title,
+          description: actionItemData.description,
+          completed: false,
+          assignedTo: actionItemData.assignedTo,
+          assignedToName: actionItemData.assignedToName,
+          dueDate: actionItemData.dueDate ? Timestamp.fromDate(actionItemData.dueDate) : undefined,
+          createdAt: serverTimestamp() as any,
+          updatedAt: serverTimestamp() as any,
+        };
+
+        // Add to project
+        const currentActionItems = (project as any).actionItems || [];
+        await updateProjectService(projectId, {
+          actionItems: [...currentActionItems, newActionItem]
+        } as any);
+
+        return { success: true, actionItemId: newActionItem.id };
+      } catch (error) {
+        console.error('Error adding action item:', error);
+        throw error;
+      }
     },
-    updateActionItem: async (projectId: string, actionItemId: string, updates: any, user: User) => {
-      // Implementation would go here
-      console.log('updateActionItem called', { projectId, actionItemId, updates, user });
+    updateActionItem: async (projectId: string, actionItemId: string, updates: Partial<ActionItem>, user: User) => {
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to update action item');
+        }
+
+        // Update action item
+        const currentActionItems = (project as any).actionItems || [];
+        const updatedActionItems = currentActionItems.map((item: ActionItem) =>
+          item.id === actionItemId
+            ? { ...item, ...updates, updatedAt: serverTimestamp() as any }
+            : item
+        );
+
+        await updateProjectService(projectId, {
+          actionItems: updatedActionItems
+        } as any);
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error updating action item:', error);
+        throw error;
+      }
     },
     deleteActionItem: async (projectId: string, actionItemId: string, user: User) => {
-      // Implementation would go here
-      console.log('deleteActionItem called', { projectId, actionItemId, user });
+      try {
+        // Check permissions
+        const project = await getProjectById(projectId);
+        if (!project) {
+          throw new Error('Project not found');
+        }
+
+        if (!canEditProject(project, user)) {
+          throw new Error('Insufficient permissions to delete action item');
+        }
+
+        // Remove action item
+        const currentActionItems = (project as any).actionItems || [];
+        const updatedActionItems = currentActionItems.filter((item: ActionItem) => item.id !== actionItemId);
+
+        await updateProjectService(projectId, {
+          actionItems: updatedActionItems
+        } as any);
+
+        return { success: true };
+      } catch (error) {
+        console.error('Error deleting action item:', error);
+        throw error;
+      }
     }
   };
 };

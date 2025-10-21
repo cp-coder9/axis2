@@ -4,9 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { 
-  Plus, 
-  Search, 
+import {
+  Plus,
+  Search,
   Filter,
   Clock,
   User,
@@ -17,21 +17,19 @@ import {
   Square
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { WorkflowProject, WorkflowTask } from './ProjectWorkflow'
+import { Project, Task, TaskStatus } from '@/types'
 import { JobCard } from './JobCard'
 
 interface TaskManagementBoardProps {
-  projects: WorkflowProject[]
+  projects: Project[]
+  tasks: Task[]
   selectedProject?: string | null
   onProjectSelect?: (projectId: string) => void
   className?: string
 }
 
-type TaskStatus = 'todo' | 'in-progress' | 'review' | 'completed'
-type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
-
 interface TaskColumn {
-  id: TaskStatus
+  id: string
   title: string
   color: string
   count: number
@@ -43,6 +41,7 @@ interface TaskColumn {
  */
 export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
   projects,
+  tasks,
   selectedProject,
   onProjectSelect,
   className
@@ -54,19 +53,28 @@ export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
   // Get all tasks from selected project or all projects
   const allTasks = useMemo(() => {
     if (selectedProject) {
-      const project = projects.find(p => p.id === selectedProject)
-      return project?.tasks || []
-    }
-    return projects.flatMap(project => 
-      project.tasks.map(task => ({
+      const projectTasks = tasks.filter(task => {
+        // Find jobs for this project and check if task belongs to any of them
+        const projectJobs = projects.find(p => p.id === selectedProject)?.jobs || []
+        return projectJobs.some(job => job.id === task.jobId)
+      })
+      return projectTasks.map(task => ({
         ...task,
-        projectTitle: project.title,
-        projectId: project.id
+        projectTitle: projects.find(p => p.id === selectedProject)?.title,
+        projectId: selectedProject
       }))
-    )
-  }, [projects, selectedProject])
-
-  // Get unique assignees for filter
+    }
+    return tasks.map(task => {
+      // Find the project and job for this task
+      const job = projects.flatMap(p => p.jobs || []).find(j => j.id === task.jobId)
+      const project = projects.find(p => p.jobs?.some(j => j.id === task.jobId))
+      return {
+        ...task,
+        projectTitle: project?.title,
+        projectId: project?.id
+      }
+    })
+  }, [projects, tasks, selectedProject])  // Get unique assignees for filter
   const uniqueAssignees = useMemo(() => {
     const assignees = new Set(allTasks.map(task => task.assignedTo))
     return Array.from(assignees).filter(Boolean)
@@ -75,13 +83,13 @@ export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
   // Filter tasks based on search and filters
   const filteredTasks = useMemo(() => {
     return allTasks.filter(task => {
-      const matchesSearch = searchQuery === '' || 
+      const matchesSearch = searchQuery === '' ||
         task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         task.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      
+
       const matchesPriority = filterPriority === 'all' || task.priority === filterPriority
       const matchesAssignee = filterAssignee === 'all' || task.assignedTo === filterAssignee
-      
+
       return matchesSearch && matchesPriority && matchesAssignee
     })
   }, [allTasks, searchQuery, filterPriority, filterAssignee])
@@ -89,32 +97,32 @@ export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
   // Define task columns
   const columns: TaskColumn[] = [
     {
-      id: 'todo',
+      id: 'TODO',
       title: 'To Do',
       color: 'bg-gray-50 border-gray-200',
-      count: filteredTasks.filter(t => t.status === 'todo').length
+      count: filteredTasks.filter(t => t.status === TaskStatus.TODO).length
     },
     {
-      id: 'in-progress',
+      id: 'IN_PROGRESS',
       title: 'In Progress',
       color: 'bg-blue-50 border-blue-200',
-      count: filteredTasks.filter(t => t.status === 'in-progress').length
+      count: filteredTasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length
     },
     {
-      id: 'review',
+      id: 'REVIEW',
       title: 'Review',
       color: 'bg-yellow-50 border-yellow-200',
-      count: filteredTasks.filter(t => t.status === 'review').length
+      count: filteredTasks.filter(t => t.status === TaskStatus.REVIEW).length
     },
     {
-      id: 'completed',
+      id: 'COMPLETED',
       title: 'Completed',
       color: 'bg-green-50 border-green-200',
-      count: filteredTasks.filter(t => t.status === 'completed').length
+      count: filteredTasks.filter(t => t.status === TaskStatus.COMPLETED).length
     }
   ]
 
-  const getPriorityColor = (priority: TaskPriority) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent': return 'bg-red-100 text-red-800'
       case 'high': return 'bg-orange-100 text-orange-800'
@@ -221,7 +229,7 @@ export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
                 </Badge>
               </CardTitle>
             </CardHeader>
-            
+
             <CardContent className="space-y-3">
               {filteredTasks
                 .filter(task => task.status === column.id)
@@ -233,7 +241,7 @@ export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
                     onTimerAction={handleTimerAction}
                   />
                 ))}
-              
+
               {/* Add Task Button */}
               <Button
                 variant="ghost"
@@ -258,34 +266,35 @@ export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-600">
-                {filteredTasks.filter(t => t.status === 'in-progress').length}
+                {filteredTasks.filter(t => t.status === TaskStatus.IN_PROGRESS).length}
               </div>
               <p className="text-sm text-muted-foreground">In Progress</p>
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="text-2xl font-bold text-green-600">
-                {filteredTasks.filter(t => t.status === 'completed').length}
+                {filteredTasks.filter(t => t.status === TaskStatus.COMPLETED).length}
               </div>
               <p className="text-sm text-muted-foreground">Completed</p>
             </div>
           </CardContent>
-        </Card>
-        
-        <Card>
+        </Card>        <Card>
           <CardContent className="pt-6">
             <div className="text-center">
               <div className="text-2xl font-bold">
-                {Math.round(filteredTasks.reduce((sum, t) => sum + t.actualHours, 0))}h
+                {Math.round(filteredTasks.reduce((sum, t) => {
+                  const loggedMinutes = t.timeLogs?.reduce((logSum, log) => logSum + log.durationMinutes, 0) || 0;
+                  return sum + (loggedMinutes / 60);
+                }, 0))}h
               </div>
               <p className="text-sm text-muted-foreground">Hours Logged</p>
             </div>
@@ -298,7 +307,7 @@ export const TaskManagementBoard: React.FC<TaskManagementBoardProps> = ({
 
 // Individual Task Card Component for Kanban
 interface TaskCardProps {
-  task: WorkflowTask & { projectTitle?: string; projectId?: string }
+  task: Task & { projectTitle?: string; projectId?: string }
   onStatusChange: (taskId: string, status: TaskStatus) => void
   onTimerAction: (taskId: string, action: 'start' | 'pause' | 'stop') => void
 }
@@ -307,7 +316,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange, onTimerAction
   const [isTimerActive, setIsTimerActive] = useState(false)
   const [isTimerPaused, setIsTimerPaused] = useState(false)
 
-  const getPriorityColor = (priority: TaskPriority) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'urgent': return 'bg-red-100 text-red-800 border-red-200'
       case 'high': return 'bg-orange-100 text-orange-800 border-orange-200'
@@ -361,10 +370,10 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange, onTimerAction
               <Flag className="w-2 h-2 mr-1" />
               {task.priority}
             </Badge>
-            
+
             {task.dueDate && (
               <span className="text-muted-foreground">
-                Due: {task.dueDate.toLocaleDateString()}
+                Due: {task.dueDate.toDate().toLocaleDateString()}
               </span>
             )}
           </div>
@@ -372,9 +381,9 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange, onTimerAction
           <div className="flex items-center justify-between text-xs">
             <div className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              <span>{task.actualHours}h / {task.estimatedHours}h</span>
+              <span>{task.estimatedTime || 0}h / {task.allocatedHours || 0}h</span>
             </div>
-            
+
             {task.assignedTo && (
               <div className="flex items-center gap-1">
                 <User className="w-3 h-3" />
@@ -421,7 +430,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ task, onStatusChange, onTimerAction
               variant="default"
               onClick={() => handleTimerClick('start')}
               className="h-6 px-2 text-xs"
-              disabled={task.status === 'completed'}
+              disabled={task.status === TaskStatus.COMPLETED}
             >
               <Play className="w-2 h-2 mr-1" />Start
             </Button>

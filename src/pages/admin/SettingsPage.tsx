@@ -4,8 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Settings as SettingsIcon, 
+import {
+  Settings as SettingsIcon,
   Bell,
   Lock,
   Palette,
@@ -14,8 +14,14 @@ import {
   Shield,
   Database,
   Mail,
-  Save
+  Save,
+  Clock,
+  DollarSign,
+  FileCheck,
+  Timer,
+  CheckCircle
 } from 'lucide-react';
+import AllocationApprovalPanel from '@/components/admin/AllocationApprovalPanel';
 
 export default function SettingsPage() {
   return (
@@ -39,6 +45,8 @@ export default function SettingsPage() {
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="time-management">Time Management</TabsTrigger>
+          <TabsTrigger value="approvals">Approvals</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="appearance">Appearance</TabsTrigger>
         </TabsList>
@@ -153,6 +161,156 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Time Management Settings */}
+        <TabsContent value="time-management" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Time Allocation Policies
+              </CardTitle>
+              <CardDescription>Configure time allocation limits and approval workflows</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Default Allocation Limit (hours)</label>
+                <Input defaultValue="40" type="number" />
+                <p className="text-xs text-muted-foreground">Maximum hours that can be allocated per freelancer per week</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Auto-Approval Threshold (hours)</label>
+                <Input defaultValue="20" type="number" />
+                <p className="text-xs text-muted-foreground">Allocations below this threshold are automatically approved</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Large Allocation Threshold (hours)</label>
+                <Input defaultValue="50" type="number" />
+                <p className="text-xs text-muted-foreground">Allocations above this threshold require multi-admin approval</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Require Admin Override for Large Allocations</p>
+                  <p className="text-sm text-muted-foreground">Admins must explicitly override restrictions for large allocations</p>
+                </div>
+                <Badge variant="secondary" className="text-green-600">Enabled</Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="h-5 w-5" />
+                Time Slot Pricing
+              </CardTitle>
+              <CardDescription>Configure pricing for time slot purchases</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Base Hourly Rate ($)</label>
+                <Input defaultValue="75" type="number" step="0.01" />
+                <p className="text-xs text-muted-foreground">Standard hourly rate for time slots</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Premium Rate Multiplier</label>
+                <Input defaultValue="1.5" type="number" step="0.1" />
+                <p className="text-xs text-muted-foreground">Multiplier for urgent or specialized time slots</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Bulk Purchase Discount (%)</label>
+                <Input defaultValue="10" type="number" />
+                <p className="text-xs text-muted-foreground">Discount for purchasing 50+ hours at once</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Dynamic Pricing</p>
+                  <p className="text-sm text-muted-foreground">Adjust prices based on demand and availability</p>
+                </div>
+                <Badge variant="secondary" className="text-orange-600">Coming Soon</Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Timer className="h-5 w-5" />
+                Timer Restrictions
+              </CardTitle>
+              <CardDescription>Configure timer behavior and restrictions</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Maximum Session Duration (hours)</label>
+                <Input defaultValue="8" type="number" />
+                <p className="text-xs text-muted-foreground">Maximum continuous timer session before requiring break</p>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Daily Time Limit (hours)</label>
+                <Input defaultValue="10" type="number" />
+                <p className="text-xs text-muted-foreground">Maximum hours that can be logged per day</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Enforce Time Slot Boundaries</p>
+                  <p className="text-sm text-muted-foreground">Prevent timers from running outside allocated time slots</p>
+                </div>
+                <Badge variant="secondary" className="text-green-600">Enabled</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Allow Admin Override</p>
+                  <p className="text-sm text-muted-foreground">Administrators can bypass timer restrictions</p>
+                </div>
+                <Badge variant="secondary" className="text-green-600">Enabled</Badge>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5" />
+                Audit & Compliance
+              </CardTitle>
+              <CardDescription>Configure audit logging and data retention</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Audit Log Retention (days)</label>
+                <Input defaultValue="365" type="number" />
+                <p className="text-xs text-muted-foreground">How long to keep audit logs for time management operations</p>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Log All Timer Events</p>
+                  <p className="text-sm text-muted-foreground">Record start, stop, pause, and resume events</p>
+                </div>
+                <Badge variant="secondary" className="text-green-600">Enabled</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Log Allocation Changes</p>
+                  <p className="text-sm text-muted-foreground">Track all time allocation modifications</p>
+                </div>
+                <Badge variant="secondary" className="text-green-600">Enabled</Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Log Time Slot Purchases</p>
+                  <p className="text-sm text-muted-foreground">Record all client time slot purchases</p>
+                </div>
+                <Badge variant="secondary" className="text-green-600">Enabled</Badge>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Allocation Approvals */}
+        <TabsContent value="approvals" className="space-y-4">
+          <AllocationApprovalPanel />
         </TabsContent>
 
         {/* Notifications Settings */}

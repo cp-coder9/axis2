@@ -13,7 +13,10 @@ import {
     Timestamp
 } from 'firebase/firestore';
 import { db } from '../firebase';
-import { TimeAllocation, TimeAllocationStatus, TimeSlot, TimeSlotStatus } from '../types';
+import { TimeAllocation, TimeAllocationStatus, TimeSlotStatus, AllocationApprovalStatus, User, AuditAction } from '../types';
+import { TimeSlot } from '../types/timeManagement';
+import { createApprovalRequest, checkAllocationRequiresApproval } from './allocationApprovalService';
+import { logAuditEvent } from '../utils/auditLogger';
 
 const TIME_ALLOCATIONS_COLLECTION = 'timeAllocations';
 const TIME_SLOTS_COLLECTION = 'timeSlots';
@@ -21,7 +24,11 @@ const TIME_SLOTS_COLLECTION = 'timeSlots';
 /**
  * Create a new time allocation (Admin only)
  */
-export const createTimeAllocation = async (allocationData: Omit<TimeAllocation, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+export const createTimeAllocation = async (
+    allocationData: Omit<TimeAllocation, 'id' | 'createdAt' | 'updatedAt'>,
+    user: User,
+    largeAllocationThreshold: number = 50
+): Promise<{ allocationId: string; requiresApproval: boolean; approvalRequestId?: string }> => {
     try {
         // Check for conflicts before creating
         const conflicts = await checkAllocationConflicts(
@@ -34,18 +41,63 @@ export const createTimeAllocation = async (allocationData: Omit<TimeAllocation, 
             throw new Error(`Time allocation conflicts with existing allocations: ${conflicts.map(c => c.projectId).join(', ')}`);
         }
 
+        // Check if this allocation requires approval
+        const requiresApproval = checkAllocationRequiresApproval(allocationData.allocatedHours, largeAllocationThreshold);
+
+        let approvalRequestId: string | undefined;
+        let initialStatus = TimeAllocationStatus.ACTIVE;
+
+        if (requiresApproval) {
+            // Create approval request first
+            approvalRequestId = await createApprovalRequest(
+                allocationData,
+                `Large time allocation of ${allocationData.allocatedHours} hours requested`
+            );
+            initialStatus = TimeAllocationStatus.PENDING_APPROVAL;
+        }
+
         const allocationsCollectionRef = collection(db, TIME_ALLOCATIONS_COLLECTION);
         const docRef = await addDoc(allocationsCollectionRef, {
             ...allocationData,
-            status: TimeAllocationStatus.ACTIVE,
+            status: initialStatus,
+            requiresApproval,
+            approvalStatus: requiresApproval ? AllocationApprovalStatus.PENDING : undefined,
+            approvalRequestId,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
         });
 
-        // Create time slots from the allocation (4-hour blocks)
-        await createTimeSlotsFromAllocation(docRef.id, allocationData);
+        // If no approval required, create time slots immediately
+        if (!requiresApproval) {
+            await createTimeSlotsFromAllocation(docRef.id, allocationData);
+        }
 
-        return docRef.id;
+        // If approval required, update the approval request with the allocation ID
+        if (requiresApproval && approvalRequestId) {
+            const { updateDoc } = await import('firebase/firestore');
+            const approvalDocRef = doc(db, 'allocationApprovalRequests', approvalRequestId);
+            await updateDoc(approvalDocRef, {
+                allocationId: docRef.id,
+                updatedAt: serverTimestamp()
+            });
+        }
+
+        // Log audit event
+        await logAuditEvent(user, AuditAction.TIME_ALLOCATION_CREATED, {
+            resourceType: 'timeAllocation',
+            resourceId: docRef.id,
+            projectId: allocationData.projectId,
+            freelancerId: allocationData.freelancerId,
+            allocatedHours: allocationData.allocatedHours,
+            requiresApproval,
+            approvalRequestId
+        });
+
+        return {
+            allocationId: docRef.id,
+            requiresApproval,
+            approvalRequestId
+        };
     } catch (error) {
         console.error('Error creating time allocation:', error);
         throw new Error('Failed to create time allocation');
@@ -87,7 +139,8 @@ export const getTimeAllocations = async (
  */
 export const updateTimeAllocation = async (
     allocationId: string,
-    updates: Partial<TimeAllocation>
+    updates: Partial<TimeAllocation>,
+    user: User
 ): Promise<void> => {
     try {
         // If updating time-related fields, check for conflicts
@@ -119,6 +172,14 @@ export const updateTimeAllocation = async (
             ...updates,
             updatedAt: serverTimestamp(),
         });
+
+        // Log audit event
+        await logAuditEvent(user, AuditAction.TIME_ALLOCATION_UPDATED, {
+            resourceType: 'timeAllocation',
+            resourceId: allocationId,
+            updates: Object.keys(updates),
+            ...updates
+        });
     } catch (error) {
         console.error('Error updating time allocation:', error);
         throw new Error('Failed to update time allocation');
@@ -128,8 +189,15 @@ export const updateTimeAllocation = async (
 /**
  * Delete a time allocation and its associated slots
  */
-export const deleteTimeAllocation = async (allocationId: string): Promise<void> => {
+export const deleteTimeAllocation = async (allocationId: string, user: User): Promise<void> => {
     try {
+        // Get allocation data before deleting for audit logging
+        const allocationDoc = await getDoc(doc(db, TIME_ALLOCATIONS_COLLECTION, allocationId));
+        if (!allocationDoc.exists()) {
+            throw new Error('Allocation not found');
+        }
+        const allocationData = allocationDoc.data() as TimeAllocation;
+
         // Delete associated time slots first
         const slotsQuery = query(
             collection(db, TIME_SLOTS_COLLECTION),
@@ -146,6 +214,16 @@ export const deleteTimeAllocation = async (allocationId: string): Promise<void> 
         // Delete the allocation
         const allocationDocRef = doc(db, TIME_ALLOCATIONS_COLLECTION, allocationId);
         await deleteDoc(allocationDocRef);
+
+        // Log audit event
+        await logAuditEvent(user, AuditAction.TIME_ALLOCATION_DELETED, {
+            resourceType: 'timeAllocation',
+            resourceId: allocationId,
+            projectId: allocationData.projectId,
+            freelancerId: allocationData.freelancerId,
+            allocatedHours: allocationData.allocatedHours,
+            deletedSlotsCount: slotsSnapshot.docs.length
+        });
     } catch (error) {
         console.error('Error deleting time allocation:', error);
         throw new Error('Failed to delete time allocation');

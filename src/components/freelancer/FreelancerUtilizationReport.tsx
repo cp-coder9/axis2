@@ -97,7 +97,13 @@ export const FreelancerUtilizationReport: React.FC<FreelancerUtilizationReportPr
 
             const freelancerMetrics = TimerAnalytics.calculateFreelancerUtilization(
                 allocations,
-                timeSlots,
+                timeSlots.map(slot => ({
+                    ...slot,
+                    startTime: slot.startTime.toDate(),
+                    endTime: slot.endTime.toDate(),
+                    createdAt: slot.createdAt.toDate(),
+                    updatedAt: slot.updatedAt.toDate()
+                })),
                 purchases,
                 timeLogs,
                 period
